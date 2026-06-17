@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { redirect, notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getListingById } from '@/lib/listing-detail'
+import { fetchLocationRevenue } from '@/lib/kpi/fetch'
 import { hasContactedListing } from '@/lib/contact-actions'
 import { isFavorited } from '@/lib/favorites-actions'
 import { ListingPhotos } from './ListingPhotos'
@@ -49,6 +50,22 @@ export default async function ListingDetailPage({ params }: Props) {
     hasContactedListing(listing.id),
     isFavorited(listing.id),
   ])
+
+  // Compute Boulevard TTM revenue from confirmed salon locations
+  const salonLocations = listing.locations.filter(l => l.locationType === 'salon')
+  const revenueResults = await Promise.all(
+    salonLocations.map(l =>
+      fetchLocationRevenue({
+        listingStatus: listing.status,
+        mappingStatus: l.boulevardMappingStatus,
+        boulevardLocationId: l.boulevardLocationId,
+      })
+    )
+  )
+  const connected = revenueResults.filter((r): r is NonNullable<typeof r> => r !== null)
+  const boulevardTtm = connected.length > 0
+    ? { cents: connected.reduce((sum, r) => sum + r.ttmCents, 0), asOf: connected[0].metric.updatedAt }
+    : null
 
   // Primary salon location for display
   const primaryLocation = listing.locations.find(l => l.locationType === 'salon') ?? listing.locations[0]
@@ -142,7 +159,7 @@ export default async function ListingDetailPage({ params }: Props) {
           {/* Financials */}
           <section>
             <h2 className="text-xl font-display font-semibold mb-4 text-gray-900">Financials</h2>
-            <FinancialsGrid listing={listing} />
+            <FinancialsGrid listing={listing} boulevardTtm={boulevardTtm} hasSalonLocations={salonLocations.length > 0} />
           </section>
 
           {/* Live KPI Section */}

@@ -100,6 +100,13 @@ export async function fetchBundleKpi(locationIds: string[]): Promise<Record<stri
   return bundle
 }
 
+// Daily-cached monthly sales, keyed by boulevard location id (don't hit the API per view).
+const cachedMonthlySales = unstable_cache(
+  async (boulevardLocationId: string) => fetchMonthlySales(boulevardLocationId, 12),
+  ["boulevard-monthly-sales"],
+  { revalidate: 86400, tags: ["boulevard-revenue"] }
+)
+
 export async function fetchLocationRevenue(args: {
   listingStatus: string
   mappingStatus: string
@@ -108,7 +115,7 @@ export async function fetchLocationRevenue(args: {
   if (!args.boulevardLocationId || !canFetchBoulevard(args.listingStatus, args.mappingStatus)) {
     return null // "not connected"
   }
-  const series = await fetchMonthlySales(args.boulevardLocationId, 12)
+  const series = await cachedMonthlySales(args.boulevardLocationId)
   if (!series || series.length === 0) return null
   const ttmCents = series.reduce((s, m) => s + m.sales, 0)
   const last = series[series.length - 1].sales
