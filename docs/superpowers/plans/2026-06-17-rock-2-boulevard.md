@@ -741,9 +741,13 @@ git commit -m "feat(rock-2): daily cache, as-of freshness, source badges, truthf
 
 ## Task 9: MR% — implement once Task 0 definition lands (deferred)
 
-**Blocked by Task 0** (MR% definition from Haley/Austin: numerator, denominator, time window). Until then `fetchMembershipRate` returns `null` and the MR% card shows "Pending."
+**MR% definition (CONFIRMED 2026-06-17):** per location, per month —
+**new members in the period ÷ unique clients with an order in the same period.**
+Both sides are cleanly location- and date-filterable in Boulevard. The KPI card shows the
+last full month with a 12-month trend (one ratio per month). `fetchMembershipRate` stays
+`null` (card "Pending") only until this task is implemented in its sequence slot.
 
-When the definition arrives:
+Implementation:
 - [ ] Implement the membership query in `client.ts` (`fetchMembershipRate`) per the confirmed definition, Zod-validated.
 - [ ] Wire it into the KPI section's membership card (replace the stub/sample badge with real value + "Boulevard" badge + "as of").
 - [ ] Add a unit test mirroring the revenue test (mock the client; assert value + source).

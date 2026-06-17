@@ -101,9 +101,13 @@ on `listing_locations`:
 ## MR% (Task 4 — stubbed)
 
 `fetchMembershipRate` interface exists and returns a stub/`null`; the MR% card is badged
-"pending." When the definition (numerator, denominator, time window — from Haley/Austin)
-returns, implement against Boulevard membership data and flip the card to real. Localized
-change behind the existing interface.
+"pending" until implemented.
+
+**MR% definition (confirmed 2026-06-17):** per location, per month —
+**new members in the period ÷ unique clients with an order in the same period.** Both
+sides are location- and date-filterable in Boulevard. Card shows the last full month with
+a 12-month trend (one ratio per month). Implementing it is a localized change behind the
+existing interface.
 
 ## Caching & freshness (Task 5)
 
