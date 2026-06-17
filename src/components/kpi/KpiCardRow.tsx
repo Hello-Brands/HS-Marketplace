@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { KpiData } from '@/lib/kpi/schema'
+import { kpiBadge } from '@/lib/kpi/badges'
 import { KpiCard } from './KpiCard'
 import { KpiTrendModal } from './KpiTrendModal'
 
@@ -69,6 +70,7 @@ export function KpiCardRow({ kpiData }: KpiCardRowProps) {
               metric={metric}
               formatValue={config.format}
               onClick={() => setSelectedKpi(config.key)}
+              badge={kpiBadge(config.key, metric)}
             />
           )
         })}

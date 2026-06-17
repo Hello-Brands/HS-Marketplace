@@ -179,6 +179,9 @@ export default async function ListingDetailPage({ params }: Props) {
                   }))
                 : undefined
             }
+            boulevardLocationId={primaryLocation?.boulevardLocationId ?? null}
+            boulevardMappingStatus={primaryLocation?.boulevardMappingStatus}
+            listingStatus={listing.status}
           />
 
           {/* About / Notes */}
