@@ -82,6 +82,13 @@ export const listingLocations = pgTable("listing_locations", {
   geocodedAt: timestamp("geocoded_at"),
   geocodeSource: text("geocode_source"), // e.g. "internal_api", "maptiler"
 
+  // Boulevard join key (Rock 2). Real KPI/financials are fetched ONLY when
+  // boulevardMappingStatus === "confirmed". Suggested by name match, human-confirmed.
+  boulevardLocationId: text("boulevard_location_id"),
+  boulevardMappingStatus: text("boulevard_mapping_status", {
+    enum: ["unconfirmed", "confirmed", "not_connected"],
+  }).default("unconfirmed").notNull(),
+
   // Display ordering
   displayOrder: integer("display_order").default(0).notNull(),
 }, (table) => [
