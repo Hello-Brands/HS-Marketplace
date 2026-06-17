@@ -1,7 +1,9 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
-import { kpiResponseSchema, type KpiData } from "./schema"
+import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
 import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
+import { fetchMonthlySales } from "@/lib/boulevard/client"
+import { canFetchBoulevard } from "./access"
 
 /**
  * Check if we should use mock data (dev mode without API credentials).
@@ -96,4 +98,30 @@ export async function fetchBundleKpi(locationIds: string[]): Promise<Record<stri
   }
 
   return bundle
+}
+
+export async function fetchLocationRevenue(args: {
+  listingStatus: string
+  mappingStatus: string
+  boulevardLocationId: string | null
+}): Promise<{ metric: KpiMetric; ttmCents: number } | null> {
+  if (!args.boulevardLocationId || !canFetchBoulevard(args.listingStatus, args.mappingStatus)) {
+    return null // "not connected"
+  }
+  const series = await fetchMonthlySales(args.boulevardLocationId, 12)
+  if (!series || series.length === 0) return null
+  const ttmCents = series.reduce((s, m) => s + m.sales, 0)
+  const last = series[series.length - 1].sales
+  const prev = series.length > 1 ? series[series.length - 2].sales : last
+  const momChange = prev > 0 ? (last - prev) / prev : 0
+  return {
+    ttmCents,
+    metric: {
+      lastMonth: last,
+      momChange,
+      trend: series.map((m) => ({ month: m.month, value: m.sales })),
+      updatedAt: new Date().toISOString(),
+      source: "boulevard",
+    },
+  }
 }
