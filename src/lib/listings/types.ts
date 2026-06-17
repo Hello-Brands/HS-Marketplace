@@ -22,6 +22,9 @@ export interface LocationSelection {
   openingDate?: Date
   ttmRevenue?: number
   mcr?: number
+  // Salon coordinates (for radius search). Territory uses territoryLat/Lng below.
+  latitude?: number
+  longitude?: number
   territoryLat?: number
   territoryLng?: number
   territoryRadius?: number

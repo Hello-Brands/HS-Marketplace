@@ -1,7 +1,11 @@
 "use client"
 
-import { parseAsArrayOf, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
+import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
 import { US_STATES } from "@/lib/us-states"
+
+// Radius options (miles) for the location search.
+export const RADIUS_OPTIONS = [5, 10, 25, 50, 100] as const
+export const DEFAULT_RADIUS_MILES = 25
 
 const PRICE_OPTIONS = [
   { label: "Any", value: undefined },
@@ -23,6 +27,8 @@ const SORT_OPTIONS = [
   { label: "Newest first", value: "newest" },
   { label: "Price: Low to high", value: "price-asc" },
   { label: "Price: High to low", value: "price-desc" },
+  // Only selectable when a search location is set (see render below).
+  { label: "Nearest first", value: "distance", requiresCenter: true },
 ]
 
 const TIME_OPEN_OPTIONS = [
@@ -42,6 +48,11 @@ export function useListingFilters() {
     maxPrice: parseAsInteger,
     sort: parseAsString.withDefault("newest"),
     minYearsOpen: parseAsInteger,
+    // Radius search (set together when a location is picked)
+    centerLat: parseAsFloat,
+    centerLng: parseAsFloat,
+    radiusMiles: parseAsInteger,
+    centerLabel: parseAsString.withDefault(""),
   })
 }
 
@@ -54,7 +65,8 @@ export function FilterBar() {
     filters.states.length > 0 ||
     filters.minPrice !== null ||
     filters.maxPrice !== null ||
-    (filters.minYearsOpen !== null && filters.minYearsOpen > 0)
+    (filters.minYearsOpen !== null && filters.minYearsOpen > 0) ||
+    filters.centerLat !== null
 
   function toggleType(value: string) {
     const current = filters.types
@@ -73,15 +85,24 @@ export function FilterBar() {
   }
 
   function clearAll() {
-    setFilters({
-      query: null,
-      types: [],
-      states: [],
-      minPrice: null,
-      maxPrice: null,
-      sort: "newest",
-      minYearsOpen: null,
-    })
+    setFilters(
+      {
+        query: null,
+        types: [],
+        states: [],
+        minPrice: null,
+        maxPrice: null,
+        sort: "newest",
+        minYearsOpen: null,
+        centerLat: null,
+        centerLng: null,
+        radiusMiles: null,
+        centerLabel: null,
+      },
+      // Non-shallow so a cleared location also refreshes the server-rendered
+      // map pins (the map is fed the server's initial list).
+      { shallow: false }
+    )
   }
 
   const selectBaseClass = `
@@ -279,7 +300,7 @@ export function FilterBar() {
               onChange={(e) => setFilters({ sort: e.target.value })}
               className={selectBaseClass}
             >
-              {SORT_OPTIONS.map((o) => (
+              {SORT_OPTIONS.filter((o) => !o.requiresCenter || filters.centerLat !== null).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>

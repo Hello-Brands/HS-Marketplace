@@ -48,31 +48,58 @@ CREATE TABLE "verification_tokens" (
 	CONSTRAINT "verification_tokens_identifier_token_pk" PRIMARY KEY("identifier","token")
 );
 --> statement-breakpoint
+CREATE TABLE "listing_locations" (
+	"id" text PRIMARY KEY NOT NULL,
+	"listing_id" text NOT NULL,
+	"location_type" text NOT NULL,
+	"external_id" text,
+	"name" text NOT NULL,
+	"address" text,
+	"city" text,
+	"state" text,
+	"zip_code" text,
+	"square_footage" integer,
+	"opening_date" timestamp,
+	"ttm_revenue" integer,
+	"mcr" real,
+	"territory_lat" real,
+	"territory_lng" real,
+	"territory_radius" integer,
+	"latitude" double precision,
+	"longitude" double precision,
+	"geocoded_at" timestamp,
+	"geocode_source" text,
+	"display_order" integer DEFAULT 0 NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "listing_photos" (
+	"id" text PRIMARY KEY NOT NULL,
+	"listing_id" text NOT NULL,
+	"url" text NOT NULL,
+	"filename" text NOT NULL,
+	"display_order" integer NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "listings" (
 	"id" text PRIMARY KEY NOT NULL,
 	"seller_id" text NOT NULL,
 	"type" "listing_type" NOT NULL,
 	"status" "listing_status" DEFAULT 'draft' NOT NULL,
-	"location_name" text,
-	"city" text,
-	"state" text,
-	"latitude" numeric(10, 7),
-	"longitude" numeric(10, 7),
-	"square_footage" integer,
-	"opening_date" date,
-	"asking_price" integer,
+	"title" text,
+	"asking_price" integer NOT NULL,
 	"ttm_profit" integer,
-	"monthly_expenses" json,
 	"reason_for_selling" text,
-	"assets" text,
 	"notes" text,
+	"inventory_included" boolean DEFAULT false NOT NULL,
+	"laser_included" boolean DEFAULT false NOT NULL,
+	"other_assets" text,
 	"rejection_reason" text,
-	"bundled_listing_ids" json,
+	"last_reminder_sent" timestamp,
+	"view_count" integer DEFAULT 0 NOT NULL,
+	"inquiry_count" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"submitted_at" timestamp,
-	"approved_at" timestamp,
-	"sold_at" timestamp
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "photos" (
@@ -105,11 +132,24 @@ CREATE TABLE "alerts" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "favorites" (
+	"id" text PRIMARY KEY NOT NULL,
+	"user_id" text NOT NULL,
+	"listing_id" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "allowlist" ADD CONSTRAINT "allowlist_added_by_users_id_fk" FOREIGN KEY ("added_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "listing_locations" ADD CONSTRAINT "listing_locations_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "listing_photos" ADD CONSTRAINT "listing_photos_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "listings" ADD CONSTRAINT "listings_seller_id_users_id_fk" FOREIGN KEY ("seller_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "photos" ADD CONSTRAINT "photos_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_buyer_id_users_id_fk" FOREIGN KEY ("buyer_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "alerts" ADD CONSTRAINT "alerts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "alerts" ADD CONSTRAINT "alerts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "favorites" ADD CONSTRAINT "favorites_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "favorites" ADD CONSTRAINT "favorites_listing_id_listings_id_fk" FOREIGN KEY ("listing_id") REFERENCES "public"."listings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "listing_locations_lat_lng_idx" ON "listing_locations" USING btree ("latitude","longitude");--> statement-breakpoint
+CREATE UNIQUE INDEX "favorites_user_listing_idx" ON "favorites" USING btree ("user_id","listing_id");

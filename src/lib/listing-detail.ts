@@ -36,6 +36,8 @@ export interface ListingDetail {
   otherAssets: string | null
   notes: string | null
   createdAt: Date
+  viewCount: number
+  inquiryCount: number
   seller: {
     id: string
     name: string | null
@@ -77,6 +79,8 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
     otherAssets: listing.otherAssets ?? null,
     notes: listing.notes ?? null,
     createdAt: listing.createdAt,
+    viewCount: listing.viewCount,
+    inquiryCount: listing.inquiryCount,
     seller: {
       id: listing.seller.id,
       name: listing.seller.name ?? null,
