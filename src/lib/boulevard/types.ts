@@ -15,3 +15,15 @@ export const locationsResponse = z.object({
 })
 
 export type MonthlySales = { month: string; sales: number }
+
+export const monthlyMembershipResponse = z.object({
+  data: z.object({
+    location: z.object({
+      monthlyMembership: z.array(z.object({
+        month: z.string(),
+        newMembers: z.number(),
+        uniqueOrderingClients: z.number(),
+      })),
+    }).nullable(),
+  }),
+})

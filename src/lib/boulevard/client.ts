@@ -1,5 +1,5 @@
 import "server-only"
-import { monthlySalesResponse, locationsResponse, type MonthlySales } from "./types"
+import { monthlySalesResponse, locationsResponse, monthlyMembershipResponse, type MonthlySales } from "./types"
 
 const TIMEOUT_MS = 8000
 
@@ -65,7 +65,28 @@ export async function listBoulevardLocations(): Promise<{ id: string; name: stri
   return parsed.success ? parsed.data.data.locations : null
 }
 
-/** Stub until the MR% definition is implemented. */
-export async function fetchMembershipRate(_boulevardLocationId: string): Promise<number | null> {
-  return null
+// --- Live-iteration point: confirm against the real Admin API. ---
+const MEMBERSHIP_QUERY = `
+  query LocationMonthlyMembership($id: ID!, $months: Int!) {
+    location(id: $id) {
+      monthlyMembership(lastMonths: $months) { month newMembers uniqueOrderingClients }
+    }
+  }`
+// -----------------------------------------------------------------
+
+export async function fetchMonthlyMembership(
+  boulevardLocationId: string,
+  months: number
+): Promise<{ month: string; rate: number }[] | null> {
+  const raw = await gql(MEMBERSHIP_QUERY, { id: boulevardLocationId, months })
+  if (raw === null) return null
+  const parsed = monthlyMembershipResponse.safeParse(raw)
+  if (!parsed.success || !parsed.data.data.location) {
+    console.warn("[boulevard] membership validation failed")
+    return null
+  }
+  return parsed.data.data.location.monthlyMembership.map((m) => ({
+    month: m.month,
+    rate: m.uniqueOrderingClients > 0 ? m.newMembers / m.uniqueOrderingClients : 0,
+  }))
 }

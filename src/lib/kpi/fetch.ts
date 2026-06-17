@@ -2,7 +2,7 @@ import "server-only"
 import { unstable_cache } from "next/cache"
 import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
 import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
-import { fetchMonthlySales } from "@/lib/boulevard/client"
+import { fetchMonthlySales, fetchMonthlyMembership } from "@/lib/boulevard/client"
 import { canFetchBoulevard } from "./access"
 
 /**
@@ -106,6 +106,35 @@ const cachedMonthlySales = unstable_cache(
   ["boulevard-monthly-sales"],
   { revalidate: 86400, tags: ["boulevard-revenue"] }
 )
+
+// Daily-cached monthly membership rates, keyed by boulevard location id.
+const cachedMonthlyMembership = unstable_cache(
+  async (boulevardLocationId: string) => fetchMonthlyMembership(boulevardLocationId, 12),
+  ["boulevard-monthly-membership"],
+  { revalidate: 86400, tags: ["boulevard-membership"] }
+)
+
+export async function fetchLocationMembership(args: {
+  listingStatus: string
+  mappingStatus: string
+  boulevardLocationId: string | null
+}): Promise<KpiMetric | null> {
+  if (!args.boulevardLocationId || !canFetchBoulevard(args.listingStatus, args.mappingStatus)) {
+    return null
+  }
+  const series = await cachedMonthlyMembership(args.boulevardLocationId)
+  if (!series || series.length === 0) return null
+  const last = series[series.length - 1].rate
+  const prev = series.length > 1 ? series[series.length - 2].rate : last
+  const momChange = prev > 0 ? (last - prev) / prev : 0
+  return {
+    lastMonth: last,
+    momChange,
+    trend: series.map((m) => ({ month: m.month, value: m.rate })),
+    updatedAt: new Date().toISOString(),
+    source: "boulevard",
+  }
+}
 
 export async function fetchLocationRevenue(args: {
   listingStatus: string

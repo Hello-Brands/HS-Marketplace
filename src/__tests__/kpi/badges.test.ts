@@ -10,8 +10,11 @@ describe("kpiBadge", () => {
   it("revenue without a boulevard source is sample", () => {
     expect(kpiBadge("revenue", m())).toBe("sample")
   })
-  it("membership conversion is pending (stubbed this round)", () => {
-    expect(kpiBadge("membershipConversion", m("boulevard"))).toBe("pending")
+  it("membership conversion without a boulevard source is pending", () => {
+    expect(kpiBadge("membershipConversion", m())).toBe("pending")
+  })
+  it("membership conversion from boulevard is live", () => {
+    expect(kpiBadge("membershipConversion", m("boulevard"))).toBe("live")
   })
   it("new clients and bookings are sample", () => {
     expect(kpiBadge("newClients", m())).toBe("sample")

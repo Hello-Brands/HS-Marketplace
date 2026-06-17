@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { fetchLocationKpi, fetchBundleKpi, fetchLocationRevenue } from '@/lib/kpi/fetch'
+import { fetchLocationKpi, fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership } from '@/lib/kpi/fetch'
 import { aggregateBundleKpi } from '@/lib/kpi/aggregate'
 import { KpiCardRow } from './KpiCardRow'
 import { BundleKpiSection } from './BundleKpiSection'
@@ -59,6 +59,12 @@ async function KpiSectionContent({
         boulevardLocationId: boulevardLocationId ?? null,
       })
       if (rev) data = { ...data, revenue: rev.metric }
+      const mem = await fetchLocationMembership({
+        listingStatus,
+        mappingStatus: boulevardMappingStatus,
+        boulevardLocationId: boulevardLocationId ?? null,
+      })
+      if (mem) data = { ...data, membershipConversion: mem }
     }
     const revenueLive = data.revenue?.source === "boulevard"
 
