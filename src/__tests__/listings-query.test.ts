@@ -18,6 +18,10 @@ function makeQueryChain(result: unknown[]) {
   const chain = {
     from: vi.fn().mockReturnThis(),
     leftJoin: vi.fn().mockReturnThis(),
+    // Radius search switches the builder to $dynamic() and conditionally
+    // innerJoins the distance subquery — both must be chainable in the mock.
+    innerJoin: vi.fn().mockReturnThis(),
+    $dynamic: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
     limit: vi.fn().mockResolvedValue(result),

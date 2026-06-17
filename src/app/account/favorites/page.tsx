@@ -2,7 +2,7 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/db'
-import { userFavorites } from '@/db/schema/favorites'
+import { favorites } from '@/db/schema/favorites'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq, and, inArray } from 'drizzle-orm'
 import { EmptyStateIllustrated } from '@/components/ui/EmptyState'
@@ -14,17 +14,17 @@ export const metadata = {
 
 async function getFavoriteListings(userId: string) {
   // Get user's favorite listing IDs
-  const favorites = await db.query.userFavorites.findMany({
-    where: eq(userFavorites.userId, userId),
+  const favoriteRows = await db.query.favorites.findMany({
+    where: eq(favorites.userId, userId),
     columns: { listingId: true },
     orderBy: (fav, { desc }) => [desc(fav.createdAt)],
   })
 
-  if (favorites.length === 0) {
+  if (favoriteRows.length === 0) {
     return []
   }
 
-  const favoriteIds = favorites.map(f => f.listingId)
+  const favoriteIds = favoriteRows.map(f => f.listingId)
 
   // Fetch listing details for favorites
   const favoriteListings = await db.query.listings.findMany({
@@ -111,8 +111,14 @@ export default async function FavoritesPage() {
         <EmptyStateIllustrated
           title="No saved listings yet"
           description="Tap the heart icon on any listing to save it for later."
-          actionLabel="Browse listings"
-          actionHref="/browse"
+          action={
+            <Link
+              href="/browse"
+              className="inline-flex items-center px-5 py-2.5 rounded-lg bg-hs-red-600 text-white text-sm font-semibold hover:bg-hs-red-700 transition-colors"
+            >
+              Browse listings
+            </Link>
+          }
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

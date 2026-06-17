@@ -6,7 +6,7 @@ import { UsersManager } from "@/components/admin/UsersManager"
 export default async function AdminUsersPage() {
   const session = await auth()
 
-  if (!session?.user || session.user.role !== "admin") {
+  if (!session?.user?.id || session.user.role !== "admin") {
     redirect("/")
   }
 

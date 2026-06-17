@@ -3,18 +3,19 @@
 import { useEffect, useRef } from 'react'
 
 interface ConfirmDialogProps {
-  open: boolean
+  isOpen: boolean
   title: string
   message: string
   confirmLabel?: string
   cancelLabel?: string
   onConfirm: () => void
   onCancel: () => void
-  variant?: 'danger' | 'default'
+  variant?: 'danger' | 'default' | 'warning'
+  isProcessing?: boolean
 }
 
 export function ConfirmDialog({
-  open,
+  isOpen,
   title,
   message,
   confirmLabel = 'Confirm',
@@ -22,12 +23,13 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = 'default',
+  isProcessing = false,
 }: ConfirmDialogProps) {
   const titleId = 'confirm-dialog-title'
   const cancelRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!isOpen) return
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onCancel()
@@ -39,9 +41,9 @@ export function ConfirmDialog({
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open, onCancel])
+  }, [isOpen, onCancel])
 
-  if (!open) return null
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -68,19 +70,21 @@ export function ConfirmDialog({
           <button
             ref={cancelRef}
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
+            disabled={isProcessing}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
           >
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-              variant === 'danger'
-                ? 'bg-hs-red-600 hover:bg-hs-red-700 focus-visible:ring-hs-red-500'
+            disabled={isProcessing}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+              variant === 'warning'
+                ? 'bg-amber-500 hover:bg-amber-600 focus-visible:ring-amber-500'
                 : 'bg-hs-red-600 hover:bg-hs-red-700 focus-visible:ring-hs-red-500'
             }`}
           >
-            {confirmLabel}
+            {isProcessing ? 'Working…' : confirmLabel}
           </button>
         </div>
       </div>

@@ -3,9 +3,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 // Mock server-only to be a no-op in tests
 vi.mock("server-only", () => ({}))
 
-// Mock next/cache for 'use cache' directive support
+// Mock next/cache. fetch.ts wraps its fetcher in unstable_cache — make it a
+// pass-through so tests exercise the uncached logic directly.
 vi.mock("next/cache", () => ({
   cacheLife: vi.fn(),
+  unstable_cache: (fn: unknown) => fn,
 }))
 
 // Mock the schema module so we can control safeParse behavior
@@ -98,15 +100,17 @@ describe("fetchLocationKpi", () => {
     expect(result).toBeNull()
   })
 
-  it("returns null when env vars are missing", async () => {
+  it("returns mock data when env vars are missing (dev fallback)", async () => {
     process.env = { ...originalEnv }
     delete process.env.HS_INTERNAL_API_URL
     delete process.env.HS_INTERNAL_API_TOKEN
 
     const { fetchLocationKpi } = await import("@/lib/kpi/fetch")
+    // Import after resetModules so the instance matches fetch.ts's import.
+    const { mockLocationKpi } = await import("@/lib/kpi/mock-data")
     const result = await fetchLocationKpi("loc-123")
 
-    expect(result).toBeNull()
+    expect(result).toEqual(mockLocationKpi)
   })
 })
 

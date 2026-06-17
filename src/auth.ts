@@ -59,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Grant seller access to all franchisees by default
       const workspaceDomain = process.env.GOOGLE_WORKSPACE_DOMAIN || "hellosugar.salon"
-      if (user.email?.endsWith(`@${workspaceDomain}`)) {
+      if (user.id && user.email?.endsWith(`@${workspaceDomain}`)) {
         await db.update(users)
           .set({ sellerAccess: true })
           .where(eq(users.id, user.id))
