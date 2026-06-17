@@ -16,6 +16,8 @@ export const MOCK_SELLER_LOCATIONS: LocationSelection[] = [
     openingDate: new Date('2022-03-15'),
     ttmRevenue: 42500000, // $425,000 in cents
     mcr: 0.32,
+    latitude: 33.8389,
+    longitude: -84.3792,
   },
   {
     id: 'loc-002',
@@ -30,6 +32,8 @@ export const MOCK_SELLER_LOCATIONS: LocationSelection[] = [
     openingDate: new Date('2023-01-10'),
     ttmRevenue: 38000000, // $380,000 in cents
     mcr: 0.28,
+    latitude: 33.7890,
+    longitude: -84.3833,
   },
   {
     id: 'loc-003',
@@ -44,6 +48,8 @@ export const MOCK_SELLER_LOCATIONS: LocationSelection[] = [
     openingDate: new Date('2021-08-20'),
     ttmRevenue: 51000000, // $510,000 in cents
     mcr: 0.35,
+    latitude: 32.7990,
+    longitude: -96.8030,
   },
 ]
 

@@ -23,6 +23,8 @@ const locationSelectionSchema = z.object({
   openingDate: z.date().optional(),
   ttmRevenue: z.number().optional(),
   mcr: z.number().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   territoryLat: z.number().optional(),
   territoryLng: z.number().optional(),
   territoryRadius: z.number().optional(),

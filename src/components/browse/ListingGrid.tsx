@@ -12,15 +12,27 @@ interface ListingGridProps {
   filters: ListingFilters
   hoveredId?: string | null
   onHover?: (id: string | null) => void
+  // Accepted from BrowsePage (favorited listing ids). Not yet rendered on the
+  // browse card — reserved for the favorite indicator. Kept optional/inert so
+  // the prop typechecks without dead destructuring.
+  favoriteIds?: string[]
 }
 
 const PAGE_SIZE = 12
 
 export function ListingGrid({ initialListings, filters, hoveredId, onHover }: ListingGridProps) {
   const [listings, setListings] = useState<ListingCardType[]>(initialListings)
-  const [cursor, setCursor] = useState<string | null>(
-    initialListings.length === PAGE_SIZE ? initialListings[initialListings.length - 1]?.createdAt.toISOString() ?? null : null
-  )
+  const [cursor, setCursor] = useState<string | null>(() => {
+    if (initialListings.length !== PAGE_SIZE) return null
+    const last = initialListings[initialListings.length - 1]
+    if (!last) return null
+    // Distance sort paginates on the numeric distance; other sorts on createdAt.
+    return filters.sort === "distance"
+      ? last.distanceMiles != null
+        ? String(last.distanceMiles)
+        : null
+      : last.createdAt.toISOString()
+  })
   const [hasMore, setHasMore] = useState(initialListings.length === PAGE_SIZE)
   const [loading, setLoading] = useState(false)
 

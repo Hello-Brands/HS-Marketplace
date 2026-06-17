@@ -103,6 +103,13 @@ export function ListingCard({ listing, isHovered, onHover }: ListingCardProps) {
                 {listing.locationName}
               </p>
             )}
+
+            {/* Distance from search center (only when a location search is active) */}
+            {listing.distanceMiles != null && (
+              <p className="text-xs font-semibold text-hs-red-600 mt-1">
+                {listing.distanceMiles < 0.1 ? "< 0.1" : listing.distanceMiles.toFixed(1)} mi away
+              </p>
+            )}
           </div>
         </div>
 
