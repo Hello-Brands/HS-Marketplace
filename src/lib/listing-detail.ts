@@ -21,6 +21,8 @@ export interface ListingDetailLocation {
   territoryLng: number | null
   territoryRadius: number | null
   displayOrder: number
+  boulevardLocationId: string | null
+  boulevardMappingStatus: 'unconfirmed' | 'confirmed' | 'not_connected'
 }
 
 export interface ListingDetail {
@@ -102,6 +104,8 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
       territoryLng: loc.territoryLng ?? null,
       territoryRadius: loc.territoryRadius ?? null,
       displayOrder: loc.displayOrder,
+      boulevardLocationId: loc.boulevardLocationId ?? null,
+      boulevardMappingStatus: loc.boulevardMappingStatus,
     })),
     photos: listing.photos.map(p => ({
       id: p.id,
