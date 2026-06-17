@@ -17,6 +17,8 @@ export const env = createEnv({
     // Server-side MapTiler key for backfill/geocoding. Must be UNRESTRICTED
     // (no domain allowlist) — server requests send no Origin header.
     MAPTILER_API_KEY: z.string().min(1).optional(),
+    BOULEVARD_API_URL: z.string().url().optional(),
+    BOULEVARD_API_KEY: z.string().min(1).optional(),
   },
   client: {
     // Public key exposed to client — domain-restricted in MapTiler Cloud dashboard
