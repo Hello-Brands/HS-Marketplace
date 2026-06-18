@@ -17,10 +17,10 @@ interface KpiSectionProps {
   bundleLocations?: Location[]
   /** Listing type - if 'territory', section is hidden */
   listingType: 'suite' | 'flagship' | 'territory' | 'bundle'
-  /** Boulevard location ID for real revenue overlay (single-location only) */
-  boulevardLocationId?: string | null
-  /** Boulevard mapping status (single-location only) */
-  boulevardMappingStatus?: string
+  /** BigQuery LOCATION_NAME for real data overlay (single-location only) */
+  bqLocationName?: string | null
+  /** Data-source mapping status (single-location only) */
+  dataMappingStatus?: string
   /** Listing status (single-location only) */
   listingStatus?: string
 }
@@ -42,8 +42,8 @@ async function KpiSectionContent({
   locationId,
   bundleLocations,
   listingType,
-  boulevardLocationId,
-  boulevardMappingStatus,
+  bqLocationName,
+  dataMappingStatus,
   listingStatus,
 }: KpiSectionProps) {
   // Single location
@@ -52,23 +52,27 @@ async function KpiSectionContent({
     if (!kpiData) return null
 
     let data = kpiData
-    if (boulevardMappingStatus && listingStatus) {
+    if (dataMappingStatus && listingStatus) {
       const rev = await fetchLocationRevenue({
         listingStatus,
-        mappingStatus: boulevardMappingStatus,
-        boulevardLocationId: boulevardLocationId ?? null,
+        mappingStatus: dataMappingStatus,
+        bqLocationName: bqLocationName ?? null,
       })
       if (rev) data = { ...data, revenue: rev.metric }
       const mem = await fetchLocationMembership({
         listingStatus,
-        mappingStatus: boulevardMappingStatus,
-        boulevardLocationId: boulevardLocationId ?? null,
+        mappingStatus: dataMappingStatus,
+        bqLocationName: bqLocationName ?? null,
       })
       if (mem) data = { ...data, membershipConversion: mem }
     }
-    const revenueLive = data.revenue?.source === "boulevard"
+    const revenueLive = data.revenue?.source === "bigquery"
 
-    const hasAnyKpi = data.revenue || data.newClients || data.bookings || data.membershipConversion
+    // New Clients and Bookings have no live source yet — hide them (no sample
+    // numbers next to real ones).
+    data = { ...data, newClients: undefined, bookings: undefined }
+
+    const hasAnyKpi = data.revenue || data.membershipConversion
     if (!hasAnyKpi) return null
 
     return (
@@ -76,8 +80,8 @@ async function KpiSectionContent({
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Performance Data</h2>
         <p className="text-sm text-gray-500 mb-6">
           {revenueLive
-            ? "Revenue is live from Boulevard. Other metrics are sample data."
-            : "Sample data — Boulevard revenue is not connected for this location."}
+            ? "Net Sales and MCR are live from BigQuery (year-to-date)."
+            : "Live data not connected for this location."}
         </p>
         <KpiCardRow kpiData={data} />
       </section>
@@ -102,8 +106,8 @@ async function KpiSectionContent({
       return null  // All locations returned null
     }
 
-    const cumulative = aggregateBundleKpi(perLocationKpis)
-    const hasAnyKpi = cumulative.revenue || cumulative.newClients || cumulative.bookings || cumulative.membershipConversion
+    const cumulative = { ...aggregateBundleKpi(perLocationKpis), newClients: undefined, bookings: undefined }
+    const hasAnyKpi = cumulative.revenue || cumulative.membershipConversion
     if (!hasAnyKpi) return null
 
     return (
@@ -111,7 +115,7 @@ async function KpiSectionContent({
         <h2 className="text-lg font-semibold text-gray-900 mb-1">
           Performance Data ({locationCount} locations)
         </h2>
-        <p className="text-sm text-gray-500 mb-6">Sample data — live metrics coming soon.</p>
+        <p className="text-sm text-gray-500 mb-6">Live per-location data coming soon.</p>
 
         {/* Cumulative KPI cards */}
         <KpiCardRow kpiData={cumulative} />

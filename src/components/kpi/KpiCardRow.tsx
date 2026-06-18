@@ -31,7 +31,8 @@ const KPI_CONFIG = [
   {
     key: 'membershipConversion' as const,
     name: 'Membership Conversion',
-    format: (v: number) => `${(v * 100).toFixed(1)}%`,
+    // Stored as a percentage already (e.g. 38.0 → "38.0%").
+    format: (v: number) => `${v.toFixed(1)}%`,
   },
 ] as const
 
