@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { fetchLocationKpi, fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership } from '@/lib/kpi/fetch'
 import { aggregateBundleKpi } from '@/lib/kpi/aggregate'
+import { buildLocationKpi } from '@/lib/kpi/assemble'
 import { KpiCardRow } from './KpiCardRow'
 import { BundleKpiSection } from './BundleKpiSection'
 
@@ -48,29 +49,27 @@ async function KpiSectionContent({
 }: KpiSectionProps) {
   // Single location
   if (listingType !== 'bundle' && locationId) {
+    // Optional base data (internal HS API / dev mock). May be null when that API
+    // is unavailable — that must NOT hide the live BigQuery metrics below.
     const kpiData = await fetchLocationKpi(locationId)
-    if (!kpiData) return null
 
-    let data = kpiData
+    let rev: Awaited<ReturnType<typeof fetchLocationRevenue>> = null
+    let mem: Awaited<ReturnType<typeof fetchLocationMembership>> = null
     if (dataMappingStatus && listingStatus) {
-      const rev = await fetchLocationRevenue({
+      rev = await fetchLocationRevenue({
         listingStatus,
         mappingStatus: dataMappingStatus,
         bqLocationName: bqLocationName ?? null,
       })
-      if (rev) data = { ...data, revenue: rev.metric }
-      const mem = await fetchLocationMembership({
+      mem = await fetchLocationMembership({
         listingStatus,
         mappingStatus: dataMappingStatus,
         bqLocationName: bqLocationName ?? null,
       })
-      if (mem) data = { ...data, membershipConversion: mem }
     }
-    const revenueLive = data.revenue?.source === "bigquery"
 
-    // New Clients and Bookings have no live source yet — hide them (no sample
-    // numbers next to real ones).
-    data = { ...data, newClients: undefined, bookings: undefined }
+    const data = buildLocationKpi(kpiData, rev?.metric ?? null, mem)
+    const revenueLive = data.revenue?.source === "bigquery"
 
     const hasAnyKpi = data.revenue || data.membershipConversion
     if (!hasAnyKpi) return null
