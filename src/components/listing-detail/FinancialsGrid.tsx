@@ -72,7 +72,7 @@ export function FinancialsGrid({ listing, netSalesYtd, hasSalonLocations }: Fina
         {netSalesYtd != null ? (
           <div className="rounded-xl p-4 transition-all duration-200 bg-white border border-gray-200">
             <div className="flex items-center gap-1.5 mb-1">
-              <p className="text-sm text-gray-500">Net Sales (YTD)</p>
+              <p className="text-sm text-gray-500">Net Sales (YTD, Cash + Credit)</p>
               <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">
                 Live
               </span>
@@ -86,7 +86,7 @@ export function FinancialsGrid({ listing, netSalesYtd, hasSalonLocations }: Fina
           </div>
         ) : hasSalonLocations ? (
           <MetricCard
-            label="Net Sales (YTD)"
+            label="Net Sales (YTD, Cash + Credit)"
             value="—"
             subLabel="Not connected"
           />

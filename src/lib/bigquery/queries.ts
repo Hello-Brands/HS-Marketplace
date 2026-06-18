@@ -2,8 +2,11 @@ import "server-only"
 import { unstable_cache } from "next/cache"
 import { runQuery } from "./client"
 
-type NetSalesRow = { LOCATION_NAME: string | null; cash_plus_credit: number | null }
-type McrRow = { LOCATION_NAME: string | null; mcr_pct: number | null }
+// The BigQuery SDK can return numeric columns as JS number, string, or a Big
+// object (for NUMERIC/BIGNUMERIC), so accept the broad shape and coerce.
+type Numeric = number | string | { toString(): string } | null
+type NetSalesRow = { LOCATION_NAME: string | null; cash_plus_credit: Numeric }
+type McrRow = { LOCATION_NAME: string | null; mcr_pct: Numeric }
 type NameRow = { LOCATION_NAME: string | null }
 
 const NET_SALES_SQL = `
@@ -27,12 +30,19 @@ const NAMES_SQL = `
   WHERE LOCATION_NAME IS NOT NULL
   ORDER BY LOCATION_NAME`
 
+/** Coerce a BigQuery numeric (number | string | Big | null) to a finite JS number, 0 on failure. */
+function toNumber(v: Numeric): number {
+  if (v === null || v === undefined) return 0
+  const n = typeof v === "number" ? v : Number(v.toString())
+  return Number.isFinite(n) ? n : 0
+}
+
 /** Pure: dollars → integer cents, keyed by LOCATION_NAME. Exported for tests. */
 export function rowsToNetSalesMap(rows: NetSalesRow[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const r of rows) {
     if (!r.LOCATION_NAME) continue
-    map.set(r.LOCATION_NAME, Math.round((r.cash_plus_credit ?? 0) * 100))
+    map.set(r.LOCATION_NAME, Math.round(toNumber(r.cash_plus_credit) * 100))
   }
   return map
 }
@@ -42,7 +52,7 @@ export function rowsToMcrMap(rows: McrRow[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const r of rows) {
     if (!r.LOCATION_NAME) continue
-    map.set(r.LOCATION_NAME, r.mcr_pct ?? 0)
+    map.set(r.LOCATION_NAME, toNumber(r.mcr_pct))
   }
   return map
 }

@@ -18,6 +18,15 @@ describe("rowsToNetSalesMap", () => {
     const map = rowsToNetSalesMap([{ LOCATION_NAME: null, cash_plus_credit: 100 }])
     expect(map.size).toBe(0)
   })
+
+  it("coerces string / Big-like numeric values (NUMERIC columns)", () => {
+    const map = rowsToNetSalesMap([
+      { LOCATION_NAME: "Str", cash_plus_credit: "168000.55" },
+      { LOCATION_NAME: "Big", cash_plus_credit: { toString: () => "4200.00" } },
+    ])
+    expect(map.get("Str")).toBe(16800055)
+    expect(map.get("Big")).toBe(420000)
+  })
 })
 
 describe("rowsToMcrMap", () => {
