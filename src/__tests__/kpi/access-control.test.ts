@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest"
-import { canFetchBoulevard } from "@/lib/kpi/access"
+import { canFetchLiveData } from "@/lib/kpi/access"
 
-describe("canFetchBoulevard", () => {
+describe("canFetchLiveData", () => {
   it("allows only active + confirmed", () => {
-    expect(canFetchBoulevard("active", "confirmed")).toBe(true)
+    expect(canFetchLiveData("active", "confirmed")).toBe(true)
   })
   it.each([
     ["draft", "confirmed"],
@@ -12,6 +12,6 @@ describe("canFetchBoulevard", () => {
     ["active", "unconfirmed"],
     ["active", "not_connected"],
   ])("blocks %s / %s", (listing, mapping) => {
-    expect(canFetchBoulevard(listing, mapping)).toBe(false)
+    expect(canFetchLiveData(listing, mapping)).toBe(false)
   })
 })
