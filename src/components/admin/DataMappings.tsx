@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { setLocationMapping } from "@/lib/boulevard/mapping-actions"
+import { setLocationMapping } from "@/lib/data/mapping-actions"
 
 interface Row {
   locationId: string
@@ -11,15 +11,15 @@ interface Row {
   listingTitle: string | null
   listingStatus: string | null
   status: "unconfirmed" | "confirmed" | "not_connected"
-  currentBoulevardId: string | null
+  currentLocationName: string | null
   suggestedId: string | null
   suggestedConfidence: number | null
 }
 
 interface Props {
   rows: Row[]
-  blvdLocations: { id: string; name: string }[]
-  blvdConfigured: boolean
+  locationNames: string[]
+  bqConfigured: boolean
 }
 
 const NOT_CONNECTED = "__not_connected__"
@@ -44,7 +44,7 @@ function StatusBadge({ status }: { status: Row["status"] }) {
   )
 }
 
-export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props) {
+export function DataMappings({ rows, locationNames, bqConfigured }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -57,7 +57,7 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
 
   function getSelectValue(row: Row): string {
     if (selected[row.locationId] !== undefined) return selected[row.locationId]
-    return row.currentBoulevardId ?? row.suggestedId ?? NOT_CONNECTED
+    return row.currentLocationName ?? row.suggestedId ?? NOT_CONNECTED
   }
 
   function handleSave(row: Row) {
@@ -74,11 +74,11 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
       const res =
         value === NOT_CONNECTED
           ? await setLocationMapping(row.locationId, {
-              boulevardLocationId: null,
+              bqLocationName: null,
               status: "not_connected",
             })
           : await setLocationMapping(row.locationId, {
-              boulevardLocationId: value,
+              bqLocationName: value,
               status: "confirmed",
             })
 
@@ -99,17 +99,16 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold text-gray-900">
-          Boulevard Mappings
+          Data Mappings
         </h1>
         <span className="text-sm text-gray-500">
           {rows.length} salon location{rows.length !== 1 ? "s" : ""}
         </span>
       </div>
 
-      {!blvdConfigured && (
+      {!bqConfigured && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Boulevard API not configured — you can still mark locations Not
-          connected.
+          BigQuery not configured — you can still mark locations Not connected.
         </div>
       )}
 
@@ -119,7 +118,7 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
             Salon Locations
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Confirm or override the Boulevard location linked to each salon.
+            Confirm or override the BigQuery location linked to each salon.
           </p>
         </div>
 
@@ -142,7 +141,7 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                    Boulevard Mapping
+                    BigQuery Location
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
                     Save
@@ -156,8 +155,8 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
                   const errorMsg = errors[row.locationId]
                   const showSuggestionHint =
                     row.suggestedId !== null &&
-                    row.suggestedId !== row.currentBoulevardId &&
-                    blvdConfigured
+                    row.suggestedId !== row.currentLocationName &&
+                    bqConfigured
 
                   return (
                     <tr key={row.locationId} className="hover:bg-gray-50">
@@ -192,7 +191,7 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
                         <StatusBadge status={row.status} />
                       </td>
 
-                      {/* Boulevard mapping select */}
+                      {/* BigQuery location select */}
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
                           <select
@@ -209,22 +208,17 @@ export function BoulevardMappings({ rows, blvdLocations, blvdConfigured }: Props
                             <option value={NOT_CONNECTED}>
                               — Not connected —
                             </option>
-                            {blvdLocations.map((loc) => (
-                              <option key={loc.id} value={loc.id}>
-                                {loc.name}
+                            {locationNames.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
                               </option>
                             ))}
                           </select>
                           {showSuggestionHint && (
                             <p className="text-xs text-amber-600">
-                              Suggested:{" "}
-                              {
-                                blvdLocations.find(
-                                  (l) => l.id === row.suggestedId
-                                )?.name ?? row.suggestedId
-                              }{" "}
-                              ({Math.round((row.suggestedConfidence ?? 0) * 100)}
-                              % confidence)
+                              Suggested: {row.suggestedId} (
+                              {Math.round((row.suggestedConfidence ?? 0) * 100)}%
+                              confidence)
                             </p>
                           )}
                           {errorMsg && (

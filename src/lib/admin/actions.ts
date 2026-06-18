@@ -7,7 +7,7 @@ import { eq, desc, and } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { sendStatusChangeEmail } from '@/lib/email'
 import { canTransition } from '@/lib/listings/status-machine'
-import { unresolvedSalonLocations } from '@/lib/boulevard/mapping'
+import { unresolvedSalonLocations } from '@/lib/data/mapping'
 import { triggerAlertMatching } from '@/lib/alert-actions'
 import type { ListingStatus, ListingFormData } from '@/lib/listings/types'
 
@@ -62,21 +62,21 @@ export async function approveListing(listingId: string) {
     throw new Error(`Cannot approve listing with status ${listing.status}`)
   }
 
-  // Rock 2: a listing cannot go active until every salon location's Boulevard
-  // mapping is resolved (confirmed or explicitly not_connected). Wrong/blank
-  // mappings would leak the wrong location's financials.
+  // A listing cannot go active until every salon location's data-source mapping
+  // is resolved (confirmed or explicitly not_connected). Wrong/blank mappings
+  // would leak the wrong location's financials.
   const mapLocs = await db
     .select({
       id: listingLocations.id,
       name: listingLocations.name,
       locationType: listingLocations.locationType,
-      boulevardMappingStatus: listingLocations.boulevardMappingStatus,
+      dataMappingStatus: listingLocations.dataMappingStatus,
     })
     .from(listingLocations)
     .where(eq(listingLocations.listingId, listingId))
   const blocking = unresolvedSalonLocations(mapLocs)
   if (blocking.length > 0) {
-    throw new Error(`Confirm Boulevard mapping for: ${blocking.map((b) => b.name).join(", ")}`)
+    throw new Error(`Confirm data mapping for: ${blocking.map((b) => b.name).join(", ")}`)
   }
 
   await db.update(listings)
