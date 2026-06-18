@@ -34,6 +34,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# BigQuery / GCP service-account keys
+.secrets/
+*-bq-key.json
+
 # vercel
 .vercel
 
