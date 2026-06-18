@@ -1,26 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
+
 vi.mock("server-only", () => ({}))
-vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn, cacheLife: vi.fn() }))
-vi.mock("@/lib/boulevard/client", () => ({ fetchMonthlySales: vi.fn(), fetchMonthlyMembership: vi.fn() }))
+const getMcrByLocation = vi.fn()
+vi.mock("@/lib/bigquery/queries", () => ({ getMcrByLocation, getNetSalesByLocation: vi.fn() }))
 
 describe("fetchLocationMembership", () => {
-  beforeEach(() => vi.resetModules())
+  beforeEach(() => { vi.resetModules(); getMcrByLocation.mockReset() })
 
-  it("returns null when mapping is not confirmed", async () => {
+  it("returns null when not active+confirmed", async () => {
     const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
-    expect(await fetchLocationMembership({ listingStatus: "active", mappingStatus: "unconfirmed", boulevardLocationId: "b1" })).toBeNull()
+    const r = await fetchLocationMembership({ listingStatus: "draft", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
+    expect(r).toBeNull()
   })
 
-  it("builds a membership metric from monthly rates", async () => {
-    const { fetchMonthlyMembership } = await import("@/lib/boulevard/client")
-    vi.mocked(fetchMonthlyMembership).mockResolvedValue([
-      { month: "2026-04", rate: 0.2 },
-      { month: "2026-05", rate: 0.25 },
-    ])
+  it("returns null when location name missing", async () => {
     const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
-    const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", boulevardLocationId: "b1" })
-    expect(r?.lastMonth).toBe(0.25)
-    expect(r?.source).toBe("boulevard")
-    expect(r?.trend).toEqual([{ month: "2026-04", value: 0.2 }, { month: "2026-05", value: 0.25 }])
+    const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: null })
+    expect(r).toBeNull()
+  })
+
+  it("returns bigquery-sourced MCR metric when connected", async () => {
+    getMcrByLocation.mockResolvedValue(new Map([["Sugar House", 38]]))
+    const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
+    const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
+    expect(r?.lastMonth).toBe(38)
+    expect(r?.source).toBe("bigquery")
+  })
+
+  it("returns null when location absent from the BigQuery map", async () => {
+    getMcrByLocation.mockResolvedValue(new Map())
+    const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
+    const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Nowhere" })
+    expect(r).toBeNull()
   })
 })

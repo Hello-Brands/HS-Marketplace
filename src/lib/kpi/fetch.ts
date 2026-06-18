@@ -2,8 +2,8 @@ import "server-only"
 import { unstable_cache } from "next/cache"
 import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
 import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
-import { fetchMonthlySales, fetchMonthlyMembership } from "@/lib/boulevard/client"
-import { canFetchBoulevard } from "./access"
+import { getNetSalesByLocation, getMcrByLocation } from "@/lib/bigquery/queries"
+import { canFetchLiveData } from "./access"
 
 /**
  * Check if we should use mock data (dev mode without API credentials).
@@ -100,64 +100,45 @@ export async function fetchBundleKpi(locationIds: string[]): Promise<Record<stri
   return bundle
 }
 
-// Daily-cached monthly sales, keyed by boulevard location id (don't hit the API per view).
-const cachedMonthlySales = unstable_cache(
-  async (boulevardLocationId: string) => fetchMonthlySales(boulevardLocationId, 12),
-  ["boulevard-monthly-sales"],
-  { revalidate: 86400, tags: ["boulevard-revenue"] }
-)
-
-// Daily-cached monthly membership rates, keyed by boulevard location id.
-const cachedMonthlyMembership = unstable_cache(
-  async (boulevardLocationId: string) => fetchMonthlyMembership(boulevardLocationId, 12),
-  ["boulevard-monthly-membership"],
-  { revalidate: 86400, tags: ["boulevard-membership"] }
-)
-
 export async function fetchLocationMembership(args: {
   listingStatus: string
   mappingStatus: string
-  boulevardLocationId: string | null
+  bqLocationName: string | null
 }): Promise<KpiMetric | null> {
-  if (!args.boulevardLocationId || !canFetchBoulevard(args.listingStatus, args.mappingStatus)) {
+  if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
     return null
   }
-  const series = await cachedMonthlyMembership(args.boulevardLocationId)
-  if (!series || series.length === 0) return null
-  const last = series[series.length - 1].rate
-  const prev = series.length > 1 ? series[series.length - 2].rate : last
-  const momChange = prev > 0 ? (last - prev) / prev : 0
+  const map = await getMcrByLocation()
+  const pct = map.get(args.bqLocationName)
+  if (pct === undefined) return null
   return {
-    lastMonth: last,
-    momChange,
-    trend: series.map((m) => ({ month: m.month, value: m.rate })),
+    lastMonth: pct,
+    momChange: 0,
+    trend: [{ month: "YTD", value: pct }],
     updatedAt: new Date().toISOString(),
-    source: "boulevard",
+    source: "bigquery",
   }
 }
 
 export async function fetchLocationRevenue(args: {
   listingStatus: string
   mappingStatus: string
-  boulevardLocationId: string | null
-}): Promise<{ metric: KpiMetric; ttmCents: number } | null> {
-  if (!args.boulevardLocationId || !canFetchBoulevard(args.listingStatus, args.mappingStatus)) {
+  bqLocationName: string | null
+}): Promise<{ metric: KpiMetric; ytdCents: number } | null> {
+  if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
     return null // "not connected"
   }
-  const series = await cachedMonthlySales(args.boulevardLocationId)
-  if (!series || series.length === 0) return null
-  const ttmCents = series.reduce((s, m) => s + m.sales, 0)
-  const last = series[series.length - 1].sales
-  const prev = series.length > 1 ? series[series.length - 2].sales : last
-  const momChange = prev > 0 ? (last - prev) / prev : 0
+  const map = await getNetSalesByLocation()
+  const cents = map.get(args.bqLocationName)
+  if (cents === undefined) return null
   return {
-    ttmCents,
+    ytdCents: cents,
     metric: {
-      lastMonth: last,
-      momChange,
-      trend: series.map((m) => ({ month: m.month, value: m.sales })),
+      lastMonth: cents,
+      momChange: 0,
+      trend: [{ month: "YTD", value: cents }],
       updatedAt: new Date().toISOString(),
-      source: "boulevard",
+      source: "bigquery",
     },
   }
 }

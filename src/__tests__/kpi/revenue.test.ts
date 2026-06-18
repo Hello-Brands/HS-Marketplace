@@ -1,38 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
-vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn, cacheLife: vi.fn() }))
-vi.mock("@/lib/boulevard/client", () => ({ fetchMonthlySales: vi.fn() }))
+const getNetSalesByLocation = vi.fn()
+vi.mock("@/lib/bigquery/queries", () => ({ getNetSalesByLocation, getMcrByLocation: vi.fn() }))
 
 describe("fetchLocationRevenue", () => {
-  beforeEach(() => vi.resetModules())
+  beforeEach(() => { vi.resetModules(); getNetSalesByLocation.mockReset() })
 
-  it("returns null (not connected) when mapping is not confirmed", async () => {
+  it("returns null when not active+confirmed", async () => {
     const { fetchLocationRevenue } = await import("@/lib/kpi/fetch")
-    const r = await fetchLocationRevenue({ listingStatus: "active", mappingStatus: "unconfirmed", boulevardLocationId: "b1" })
+    const r = await fetchLocationRevenue({ listingStatus: "draft", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
     expect(r).toBeNull()
   })
 
-  it("returns null when there is no boulevard id", async () => {
+  it("returns null when location name missing", async () => {
     const { fetchLocationRevenue } = await import("@/lib/kpi/fetch")
-    const r = await fetchLocationRevenue({ listingStatus: "active", mappingStatus: "confirmed", boulevardLocationId: null })
+    const r = await fetchLocationRevenue({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: null })
     expect(r).toBeNull()
   })
 
-  it("builds a revenue metric + TTM from Boulevard monthly sales", async () => {
-    const { fetchMonthlySales } = await import("@/lib/boulevard/client")
-    vi.mocked(fetchMonthlySales).mockResolvedValue([
-      { month: "2026-04", sales: 1000000 },
-      { month: "2026-05", sales: 1200000 },
-    ])
+  it("returns ytd cents + bigquery-sourced metric when connected", async () => {
+    getNetSalesByLocation.mockResolvedValue(new Map([["Sugar House", 16800055]]))
     const { fetchLocationRevenue } = await import("@/lib/kpi/fetch")
-    const r = await fetchLocationRevenue({ listingStatus: "active", mappingStatus: "confirmed", boulevardLocationId: "b1" })
-    expect(r?.ttmCents).toBe(2200000)
-    expect(r?.metric.lastMonth).toBe(1200000)
-    expect(r?.metric.source).toBe("boulevard")
-    expect(r?.metric.trend).toEqual([
-      { month: "2026-04", value: 1000000 },
-      { month: "2026-05", value: 1200000 },
-    ])
+    const r = await fetchLocationRevenue({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
+    expect(r?.ytdCents).toBe(16800055)
+    expect(r?.metric.source).toBe("bigquery")
+    expect(r?.metric.lastMonth).toBe(16800055)
+  })
+
+  it("returns null when location absent from the BigQuery map", async () => {
+    getNetSalesByLocation.mockResolvedValue(new Map())
+    const { fetchLocationRevenue } = await import("@/lib/kpi/fetch")
+    const r = await fetchLocationRevenue({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Nowhere" })
+    expect(r).toBeNull()
   })
 })
