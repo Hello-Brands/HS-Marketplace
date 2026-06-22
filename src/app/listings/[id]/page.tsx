@@ -51,7 +51,7 @@ export default async function ListingDetailPage({ params }: Props) {
     isFavorited(listing.id),
   ])
 
-  // Compute BigQuery YTD net sales from confirmed salon locations
+  // Compute BigQuery trailing-12-month net sales from confirmed salon locations
   const salonLocations = listing.locations.filter(l => l.locationType === 'salon')
   const revenueResults = await Promise.all(
     salonLocations.map(l =>
@@ -63,8 +63,8 @@ export default async function ListingDetailPage({ params }: Props) {
     )
   )
   const connected = revenueResults.filter((r): r is NonNullable<typeof r> => r !== null)
-  const netSalesYtd = connected.length > 0
-    ? { cents: connected.reduce((sum, r) => sum + r.ytdCents, 0), asOf: connected[0].metric.updatedAt }
+  const netSalesTtm = connected.length > 0
+    ? { cents: connected.reduce((sum, r) => sum + r.totalCents, 0), asOf: connected[0].metric.updatedAt }
     : null
 
   // Primary salon location for display
@@ -159,7 +159,7 @@ export default async function ListingDetailPage({ params }: Props) {
           {/* Financials */}
           <section>
             <h2 className="text-xl font-display font-semibold mb-4 text-gray-900">Financials</h2>
-            <FinancialsGrid listing={listing} netSalesYtd={netSalesYtd} hasSalonLocations={salonLocations.length > 0} />
+            <FinancialsGrid listing={listing} netSalesTtm={netSalesTtm} hasSalonLocations={salonLocations.length > 0} />
           </section>
 
           {/* Live KPI Section */}
