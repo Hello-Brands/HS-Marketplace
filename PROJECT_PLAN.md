@@ -22,17 +22,17 @@ last_audited: 2026-06-22
   - _Done when:_ Real per-location **Net Sales (YTD)** + **MCR** can be pulled from the chosen source. **Outcome:** Boulevard's Admin API proved non-functional, so the spike pivoted to **BigQuery** (Prince's data mart). Access confirmed, both metrics return real per-location data, and the MCR definition (new members ÷ prospects, laser excluded) is documented. Supersedes the original Boulevard spike.
 - [x] **T-02** Verify map + radius search end-to-end against geocoded data — _~2h, due 2026-06-18_
   - _Done when:_ `npm test` passes (geo unit tests green) and a manual `/browse` radius search returns the expected listings against seeded/geocoded data.
-- [ ] **T-03** Security audit of git history + rotate any leaked secrets — _~2h, due 2026-06-18_
+- [x] **T-03** Security audit of git history + rotate any leaked secrets — _~2h, due 2026-06-18_
   - _Done when:_ Git history scanned for committed OAuth secrets / DB URLs / API keys (the repo was public on a personal account); anything found is rotated and confirmed removed from active use. Manual — judgment + external dashboards.
 
 ## Phase 1: Close V1 gaps & ship internally (Jun 18–22)
-- [ ] **T-04** Run geocoding backfill in production — _~2h, due 2026-06-18_
+- [x] **T-04** Run geocoding backfill in production — _~2h, due 2026-06-18_
   - _Done when:_ `geocode-locations.ts` has been run against prod; a `--dry-run` reports **0** remaining salon locations with `latitude IS NULL` (all listed salons have coordinates). Depends on T-03 (use rotated/correct `MAPTILER_API_KEY`).
 - [x] **T-05** Wire alert-matching trigger into listing approval — _~2h, due 2026-06-19_
   - _Done when:_ `approveListing` (or the active-transition path) calls `triggerAlertMatching`, so approving a listing fires matching saved-search alerts. Verified by an approval producing a sent alert email in dev.
-- [ ] **T-06** Access-control audit on financial data — _~3h, due 2026-06-19_
+- [x] **T-06** Access-control audit on financial data — _~3h, due 2026-06-19_
   - _Done when:_ Confirmed (with a regression test or documented review) that sales/profitability/TTM fields are **only** exposed for `active` listings whose seller opted in — never leaked for draft/pending/unlisted locations via any query or API route. The #1 production correctness concern.
-- [ ] **T-07** Full end-to-end QA pass of the V1 flow — _~3h, due 2026-06-22_
+- [x] **T-07** Full end-to-end QA pass of the V1 flow — _~3h, due 2026-06-22_
   - _Done when:_ A documented run-through confirms: seller creates a listing → admin approves → a second user finds it by map/radius → views detail → submits a contact inquiry → seller receives the email. Manual.
 - [ ] **T-08** Deploy V1 to Vercel and confirm internal access — _~2h, due 2026-06-22_
   - _Done when:_ Production deployment is live, Google login works for a `hellosugar.salon` account, and an allowlisted non-workspace user can sign in. Manual — verified against the live URL.
@@ -58,7 +58,7 @@ last_audited: 2026-06-22
   - _Done when:_ Places results are cached and only refreshed deliberately (not per radius search), and a Google Cloud billing budget + alert is configured. Cache code is repo-checkable; the budget is manual.
 - [ ] **T-17** Cron reliability hardening (idempotent + logged + failure alert) — _~2h, due 2026-06-30_
   - _Done when:_ The reminders cron logs every run, is safe to re-run (idempotent), and alerts on failure — so a silently-dead job is impossible.
-- [ ] **T-18** Verify backups + secrets posture — _~1h, due 2026-06-30_
+- [x] **T-18** Verify backups + secrets posture — _~1h, due 2026-06-30_
   - _Done when:_ Neon point-in-time recovery / branching is confirmed enabled, and all secrets are confirmed to live in Vercel project env (none in the repo). Manual — verified against Neon + Vercel dashboards.
 
 ---
@@ -96,8 +96,8 @@ last_audited: 2026-06-22
       "estimate": "~2h",
       "due": "2026-06-18",
       "done_when": "Git history scanned for committed secrets (repo was public on a personal account); anything found rotated and confirmed out of use.",
-      "check": { "type": "manual", "note": "Requires inspecting git history and rotating credentials in external dashboards." },
-      "status": "not_started"
+      "check": { "type": "manual", "note": "Requires inspecting git history and rotating credentials in external dashboards. Marked resolved per user direction 2026-06-22 (for the time being)." },
+      "status": "done"
     },
     {
       "id": "T-04",
@@ -106,8 +106,8 @@ last_audited: 2026-06-22
       "estimate": "~2h",
       "due": "2026-06-18",
       "done_when": "geocode-locations.ts run against prod; --dry-run reports 0 remaining salon locations with latitude IS NULL.",
-      "check": { "type": "command", "run": "npx tsx scripts/geocode-locations.ts --dry-run" },
-      "status": "not_started"
+      "check": { "type": "command", "run": "npx tsx scripts/geocode-locations.ts --dry-run", "note": "Marked resolved per user direction 2026-06-22 (for the time being)." },
+      "status": "done"
     },
     {
       "id": "T-05",
@@ -126,8 +126,8 @@ last_audited: 2026-06-22
       "estimate": "~3h",
       "due": "2026-06-19",
       "done_when": "Confirmed via regression test or documented review that sales/profitability/TTM are exposed only for active, opted-in listings — never for draft/pending/unlisted locations.",
-      "check": { "type": "manual", "note": "Review every query/route that returns financial fields; ideally back with a test asserting non-active listings hide financials." },
-      "status": "not_started"
+      "check": { "type": "manual", "note": "Review every query/route that returns financial fields; ideally back with a test asserting non-active listings hide financials. Marked resolved per user direction 2026-06-22 (for the time being)." },
+      "status": "done"
     },
     {
       "id": "T-07",
@@ -136,8 +136,8 @@ last_audited: 2026-06-22
       "estimate": "~3h",
       "due": "2026-06-22",
       "done_when": "Documented run-through: seller creates listing -> admin approves -> second user finds by radius -> views detail -> contacts -> seller gets email.",
-      "check": { "type": "manual", "note": "Manual click-through of the full marketplace flow." },
-      "status": "not_started"
+      "check": { "type": "manual", "note": "Manual click-through of the full marketplace flow. Marked resolved per user direction 2026-06-22 (for the time being)." },
+      "status": "done"
     },
     {
       "id": "T-08",
@@ -246,8 +246,8 @@ last_audited: 2026-06-22
       "estimate": "~1h",
       "due": "2026-06-30",
       "done_when": "Neon point-in-time recovery/branching confirmed enabled; all secrets confirmed in Vercel env, none in the repo.",
-      "check": { "type": "manual", "note": "Verify against Neon and Vercel dashboards." },
-      "status": "not_started"
+      "check": { "type": "manual", "note": "Verify against Neon and Vercel dashboards. Marked resolved per user direction 2026-06-22 (for the time being)." },
+      "status": "done"
     }
   ]
 }
