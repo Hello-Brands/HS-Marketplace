@@ -4,7 +4,7 @@ goal: Take the Hello Sugar selling marketplace from its current V1 build through
 start_date: 2026-06-17
 cadence: ~6h/weekday (full-time)
 created: 2026-06-17
-last_audited: never
+last_audited: 2026-06-22
 ---
 
 # HS Marketplace — Project Plan
@@ -18,9 +18,9 @@ last_audited: never
 ---
 
 ## Phase 0: De-risk & verify (Jun 17–18)
-- [ ] **T-01** Boulevard data spike — confirm API access and pullable metrics — _Day 1, due 2026-06-17_
-  - _Done when:_ A throwaway script under `scripts/` authenticates against the Boulevard Admin GraphQL API and prints **total sales** + the inputs needed for **MR%** for one real location; findings (is MR% a direct field or computed? from which membership query?) written into the plan or a notes doc. **Blocked on Austin provisioning the API package** — if access isn't granted, mark `blocked` and proceed with V1.
-- [ ] **T-02** Verify map + radius search end-to-end against geocoded data — _~2h, due 2026-06-18_
+- [x] **T-01** Live-data source spike — confirm access and pullable metrics — _Day 1, due 2026-06-17_
+  - _Done when:_ Real per-location **Net Sales (YTD)** + **MCR** can be pulled from the chosen source. **Outcome:** Boulevard's Admin API proved non-functional, so the spike pivoted to **BigQuery** (Prince's data mart). Access confirmed, both metrics return real per-location data, and the MCR definition (new members ÷ prospects, laser excluded) is documented. Supersedes the original Boulevard spike.
+- [x] **T-02** Verify map + radius search end-to-end against geocoded data — _~2h, due 2026-06-18_
   - _Done when:_ `npm test` passes (geo unit tests green) and a manual `/browse` radius search returns the expected listings against seeded/geocoded data.
 - [ ] **T-03** Security audit of git history + rotate any leaked secrets — _~2h, due 2026-06-18_
   - _Done when:_ Git history scanned for committed OAuth secrets / DB URLs / API keys (the repo was public on a personal account); anything found is rotated and confirmed removed from active use. Manual — judgment + external dashboards.
@@ -28,7 +28,7 @@ last_audited: never
 ## Phase 1: Close V1 gaps & ship internally (Jun 18–22)
 - [ ] **T-04** Run geocoding backfill in production — _~2h, due 2026-06-18_
   - _Done when:_ `geocode-locations.ts` has been run against prod; a `--dry-run` reports **0** remaining salon locations with `latitude IS NULL` (all listed salons have coordinates). Depends on T-03 (use rotated/correct `MAPTILER_API_KEY`).
-- [ ] **T-05** Wire alert-matching trigger into listing approval — _~2h, due 2026-06-19_
+- [x] **T-05** Wire alert-matching trigger into listing approval — _~2h, due 2026-06-19_
   - _Done when:_ `approveListing` (or the active-transition path) calls `triggerAlertMatching`, so approving a listing fires matching saved-search alerts. Verified by an approval producing a sent alert email in dev.
 - [ ] **T-06** Access-control audit on financial data — _~3h, due 2026-06-19_
   - _Done when:_ Confirmed (with a regression test or documented review) that sales/profitability/TTM fields are **only** exposed for `active` listings whose seller opted in — never leaked for draft/pending/unlisted locations via any query or API route. The #1 production correctness concern.
@@ -38,20 +38,20 @@ last_audited: never
   - _Done when:_ Production deployment is live, Google login works for a `hellosugar.salon` account, and an allowlisted non-workspace user can sign in. Manual — verified against the live URL.
 
 ## Phase 2: V2 — real data (Jun 23–26)
-- [ ] **T-09** Build Boulevard client module (auth + sales + MR% mapper) — _Day 1, due 2026-06-23_
-  - _Done when:_ `src/lib/boulevard/` contains a typed client that fetches total sales and MR% inputs for a location, with a Zod-validated mapper and unit tests for the mapper. Depends on T-01. `blocked`-eligible if API access is unresolved.
-- [ ] **T-10** Wire Boulevard data into listing KPIs (replace mock for sales + MR%) — _Day 1, due 2026-06-24_
-  - _Done when:_ The KPI fetch layer pulls **real** total sales + MR% from Boulevard for listed locations; **profitability stays a manual field**. Listing detail shows live numbers. Depends on T-09.
+- [x] **T-09** Build BigQuery client module (client + Net Sales/MCR queries + name-match mapper) — _Day 1, due 2026-06-23_
+  - _Done when:_ `src/lib/bigquery/` contains a typed, server-only client + cached daily Net Sales (YTD) and MCR queries (dollars→cents), and `src/lib/data/` holds the source-agnostic name-match + mapping logic, all with passing unit tests. Replaces the original Boulevard client (deleted). Depends on T-01.
+- [x] **T-10** Wire BigQuery data into listing KPIs (Net Sales YTD + MCR) — _Day 1, due 2026-06-24_
+  - _Done when:_ The KPI fetch layer pulls **real** Net Sales (YTD) + MCR from BigQuery for active, confirmed-mapped locations; **profitability stays a manual field**; New Clients/Bookings tiles hidden. Listing detail shows live numbers behind the `active + confirmed` gate. Depends on T-09.
 - [ ] **T-11** Build Google Places client (reviews + business_status, cached) — _Day 1, due 2026-06-25_
   - _Done when:_ `src/lib/places/` fetches Google reviews and `business_status` by Place ID, with aggressive caching (results not re-fetched per request) and a Zod-validated mapper. Lays groundwork for V3 closure detection.
 - [ ] **T-12** Wire Places reviews into listing detail — _~3h, due 2026-06-26_
   - _Done when:_ Listing detail displays Google review count/rating sourced from the cached Places layer, not mock data. Depends on T-11.
-- [ ] **T-13** Verify saved-search email alerts end-to-end — _~3h, due 2026-06-26_
+- [x] **T-13** Verify saved-search email alerts end-to-end — _~3h, due 2026-06-26_
   - _Done when:_ Approving a new listing that matches a saved search reliably sends the Resend alert email, covered by an integration test. Depends on T-05.
 
 ## Phase 3: Production-readiness (Jun 29–30)
-- [ ] **T-14** Data-mapper test coverage (Boulevard + Places + geo) — _~3h, due 2026-06-29_
-  - _Done when:_ `npm test` passes and includes tests for the Boulevard mapper, the Places mapper, and the existing geospatial query — the three integration points most likely to break silently. Depends on T-09, T-11.
+- [ ] **T-14** Data-mapper test coverage (BigQuery + Places + geo) — _~3h, due 2026-06-29_
+  - _Done when:_ `npm test` passes and includes tests for the BigQuery mapper (Net Sales/MCR + name-match), the Places mapper, and the existing geospatial query — the three integration points most likely to break silently. _In progress:_ BigQuery + geo covered; Places mapper pending T-11. Depends on T-09, T-11.
 - [ ] **T-15** Add Sentry + structured logging — _~3h, due 2026-06-29_
   - _Done when:_ `@sentry/nextjs` is installed and capturing errors in server actions + API routes, and key operations emit structured logs. Verified by a test error appearing in Sentry.
 - [ ] **T-16** Places API cost controls (cache + billing budget/alert) — _~2h, due 2026-06-30_
@@ -71,13 +71,13 @@ last_audited: never
   "tasks": [
     {
       "id": "T-01",
-      "title": "Boulevard data spike — confirm API access and pullable metrics",
+      "title": "Live-data source spike — confirm access and pullable metrics (BigQuery, replaced Boulevard)",
       "phase": "De-risk & verify",
       "estimate": "Day 1",
       "due": "2026-06-17",
-      "done_when": "Throwaway script under scripts/ authenticates against Boulevard Admin GraphQL and prints total sales + MR% inputs for one location; findings on how MR% is defined are documented. Blocked on Austin provisioning API access.",
-      "check": { "type": "manual", "note": "Depends on Boulevard API access from Austin; confirm script ran and metrics + MR% definition are documented." },
-      "status": "not_started"
+      "done_when": "Real per-location Net Sales (YTD) + MCR pullable from the chosen source. Outcome: Boulevard Admin API non-functional, pivoted to BigQuery; access confirmed, both metrics return real data, MCR definition (new members / prospects, laser excluded) documented.",
+      "check": { "type": "manual", "note": "Pivot from Boulevard to BigQuery confirmed; BigQuery queries return real per-location Net Sales + MCR. See src/lib/bigquery/queries.ts." },
+      "status": "done"
     },
     {
       "id": "T-02",
@@ -87,7 +87,7 @@ last_audited: never
       "due": "2026-06-18",
       "done_when": "npm test passes (geo unit tests green) and a manual /browse radius search returns expected listings against seeded/geocoded data.",
       "check": { "type": "command", "run": "npm test" },
-      "status": "not_started"
+      "status": "done"
     },
     {
       "id": "T-03",
@@ -116,8 +116,8 @@ last_audited: never
       "estimate": "~2h",
       "due": "2026-06-19",
       "done_when": "approveListing (or the active-transition path) calls triggerAlertMatching; approving a listing fires matching saved-search alert emails in dev.",
-      "check": { "type": "grep", "pattern": "triggerAlertMatching", "path": "src/lib/listings/actions.ts" },
-      "status": "not_started"
+      "check": { "type": "grep", "pattern": "triggerAlertMatching", "path": "src/lib/admin/actions.ts" },
+      "status": "done"
     },
     {
       "id": "T-06",
@@ -151,23 +151,23 @@ last_audited: never
     },
     {
       "id": "T-09",
-      "title": "Build Boulevard client module (auth + sales + MR% mapper)",
+      "title": "Build BigQuery client module (client + Net Sales/MCR queries + name-match mapper)",
       "phase": "V2 — real data",
       "estimate": "Day 1",
       "due": "2026-06-23",
-      "done_when": "src/lib/boulevard/ has a typed client fetching total sales + MR% inputs, a Zod-validated mapper, and passing mapper unit tests.",
-      "check": { "type": "grep", "pattern": "boulevard", "path": "src/lib/boulevard" },
-      "status": "not_started"
+      "done_when": "src/lib/bigquery/ has a typed server-only client + cached daily Net Sales (YTD) and MCR queries (dollars->cents); src/lib/data/ holds source-agnostic name-match + mapping logic; all with passing unit tests. Replaces the deleted Boulevard client.",
+      "check": { "type": "grep", "pattern": "getNetSalesByLocation|getMcrByLocation", "path": "src/lib/bigquery" },
+      "status": "done"
     },
     {
       "id": "T-10",
-      "title": "Wire Boulevard data into listing KPIs (replace mock for sales + MR%)",
+      "title": "Wire BigQuery data into listing KPIs (Net Sales YTD + MCR)",
       "phase": "V2 — real data",
       "estimate": "Day 1",
       "due": "2026-06-24",
-      "done_when": "KPI fetch layer pulls real total sales + MR% from Boulevard for listed locations; profitability stays manual; listing detail shows live numbers.",
-      "check": { "type": "grep", "pattern": "boulevard", "path": "src/lib/kpi" },
-      "status": "not_started"
+      "done_when": "KPI fetch layer pulls real Net Sales (YTD) + MCR from BigQuery for active, confirmed-mapped locations; profitability stays manual; New Clients/Bookings tiles hidden; listing detail shows live numbers behind the active+confirmed gate.",
+      "check": { "type": "grep", "pattern": "bigquery", "path": "src/lib/kpi/fetch.ts" },
+      "status": "done"
     },
     {
       "id": "T-11",
@@ -197,7 +197,7 @@ last_audited: never
       "due": "2026-06-26",
       "done_when": "Approving a new matching listing reliably sends the Resend alert email, covered by an integration test.",
       "check": { "type": "grep", "pattern": "sendAlertMatchEmail", "path": "src" },
-      "status": "not_started"
+      "status": "done"
     },
     {
       "id": "T-14",
@@ -205,9 +205,9 @@ last_audited: never
       "phase": "Production-readiness",
       "estimate": "~3h",
       "due": "2026-06-29",
-      "done_when": "npm test passes and includes tests for the Boulevard mapper, the Places mapper, and the geospatial query.",
+      "done_when": "npm test passes and includes tests for the BigQuery mapper (Net Sales/MCR + name-match), the Places mapper, and the geospatial query.",
       "check": { "type": "command", "run": "npm test" },
-      "status": "not_started"
+      "status": "in_progress"
     },
     {
       "id": "T-15",
