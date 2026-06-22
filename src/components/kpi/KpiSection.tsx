@@ -79,7 +79,7 @@ async function KpiSectionContent({
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Performance Data</h2>
         <p className="text-sm text-gray-500 mb-6">
           {revenueLive
-            ? "Net Sales and MCR are live from BigQuery (year-to-date)."
+            ? "Net Sales and MCR are live from BigQuery (trailing 12 months)."
             : "Live data not connected for this location."}
         </p>
         <KpiCardRow kpiData={data} />
