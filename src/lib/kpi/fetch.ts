@@ -114,7 +114,7 @@ export async function fetchLocationMembership(args: {
   return {
     lastMonth: pct,
     momChange: 0,
-    trend: [{ month: "YTD", value: pct }],
+    trend: [{ month: "TTM", value: pct }],
     updatedAt: new Date().toISOString(),
     source: "bigquery",
   }
@@ -124,19 +124,26 @@ export async function fetchLocationRevenue(args: {
   listingStatus: string
   mappingStatus: string
   bqLocationName: string | null
-}): Promise<{ metric: KpiMetric; ytdCents: number } | null> {
+}): Promise<{ metric: KpiMetric; totalCents: number } | null> {
   if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
     return null // "not connected"
   }
   const map = await getNetSalesByLocation()
-  const cents = map.get(args.bqLocationName)
-  if (cents === undefined) return null
+  const ns = map.get(args.bqLocationName)
+  if (ns === undefined) return null
+
+  // KpiCard/KpiTrendChart format values as dollars; the financials card uses cents.
+  const trend = ns.trend
+  const last = trend.length > 0 ? trend[trend.length - 1].value : 0
+  const prior = trend.length > 1 ? trend[trend.length - 2].value : 0
+  const momChange = prior !== 0 ? (last - prior) / prior : 0
+
   return {
-    ytdCents: cents,
+    totalCents: ns.totalCents,
     metric: {
-      lastMonth: cents,
-      momChange: 0,
-      trend: [{ month: "YTD", value: cents }],
+      lastMonth: ns.totalCents / 100, // TTM total in dollars
+      momChange,
+      trend,
       updatedAt: new Date().toISOString(),
       source: "bigquery",
     },

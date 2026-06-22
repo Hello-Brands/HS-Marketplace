@@ -25,6 +25,7 @@ describe("fetchLocationMembership", () => {
     const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
     expect(r?.lastMonth).toBe(38)
     expect(r?.source).toBe("bigquery")
+    expect(r?.trend).toEqual([{ month: "TTM", value: 38 }])
   })
 
   it("returns null when location absent from the BigQuery map", async () => {
