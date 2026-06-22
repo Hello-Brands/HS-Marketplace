@@ -2,7 +2,7 @@ import "server-only"
 import { unstable_cache } from "next/cache"
 import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
 import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
-import { getNetSalesByLocation, getMcrByLocation } from "@/lib/bigquery/queries"
+import { getNetSalesByLocation, getMcrByLocation, getMcrTrendByLocation } from "@/lib/bigquery/queries"
 import { canFetchLiveData } from "./access"
 
 /**
@@ -108,13 +108,21 @@ export async function fetchLocationMembership(args: {
   if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
     return null
   }
-  const map = await getMcrByLocation()
-  const pct = map.get(args.bqLocationName)
-  if (pct === undefined) return null
+  const [pooledMap, trendMap] = await Promise.all([getMcrByLocation(), getMcrTrendByLocation()])
+  const pct = pooledMap.get(args.bqLocationName)
+  if (pct === undefined) return null // headline drives connectivity
+
+  // Headline stays the pooled TTM ratio; the monthly series feeds the trend only.
+  const points = trendMap.get(args.bqLocationName) ?? []
+  const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
+  const last = points.length > 0 ? points[points.length - 1].value : 0
+  const prior = points.length > 1 ? points[points.length - 2].value : 0
+  const momChange = points.length > 1 && prior !== 0 ? (last - prior) / prior : 0
+
   return {
     lastMonth: pct,
-    momChange: 0,
-    trend: [{ month: "TTM", value: pct }],
+    momChange,
+    trend,
     updatedAt: new Date().toISOString(),
     source: "bigquery",
   }

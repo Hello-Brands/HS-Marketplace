@@ -2,10 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
 const getMcrByLocation = vi.fn()
-vi.mock("@/lib/bigquery/queries", () => ({ getMcrByLocation, getNetSalesByLocation: vi.fn() }))
+const getMcrTrendByLocation = vi.fn()
+vi.mock("@/lib/bigquery/queries", () => ({
+  getMcrByLocation,
+  getMcrTrendByLocation,
+  getNetSalesByLocation: vi.fn(),
+}))
 
 describe("fetchLocationMembership", () => {
-  beforeEach(() => { vi.resetModules(); getMcrByLocation.mockReset() })
+  beforeEach(() => {
+    vi.resetModules()
+    getMcrByLocation.mockReset()
+    getMcrTrendByLocation.mockReset()
+  })
 
   it("returns null when not active+confirmed", async () => {
     const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
@@ -19,17 +28,36 @@ describe("fetchLocationMembership", () => {
     expect(r).toBeNull()
   })
 
-  it("returns bigquery-sourced MCR metric when connected", async () => {
-    getMcrByLocation.mockResolvedValue(new Map([["Sugar House", 38]]))
+  it("uses pooled TTM as the headline + monthly trend + real MoM when connected", async () => {
+    getMcrByLocation.mockResolvedValue(new Map([["Sugar House", 34.5]]))
+    getMcrTrendByLocation.mockResolvedValue(new Map([["Sugar House", [
+      { month: "Apr 2026", value: 32.6 },
+      { month: "May 2026", value: 40.4 },
+    ]]]))
     const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
     const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
-    expect(r?.lastMonth).toBe(38)
+    expect(r?.lastMonth).toBe(34.5) // pooled TTM, NOT the latest month
     expect(r?.source).toBe("bigquery")
-    expect(r?.trend).toEqual([{ month: "TTM", value: 38 }])
+    expect(r?.trend).toEqual([
+      { month: "Apr 2026", value: 32.6 },
+      { month: "May 2026", value: 40.4 },
+    ])
+    expect(r?.momChange).toBeCloseTo((40.4 - 32.6) / 32.6)
   })
 
-  it("returns null when location absent from the BigQuery map", async () => {
+  it("falls back to a single TTM point when no monthly trend exists", async () => {
+    getMcrByLocation.mockResolvedValue(new Map([["Sugar House", 34.5]]))
+    getMcrTrendByLocation.mockResolvedValue(new Map())
+    const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
+    const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
+    expect(r?.lastMonth).toBe(34.5)
+    expect(r?.trend).toEqual([{ month: "TTM", value: 34.5 }])
+    expect(r?.momChange).toBe(0)
+  })
+
+  it("returns null when location absent from the pooled BigQuery map", async () => {
     getMcrByLocation.mockResolvedValue(new Map())
+    getMcrTrendByLocation.mockResolvedValue(new Map())
     const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
     const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Nowhere" })
     expect(r).toBeNull()
