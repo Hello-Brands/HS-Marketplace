@@ -6,6 +6,7 @@ import { FilterBar, useListingFilters, RADIUS_OPTIONS, DEFAULT_RADIUS_MILES } fr
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { ListingGrid } from "./ListingGrid"
 import { LocationSearch } from "./LocationSearch"
+import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
 import { UserNav } from "./UserNav"
 import type { ListingCard } from "@/lib/listings-query"
@@ -35,6 +36,7 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = 
   const [viewMode, setViewMode] = useState<"list" | "map">("list")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [hintDismissed, setHintDismissed] = useState(false)
 
   const [rawFilters, setFilters] = useListingFilters()
   const router = useRouter()
@@ -270,6 +272,9 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = 
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />
+              {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
+                <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />
+              )}
             </div>
           </div>
         )}
