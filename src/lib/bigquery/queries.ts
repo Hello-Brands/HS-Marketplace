@@ -25,7 +25,8 @@ const MCR_SQL = `
   SELECT LOCATION_NAME,
     ROUND(SAFE_DIVIDE(SUM(NON_LASER_NEW_MEMBERS), SUM(NON_LASER_PROSPECTS)) * 100, 1) AS mcr_pct
   FROM \`even-affinity-388602.data_mart_for_tools.vw_mcr_data_agg_raw\`
-  WHERE APPOINTMENT_DATE >= DATE_TRUNC(CURRENT_DATE(), YEAR)
+  WHERE APPOINTMENT_DATE >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 12 MONTH)
+    AND APPOINTMENT_DATE < DATE_TRUNC(CURRENT_DATE(), MONTH)
   GROUP BY LOCATION_NAME
   ORDER BY mcr_pct DESC`
 
@@ -83,7 +84,7 @@ const cachedMcr = unstable_cache(
     const rows = await runQuery<McrRow>(MCR_SQL)
     return Array.from(rowsToMcrMap(rows ?? []).entries())
   },
-  ["bq-mcr-ytd"],
+  ["bq-mcr-ttm"],
   { revalidate: 86400, tags: ["bq-mcr"] }
 )
 
