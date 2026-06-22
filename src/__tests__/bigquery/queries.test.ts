@@ -14,15 +14,22 @@ describe("rowsToNetSalesByLocation", () => {
     const sh = map.get("Sugar House")!
     expect(sh.totalCents).toBe(35050) // (200 + 100.50 + 50) * 100
     expect(sh.trend).toEqual([
-      { month: "2025-07", value: 200 },
-      { month: "2025-08", value: 100.5 },
-      { month: "2025-09", value: 50 },
+      { month: "Jul 2025", value: 200 },
+      { month: "Aug 2025", value: 100.5 },
+      { month: "Sep 2025", value: 50 },
     ])
   })
 
   it("skips rows with null/blank location name", () => {
     const map = rowsToNetSalesByLocation([
       { LOCATION_NAME: null, sales_month: "2025-07", cash_plus_credit: 100 },
+    ])
+    expect(map.size).toBe(0)
+  })
+
+  it("skips rows with null sales_month", () => {
+    const map = rowsToNetSalesByLocation([
+      { LOCATION_NAME: "X", sales_month: null, cash_plus_credit: 100 },
     ])
     expect(map.size).toBe(0)
   })

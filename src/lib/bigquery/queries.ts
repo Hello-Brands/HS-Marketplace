@@ -43,19 +43,33 @@ function toNumber(v: Numeric): number {
   return Number.isFinite(n) ? n : 0
 }
 
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+function formatMonthLabel(ym: string): string {
+  const [y, m] = ym.split("-")
+  const idx = Number(m) - 1
+  return MONTH_ABBR[idx] ? `${MONTH_ABBR[idx]} ${y}` : ym
+}
+
 /** Pure: monthly rows → per-location { totalCents, trend (dollars, sorted asc) }. Exported for tests. */
 export function rowsToNetSalesByLocation(rows: NetSalesRow[]): Map<string, LocationNetSales> {
-  const map = new Map<string, LocationNetSales>()
+  // Accumulate with raw "YYYY-MM" key for correct chronological sorting
+  const raw = new Map<string, { totalCents: number; trend: { rawMonth: string; value: number }[] }>()
   for (const r of rows) {
     if (!r.LOCATION_NAME || !r.sales_month) continue
     const dollars = toNumber(r.cash_plus_credit)
-    const entry = map.get(r.LOCATION_NAME) ?? { totalCents: 0, trend: [] }
+    const entry = raw.get(r.LOCATION_NAME) ?? { totalCents: 0, trend: [] }
     entry.totalCents += Math.round(dollars * 100)
-    entry.trend.push({ month: r.sales_month, value: dollars })
-    map.set(r.LOCATION_NAME, entry)
+    entry.trend.push({ rawMonth: r.sales_month, value: dollars })
+    raw.set(r.LOCATION_NAME, entry)
   }
-  for (const entry of map.values()) {
-    entry.trend.sort((a, b) => a.month.localeCompare(b.month))
+  // Sort by raw "YYYY-MM" (chronological), then convert month to display label
+  const map = new Map<string, LocationNetSales>()
+  for (const [name, entry] of raw.entries()) {
+    entry.trend.sort((a, b) => a.rawMonth.localeCompare(b.rawMonth))
+    map.set(name, {
+      totalCents: entry.totalCents,
+      trend: entry.trend.map(({ rawMonth, value }) => ({ month: formatMonthLabel(rawMonth), value })),
+    })
   }
   return map
 }
