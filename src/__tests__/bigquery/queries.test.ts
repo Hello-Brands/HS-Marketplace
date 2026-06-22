@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { rowsToNetSalesByLocation, rowsToMcrMap } from "@/lib/bigquery/queries"
+import { rowsToNetSalesByLocation, rowsToMcrMap, rowsToMcrTrendByLocation } from "@/lib/bigquery/queries"
 
 describe("rowsToNetSalesByLocation", () => {
   it("sums monthly dollars into cents and keeps a sorted dollar trend", () => {
@@ -53,5 +53,36 @@ describe("rowsToMcrMap", () => {
   it("treats null mcr_pct as 0", () => {
     const map = rowsToMcrMap([{ LOCATION_NAME: "X", mcr_pct: null }])
     expect(map.get("X")).toBe(0)
+  })
+})
+
+describe("rowsToMcrTrendByLocation", () => {
+  it("sorts months chronologically with friendly labels", () => {
+    const map = rowsToMcrTrendByLocation([
+      { LOCATION_NAME: "SH", mcr_month: "2025-08", mcr_pct: 37.3 },
+      { LOCATION_NAME: "SH", mcr_month: "2025-07", mcr_pct: 42.3 },
+      { LOCATION_NAME: "SH", mcr_month: "2025-09", mcr_pct: 28.2 },
+    ])
+    expect(map.get("SH")).toEqual([
+      { month: "Jul 2025", value: 42.3 },
+      { month: "Aug 2025", value: 37.3 },
+      { month: "Sep 2025", value: 28.2 },
+    ])
+  })
+
+  it("drops zero-prospect months (null mcr_pct) but keeps a legitimate 0%", () => {
+    const map = rowsToMcrTrendByLocation([
+      { LOCATION_NAME: "SH", mcr_month: "2025-07", mcr_pct: null },
+      { LOCATION_NAME: "SH", mcr_month: "2025-08", mcr_pct: 0 },
+    ])
+    expect(map.get("SH")).toEqual([{ month: "Aug 2025", value: 0 }])
+  })
+
+  it("skips rows with null location name or null month", () => {
+    const map = rowsToMcrTrendByLocation([
+      { LOCATION_NAME: null, mcr_month: "2025-07", mcr_pct: 30 },
+      { LOCATION_NAME: "SH", mcr_month: null, mcr_pct: 30 },
+    ])
+    expect(map.size).toBe(0)
   })
 })

@@ -8,6 +8,7 @@ type Numeric = number | string | { toString(): string } | null
 type NetSalesRow = { LOCATION_NAME: string | null; sales_month: string | null; cash_plus_credit: Numeric }
 export type LocationNetSales = { totalCents: number; trend: { month: string; value: number }[] }
 type McrRow = { LOCATION_NAME: string | null; mcr_pct: Numeric }
+type McrTrendRow = { LOCATION_NAME: string | null; mcr_month: string | null; mcr_pct: Numeric }
 type NameRow = { LOCATION_NAME: string | null }
 
 const NET_SALES_SQL = `
@@ -29,6 +30,16 @@ const MCR_SQL = `
     AND APPOINTMENT_DATE < DATE_TRUNC(CURRENT_DATE(), MONTH)
   GROUP BY LOCATION_NAME
   ORDER BY mcr_pct DESC`
+
+const MCR_TREND_SQL = `
+  SELECT LOCATION_NAME,
+    FORMAT_DATE('%Y-%m', DATE_TRUNC(APPOINTMENT_DATE, MONTH)) AS mcr_month,
+    ROUND(SAFE_DIVIDE(SUM(NON_LASER_NEW_MEMBERS), SUM(NON_LASER_PROSPECTS)) * 100, 1) AS mcr_pct
+  FROM \`even-affinity-388602.data_mart_for_tools.vw_mcr_data_agg_raw\`
+  WHERE APPOINTMENT_DATE >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), MONTH), INTERVAL 12 MONTH)
+    AND APPOINTMENT_DATE < DATE_TRUNC(CURRENT_DATE(), MONTH)
+  GROUP BY LOCATION_NAME, mcr_month
+  ORDER BY LOCATION_NAME, mcr_month`
 
 const NAMES_SQL = `
   SELECT DISTINCT LOCATION_NAME
@@ -84,6 +95,29 @@ export function rowsToMcrMap(rows: McrRow[]): Map<string, number> {
   return map
 }
 
+/**
+ * Pure: monthly MCR rows → per-location sorted { month label, pct } trend.
+ * Drops zero-prospect (null mcr_pct) months; keeps a legitimate 0. Exported for tests.
+ */
+export function rowsToMcrTrendByLocation(
+  rows: McrTrendRow[]
+): Map<string, { month: string; value: number }[]> {
+  // Accumulate with raw "YYYY-MM" key for correct chronological sorting
+  const raw = new Map<string, { rawMonth: string; value: number }[]>()
+  for (const r of rows) {
+    if (!r.LOCATION_NAME || !r.mcr_month || r.mcr_pct === null || r.mcr_pct === undefined) continue
+    const arr = raw.get(r.LOCATION_NAME) ?? []
+    arr.push({ rawMonth: r.mcr_month, value: toNumber(r.mcr_pct) })
+    raw.set(r.LOCATION_NAME, arr)
+  }
+  const map = new Map<string, { month: string; value: number }[]>()
+  for (const [name, arr] of raw.entries()) {
+    arr.sort((a, b) => a.rawMonth.localeCompare(b.rawMonth))
+    map.set(name, arr.map(({ rawMonth, value }) => ({ month: formatMonthLabel(rawMonth), value })))
+  }
+  return map
+}
+
 const cachedNetSales = unstable_cache(
   async () => {
     const rows = await runQuery<NetSalesRow>(NET_SALES_SQL)
@@ -108,6 +142,19 @@ export async function getNetSalesByLocation(): Promise<Map<string, LocationNetSa
 
 export async function getMcrByLocation(): Promise<Map<string, number>> {
   return new Map(await cachedMcr())
+}
+
+const cachedMcrTrend = unstable_cache(
+  async () => {
+    const rows = await runQuery<McrTrendRow>(MCR_TREND_SQL)
+    return Array.from(rowsToMcrTrendByLocation(rows ?? []).entries())
+  },
+  ["bq-mcr-trend-ttm"],
+  { revalidate: 86400, tags: ["bq-mcr-trend"] }
+)
+
+export async function getMcrTrendByLocation(): Promise<Map<string, { month: string; value: number }[]>> {
+  return new Map(await cachedMcrTrend())
 }
 
 export async function listLocationNames(): Promise<string[] | null> {
