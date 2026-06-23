@@ -61,12 +61,14 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   const isAdmin = session.user.role === "admin"
   // Admins can also list/sell, and franchisees get seller access by default.
   const hasSeller = !!session.user.sellerAccess || isAdmin
+  // Owners (linked to the directory) get a "My Locations" nav entry.
+  const isOwner = !!session.user.ownerIdentifier
 
   // Fetch initial listings server-side (filtered by the URL) for fast first paint.
   const { items: initialListings } = await getListings(parseFilters(searchParams))
 
   return (
-    <BrowsePage initialListings={initialListings} isAdmin={isAdmin} hasSeller={hasSeller} />
+    <BrowsePage initialListings={initialListings} isAdmin={isAdmin} hasSeller={hasSeller} isOwner={isOwner} />
   )
 }
 
