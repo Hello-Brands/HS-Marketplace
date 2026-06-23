@@ -1,7 +1,9 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
-import { kpiResponseSchema, type KpiData } from "./schema"
+import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
 import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
+import { getNetSalesByLocation, getMcrByLocation, getMcrTrendByLocation } from "@/lib/bigquery/queries"
+import { canFetchLiveData } from "./access"
 
 /**
  * Check if we should use mock data (dev mode without API credentials).
@@ -96,4 +98,62 @@ export async function fetchBundleKpi(locationIds: string[]): Promise<Record<stri
   }
 
   return bundle
+}
+
+export async function fetchLocationMembership(args: {
+  listingStatus: string
+  mappingStatus: string
+  bqLocationName: string | null
+}): Promise<KpiMetric | null> {
+  if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
+    return null
+  }
+  const [pooledMap, trendMap] = await Promise.all([getMcrByLocation(), getMcrTrendByLocation()])
+  const pct = pooledMap.get(args.bqLocationName)
+  if (pct === undefined) return null // headline drives connectivity
+
+  // Headline stays the pooled TTM ratio; the monthly series feeds the trend only.
+  const points = trendMap.get(args.bqLocationName) ?? []
+  const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
+  const last = points.length > 0 ? points[points.length - 1].value : 0
+  const prior = points.length > 1 ? points[points.length - 2].value : 0
+  const momChange = points.length > 1 && prior !== 0 ? (last - prior) / prior : 0
+
+  return {
+    lastMonth: pct,
+    momChange,
+    trend,
+    updatedAt: new Date().toISOString(),
+    source: "bigquery",
+  }
+}
+
+export async function fetchLocationRevenue(args: {
+  listingStatus: string
+  mappingStatus: string
+  bqLocationName: string | null
+}): Promise<{ metric: KpiMetric; totalCents: number } | null> {
+  if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
+    return null // "not connected"
+  }
+  const map = await getNetSalesByLocation()
+  const ns = map.get(args.bqLocationName)
+  if (ns === undefined) return null
+
+  // KpiCard/KpiTrendChart format values as dollars; the financials card uses cents.
+  const trend = ns.trend
+  const last = trend.length > 0 ? trend[trend.length - 1].value : 0
+  const prior = trend.length > 1 ? trend[trend.length - 2].value : 0
+  const momChange = prior !== 0 ? (last - prior) / prior : 0
+
+  return {
+    totalCents: ns.totalCents,
+    metric: {
+      lastMonth: ns.totalCents / 100, // TTM total in dollars
+      momChange,
+      trend,
+      updatedAt: new Date().toISOString(),
+      source: "bigquery",
+    },
+  }
 }

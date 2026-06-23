@@ -21,6 +21,8 @@ export interface ListingDetailLocation {
   territoryLng: number | null
   territoryRadius: number | null
   displayOrder: number
+  bqLocationName: string | null
+  dataMappingStatus: 'unconfirmed' | 'confirmed' | 'not_connected'
 }
 
 export interface ListingDetail {
@@ -36,6 +38,8 @@ export interface ListingDetail {
   otherAssets: string | null
   notes: string | null
   createdAt: Date
+  viewCount: number
+  inquiryCount: number
   seller: {
     id: string
     name: string | null
@@ -77,6 +81,8 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
     otherAssets: listing.otherAssets ?? null,
     notes: listing.notes ?? null,
     createdAt: listing.createdAt,
+    viewCount: listing.viewCount,
+    inquiryCount: listing.inquiryCount,
     seller: {
       id: listing.seller.id,
       name: listing.seller.name ?? null,
@@ -98,6 +104,8 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
       territoryLng: loc.territoryLng ?? null,
       territoryRadius: loc.territoryRadius ?? null,
       displayOrder: loc.displayOrder,
+      bqLocationName: loc.bqLocationName ?? null,
+      dataMappingStatus: loc.dataMappingStatus,
     })),
     photos: listing.photos.map(p => ({
       id: p.id,

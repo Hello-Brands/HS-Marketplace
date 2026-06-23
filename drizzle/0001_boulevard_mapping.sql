@@ -1,0 +1,2 @@
+ALTER TABLE "listing_locations" ADD COLUMN "boulevard_location_id" text;--> statement-breakpoint
+ALTER TABLE "listing_locations" ADD COLUMN "boulevard_mapping_status" text DEFAULT 'unconfirmed' NOT NULL;

@@ -86,7 +86,7 @@ export function KpiTrendModal({
           id="modal-title"
           className="text-xl font-semibold text-gray-900 mb-6"
         >
-          {title} &mdash; 12-Month Trend
+          {title}{metric.trend.length >= 2 ? ' — 12-Month Trend' : ''}
         </h3>
 
         {/* Chart */}

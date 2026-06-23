@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { signIn } from "@/auth"
 
 export default function LoginPage() {
   return (
@@ -79,8 +79,14 @@ export default function LoginPage() {
 
           {/* Sign in link */}
           <div className="space-y-6">
-            <Link
-              href="/api/auth/signin/google"
+            <form
+              action={async () => {
+                "use server"
+                await signIn("google", { redirectTo: "/browse" })
+              }}
+            >
+            <button
+              type="submit"
               className="
                 group w-full flex items-center justify-center gap-3
                 bg-white text-gray-700
@@ -123,7 +129,8 @@ export default function LoginPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
-            </Link>
+            </button>
+            </form>
           </div>
 
           {/* Divider */}

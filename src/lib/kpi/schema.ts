@@ -11,6 +11,7 @@ export const kpiMetricSchema = z.object({
   momChange: z.number(),
   trend: z.array(kpiMonthSchema),
   updatedAt: z.string(),
+  source: z.enum(["bigquery", "sample"]).optional(),
 })
 
 export const kpiResponseSchema = z.object({

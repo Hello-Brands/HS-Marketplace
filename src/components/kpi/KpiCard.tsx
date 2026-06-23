@@ -1,30 +1,34 @@
 "use client"
 
 import type { KpiMetric } from "@/lib/kpi/schema"
+import type { KpiBadge } from "@/lib/kpi/badges"
 
 interface KpiCardProps {
   name: string
   metric: KpiMetric
   formatValue: (value: number) => string
   onClick: () => void
+  badge: KpiBadge
 }
 
-export function KpiCard({ name, metric, formatValue, onClick }: KpiCardProps) {
+export function KpiCard({ name, metric, formatValue, onClick, badge }: KpiCardProps) {
   return (
     <button
       onClick={onClick}
       className="relative min-h-[120px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:border-hs-red-300 hover:shadow-md transition-all text-left w-full focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
     >
-      {/* Live Badge - top right */}
-      <div className="absolute top-3 right-3 flex items-center gap-1 bg-hs-red-600 text-white text-xs px-2 py-0.5 rounded-full">
-        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-          <path
-            fillRule="evenodd"
-            d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-            clipRule="evenodd"
-          />
-        </svg>
-        <span>Live</span>
+      {/* Data-source badge - top right */}
+      <div className={`absolute top-3 right-3 flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+        badge === "live" ? "bg-green-600 text-white"
+        : badge === "pending" ? "bg-amber-100 text-amber-700"
+        : "bg-gray-200 text-gray-600"
+      }`}>
+        {badge === "live" && (
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+          </svg>
+        )}
+        <span>{badge === "live" ? "Live" : badge === "pending" ? "Pending" : "Sample"}</span>
       </div>
 
       {/* Metric Name */}

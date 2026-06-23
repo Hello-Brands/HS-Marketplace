@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="820" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="40" y="40" font-size="22" font-weight="800" fill="#0f172a">Hello Sugar Marketplace — Database Schema</text>
+  <text x="40" y="62" font-size="12.5" fill="#64748b">11 tables · Neon Postgres / Drizzle ORM · monetary values stored in integer cents</text>
+
+  <!-- Group labels -->
+  <text x="40" y="92" font-size="11" font-weight="700" letter-spacing="1.5" fill="#db2777">AUTH &amp; ACCESS</text>
+  <text x="600" y="200" font-size="11" font-weight="700" letter-spacing="1.5" fill="#db2777">LISTINGS</text>
+  <text x="300" y="536" font-size="11" font-weight="700" letter-spacing="1.5" fill="#db2777">ENGAGEMENT</text>
+
+  <!-- ============ RELATIONSHIP LINES (drawn first, under cards) ============ -->
+  <g stroke="#94a3b8" stroke-width="1.5" fill="none">
+    <!-- users -> listings (sellerId) -->
+    <line x1="510" y1="289" x2="600" y2="299"/>
+    <!-- accounts -> users (userId) -->
+    <line x1="250" y1="159" x2="300" y2="262"/>
+    <!-- sessions -> users (userId) -->
+    <line x1="250" y1="289" x2="300" y2="289"/>
+    <!-- allowlist -> users (addedBy) -->
+    <line x1="250" y1="421" x2="300" y2="320"/>
+    <!-- listings -> listing_locations (listingId) -->
+    <line x1="810" y1="288" x2="900" y2="189"/>
+    <!-- listings -> listing_photos (listingId) -->
+    <line x1="810" y1="330" x2="900" y2="359"/>
+    <!-- alerts -> users (userId) -->
+    <line x1="405" y1="556" x2="405" y2="348"/>
+    <!-- favorites -> users (userId) -->
+    <line x1="600" y1="585" x2="505" y2="348"/>
+    <!-- favorites -> listings (listingId) -->
+    <line x1="690" y1="556" x2="700" y2="368"/>
+    <!-- contacts -> listings (listingId) -->
+    <line x1="860" y1="556" x2="800" y2="368"/>
+    <!-- contacts -> users (buyerId) -->
+    <line x1="935" y1="556" x2="510" y2="335" stroke-dasharray="1 0"/>
+  </g>
+
+  <!-- cardinality dots at the "one" (parent) ends -->
+  <g fill="#db2777">
+    <circle cx="510" cy="289" r="3.5"/>
+    <circle cx="300" cy="262" r="3.5"/>
+    <circle cx="300" cy="289" r="3.5"/>
+    <circle cx="300" cy="320" r="3.5"/>
+    <circle cx="810" cy="288" r="3.5"/>
+    <circle cx="810" cy="330" r="3.5"/>
+    <circle cx="405" cy="348" r="3.5"/>
+    <circle cx="505" cy="348" r="3.5"/>
+    <circle cx="700" cy="368" r="3.5"/>
+    <circle cx="800" cy="368" r="3.5"/>
+    <circle cx="510" cy="335" r="3.5"/>
+  </g>
+
+  <!-- FK labels -->
+  <g font-size="10" fill="#475569">
+    <g><rect x="535" y="278" width="48" height="15" fill="#f8fafc"/><text x="538" y="290">sellerId</text></g>
+    <g><rect x="258" y="196" width="40" height="15" fill="#f8fafc"/><text x="261" y="208">userId</text></g>
+    <g><rect x="258" y="282" width="40" height="15" fill="#f8fafc"/><text x="261" y="294">userId</text></g>
+    <g><rect x="256" y="372" width="50" height="15" fill="#f8fafc"/><text x="259" y="384">addedBy</text></g>
+    <g><rect x="828" y="232" width="50" height="15" fill="#f8fafc"/><text x="831" y="244">listingId</text></g>
+    <g><rect x="828" y="342" width="50" height="15" fill="#f8fafc"/><text x="831" y="354">listingId</text></g>
+    <g><rect x="408" y="446" width="40" height="15" fill="#f8fafc"/><text x="411" y="458">userId</text></g>
+    <g><rect x="520" y="452" width="40" height="15" fill="#f8fafc"/><text x="523" y="464">userId</text></g>
+    <g><rect x="700" y="452" width="50" height="15" fill="#f8fafc"/><text x="703" y="464">listingId</text></g>
+    <g><rect x="812" y="452" width="50" height="15" fill="#f8fafc"/><text x="815" y="464">listingId</text></g>
+    <g><rect x="660" y="430" width="46" height="15" fill="#f8fafc"/><text x="663" y="442">buyerId</text></g>
+  </g>
+
+  <!-- ============ TABLES ============ -->
+  <!-- Helper visual: each card = white rect + red header bar -->
+
+  <!-- accounts -->
+  <g filter="url(#sh)"><rect x="40" y="110" width="210" height="98" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="40" y="110" width="210" height="26" fill="#db2777"/>
+  <text x="52" y="128" font-size="13" font-weight="700" fill="#fff">accounts</text>
+  <text x="52" y="153" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>provider + acctId</text>
+  <text x="52" y="173" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>userId</text>
+  <text x="52" y="193" font-size="11.5" fill="#334155">OAuth tokens</text>
+
+  <!-- sessions -->
+  <g filter="url(#sh)"><rect x="40" y="240" width="210" height="98" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="40" y="240" width="210" height="26" fill="#db2777"/>
+  <text x="52" y="258" font-size="13" font-weight="700" fill="#fff">sessions</text>
+  <text x="52" y="283" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>sessionToken</text>
+  <text x="52" y="303" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>userId</text>
+  <text x="52" y="323" font-size="11.5" fill="#334155">expires</text>
+
+  <!-- allowlist -->
+  <g filter="url(#sh)"><rect x="40" y="372" width="210" height="98" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="40" y="372" width="210" height="26" fill="#db2777"/>
+  <text x="52" y="390" font-size="13" font-weight="700" fill="#fff">allowlist</text>
+  <text x="52" y="415" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="52" y="435" font-size="11.5" fill="#334155">email · unique</text>
+  <text x="52" y="455" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>addedBy</text>
+
+  <!-- verification_tokens (standalone) -->
+  <g filter="url(#sh)"><rect x="40" y="504" width="210" height="98" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="40" y="504" width="210" height="26" fill="#94a3b8"/>
+  <text x="52" y="522" font-size="13" font-weight="700" fill="#fff">verification_tokens</text>
+  <text x="52" y="547" font-size="11.5" fill="#334155">identifier</text>
+  <text x="52" y="567" font-size="11.5" fill="#334155">token</text>
+  <text x="52" y="587" font-size="10.5" fill="#94a3b8" font-style="italic">(no FK · Auth.js, unused)</text>
+
+  <!-- users (hub) -->
+  <g filter="url(#sh)"><rect x="300" y="230" width="210" height="118" fill="#fff" stroke="#db2777" stroke-width="2"/></g>
+  <rect x="300" y="230" width="210" height="26" fill="#9d174d"/>
+  <text x="312" y="248" font-size="13.5" font-weight="800" fill="#fff">users</text>
+  <text x="312" y="273" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="312" y="293" font-size="11.5" fill="#334155">email · unique</text>
+  <text x="312" y="313" font-size="11.5" fill="#334155">role  user | admin</text>
+  <text x="312" y="333" font-size="11.5" fill="#334155">sellerAccess</text>
+
+  <!-- listings (hub) -->
+  <g filter="url(#sh)"><rect x="600" y="230" width="210" height="138" fill="#fff" stroke="#db2777" stroke-width="2"/></g>
+  <rect x="600" y="230" width="210" height="26" fill="#9d174d"/>
+  <text x="612" y="248" font-size="13.5" font-weight="800" fill="#fff">listings</text>
+  <text x="612" y="273" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="612" y="293" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>sellerId</text>
+  <text x="612" y="313" font-size="11.5" fill="#334155">type  enum</text>
+  <text x="612" y="333" font-size="11.5" fill="#334155">status  enum</text>
+  <text x="612" y="353" font-size="11.5" fill="#334155">askingPrice ¢ · profit · notes</text>
+
+  <!-- listing_locations -->
+  <g filter="url(#sh)"><rect x="900" y="120" width="240" height="138" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="900" y="120" width="240" height="26" fill="#db2777"/>
+  <text x="912" y="138" font-size="13" font-weight="700" fill="#fff">listing_locations</text>
+  <text x="912" y="163" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="912" y="183" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>listingId</text>
+  <text x="912" y="203" font-size="11.5" fill="#334155">locationType  salon | territory</text>
+  <text x="912" y="223" font-size="11.5" fill="#334155">latitude / longitude  (geocoded)</text>
+  <text x="912" y="243" font-size="11.5" fill="#334155">ttmRevenue · mcr · sqFt</text>
+
+  <!-- listing_photos -->
+  <g filter="url(#sh)"><rect x="900" y="300" width="240" height="118" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="900" y="300" width="240" height="26" fill="#db2777"/>
+  <text x="912" y="318" font-size="13" font-weight="700" fill="#fff">listing_photos</text>
+  <text x="912" y="343" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="912" y="363" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>listingId</text>
+  <text x="912" y="383" font-size="11.5" fill="#334155">url  (Vercel Blob)</text>
+  <text x="912" y="403" font-size="11.5" fill="#334155">displayOrder  (0 = cover)</text>
+
+  <!-- alerts -->
+  <g filter="url(#sh)"><rect x="300" y="556" width="210" height="118" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="300" y="556" width="210" height="26" fill="#db2777"/>
+  <text x="312" y="574" font-size="13" font-weight="700" fill="#fff">alerts</text>
+  <text x="312" y="599" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="312" y="619" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>userId</text>
+  <text x="312" y="639" font-size="11.5" fill="#334155">states / listingTypes (JSON)</text>
+  <text x="312" y="659" font-size="11.5" fill="#334155">min / max price ¢</text>
+
+  <!-- favorites -->
+  <g filter="url(#sh)"><rect x="600" y="556" width="180" height="98" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="600" y="556" width="180" height="26" fill="#db2777"/>
+  <text x="612" y="574" font-size="13" font-weight="700" fill="#fff">favorites</text>
+  <text x="612" y="599" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="612" y="619" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>userId</text>
+  <text x="612" y="639" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>listingId · unique</text>
+
+  <!-- contacts -->
+  <g filter="url(#sh)"><rect x="830" y="556" width="230" height="118" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/></g>
+  <rect x="830" y="556" width="230" height="26" fill="#db2777"/>
+  <text x="842" y="574" font-size="13" font-weight="700" fill="#fff">contacts  (leads)</text>
+  <text x="842" y="599" font-size="11.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK </tspan>id</text>
+  <text x="842" y="619" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>listingId</text>
+  <text x="842" y="639" font-size="11.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK </tspan>buyerId</text>
+  <text x="842" y="659" font-size="11.5" fill="#334155">message + buyer snapshot</text>
+
+  <!-- Legend -->
+  <g>
+    <rect x="1150" y="556" width="210" height="118" fill="#fff" stroke="#e2e8f0" stroke-width="1.5" rx="6"/>
+    <text x="1162" y="578" font-size="12" font-weight="700" fill="#0f172a">Legend</text>
+    <circle cx="1170" cy="598" r="3.5" fill="#db2777"/>
+    <line x1="1170" y1="598" x2="1210" y2="598" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="1218" y="601" font-size="10.5" fill="#475569">one  ──&lt;  many</text>
+    <text x="1162" y="624" font-size="10.5" fill="#334155"><tspan fill="#db2777" font-weight="700">PK</tspan> primary key</text>
+    <text x="1162" y="644" font-size="10.5" fill="#334155"><tspan fill="#2563eb" font-weight="700">FK</tspan> foreign key (line label)</text>
+    <text x="1162" y="664" font-size="10.5" fill="#334155">¢ = stored in integer cents</text>
+  </g>
+</svg>

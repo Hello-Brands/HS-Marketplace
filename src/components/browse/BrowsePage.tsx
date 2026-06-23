@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import dynamic from "next/dynamic"
-import { FilterBar, useListingFilters } from "./FilterBar"
+import { FilterBar, useListingFilters, RADIUS_OPTIONS, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { ListingGrid } from "./ListingGrid"
 import { LocationSearch } from "./LocationSearch"
+import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
 import { UserNav } from "./UserNav"
 import type { ListingCard } from "@/lib/listings-query"
@@ -34,11 +35,17 @@ interface BrowsePageProps {
 export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = [] }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("list")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [mapCenter, setMapCenter] = useState<{ lng: number; lat: number } | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [hintDismissed, setHintDismissed] = useState(false)
 
-  const [rawFilters] = useListingFilters()
+  const [rawFilters, setFilters] = useListingFilters()
   const router = useRouter()
+
+  // Active search center (drives radius filtering, the map circle, and "X mi away").
+  const searchCenter =
+    rawFilters.centerLat !== null && rawFilters.centerLng !== null
+      ? { lat: rawFilters.centerLat, lng: rawFilters.centerLng }
+      : null
 
   // nuqs returns null for unset parseAsInteger values; ListingFilters uses undefined
   const filters = {
@@ -47,14 +54,43 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = 
     states: rawFilters.states,
     minPrice: rawFilters.minPrice ?? undefined,
     maxPrice: rawFilters.maxPrice ?? undefined,
-    sort: rawFilters.sort as "newest" | "price-asc" | "price-desc",
+    sort: rawFilters.sort as "newest" | "price-asc" | "price-desc" | "distance",
     minYearsOpen: rawFilters.minYearsOpen ?? undefined,
+    centerLat: rawFilters.centerLat ?? undefined,
+    centerLng: rawFilters.centerLng ?? undefined,
+    radiusMiles: rawFilters.radiusMiles ?? undefined,
   }
 
   function handleLocationSelect(location: { lng: number; lat: number; name: string }) {
-    setMapCenter({ lng: location.lng, lat: location.lat })
-    // Switch to map view when a location is searched
+    // Set the search center (filters results) IN ADDITION to panning the map.
+    // shallow:false re-runs the server fetch so the map pins reflect the radius.
+    setFilters(
+      {
+        centerLat: location.lat,
+        centerLng: location.lng,
+        centerLabel: location.name,
+        radiusMiles: rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES,
+      },
+      { shallow: false }
+    )
     if (viewMode === "list") setViewMode("map")
+  }
+
+  function handleRadiusChange(miles: number) {
+    setFilters({ radiusMiles: miles }, { shallow: false })
+  }
+
+  function handleClearLocation() {
+    setFilters(
+      {
+        centerLat: null,
+        centerLng: null,
+        centerLabel: null,
+        radiusMiles: null,
+        sort: rawFilters.sort === "distance" ? "newest" : rawFilters.sort,
+      },
+      { shallow: false }
+    )
   }
 
   function handleListingClick(id: string) {
@@ -146,11 +182,53 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = 
             </button>
           </div>
 
-          {/* Location search + Save search — hidden on mobile */}
+          {/* Location search + radius + Save search — hidden on mobile */}
           <div className="hidden sm:flex items-center gap-3 flex-1 justify-end">
             <div className="max-w-sm flex-1">
               <LocationSearch onSelect={handleLocationSelect} />
             </div>
+
+            {/* Radius control + active-location chip (only when a center is set) */}
+            {searchCenter && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="radius-select" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Within
+                </label>
+                <select
+                  id="radius-select"
+                  value={rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES}
+                  onChange={(e) => handleRadiusChange(Number(e.target.value))}
+                  className="
+                    text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 min-h-[44px]
+                    transition-all duration-200 ease-out
+                    focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500 hover:border-gray-400
+                  "
+                >
+                  {RADIUS_OPTIONS.map((m) => (
+                    <option key={m} value={m}>
+                      {m} mi
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleClearLocation}
+                  title={`Clear location: ${rawFilters.centerLabel}`}
+                  className="
+                    inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] max-w-[220px]
+                    text-sm font-medium text-hs-red-700 bg-hs-red-50 hover:bg-hs-red-100
+                    rounded-lg transition-colors
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+                  "
+                >
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span className="truncate">{rawFilters.centerLabel || "Location"}</span>
+                </button>
+              </div>
+            )}
+
             <SaveSearchButton states={filters.states} />
           </div>
         </div>
@@ -191,8 +269,12 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = 
                 hoveredId={hoveredId}
                 onHover={setHoveredId}
                 onListingClick={handleListingClick}
-                center={mapCenter}
+                center={searchCenter}
+                radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />
+              {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
+                <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />
+              )}
             </div>
           </div>
         )}

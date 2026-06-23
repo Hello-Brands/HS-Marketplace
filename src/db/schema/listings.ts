@@ -5,6 +5,8 @@ import {
   integer,
   boolean,
   real,
+  doublePrecision,
+  index,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { listingStatusEnum, listingTypeEnum } from "./enums"
@@ -73,9 +75,27 @@ export const listingLocations = pgTable("listing_locations", {
   territoryLng: real("territory_lng"),
   territoryRadius: integer("territory_radius"), // meters
 
+  // Geocoded coordinates for salon locations (radius search).
+  // Territory locations use territoryLat/Lng above instead.
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  geocodedAt: timestamp("geocoded_at"),
+  geocodeSource: text("geocode_source"), // e.g. "internal_api", "maptiler"
+
+  // BigQuery join key. Stores the matched LOCATION_NAME. Real KPI/financials are
+  // fetched ONLY when dataMappingStatus === "confirmed". Suggested by name match,
+  // human-confirmed in the admin Data Mappings screen.
+  bqLocationName: text("bq_location_name"),
+  dataMappingStatus: text("data_mapping_status", {
+    enum: ["unconfirmed", "confirmed", "not_connected"],
+  }).default("unconfirmed").notNull(),
+
   // Display ordering
   displayOrder: integer("display_order").default(0).notNull(),
-})
+}, (table) => [
+  // Supports the bounding-box prefilter used by radius search
+  index("listing_locations_lat_lng_idx").on(table.latitude, table.longitude),
+])
 
 export const listingPhotos = pgTable("listing_photos", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
-import { fetchLocationKpi, fetchBundleKpi } from '@/lib/kpi/fetch'
+import { fetchLocationKpi, fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership } from '@/lib/kpi/fetch'
 import { aggregateBundleKpi } from '@/lib/kpi/aggregate'
+import { buildLocationKpi } from '@/lib/kpi/assemble'
 import { KpiCardRow } from './KpiCardRow'
 import { BundleKpiSection } from './BundleKpiSection'
 
@@ -17,6 +18,12 @@ interface KpiSectionProps {
   bundleLocations?: Location[]
   /** Listing type - if 'territory', section is hidden */
   listingType: 'suite' | 'flagship' | 'territory' | 'bundle'
+  /** BigQuery LOCATION_NAME for real data overlay (single-location only) */
+  bqLocationName?: string | null
+  /** Data-source mapping status (single-location only) */
+  dataMappingStatus?: string
+  /** Listing status (single-location only) */
+  listingStatus?: string
 }
 
 export function KpiSection(props: KpiSectionProps) {
@@ -36,21 +43,46 @@ async function KpiSectionContent({
   locationId,
   bundleLocations,
   listingType,
+  bqLocationName,
+  dataMappingStatus,
+  listingStatus,
 }: KpiSectionProps) {
   // Single location
   if (listingType !== 'bundle' && locationId) {
+    // Optional base data (internal HS API / dev mock). May be null when that API
+    // is unavailable — that must NOT hide the live BigQuery metrics below.
     const kpiData = await fetchLocationKpi(locationId)
-    if (!kpiData) return null
 
-    const hasAnyKpi = kpiData.revenue || kpiData.newClients || kpiData.bookings || kpiData.membershipConversion
+    let rev: Awaited<ReturnType<typeof fetchLocationRevenue>> = null
+    let mem: Awaited<ReturnType<typeof fetchLocationMembership>> = null
+    if (dataMappingStatus && listingStatus) {
+      rev = await fetchLocationRevenue({
+        listingStatus,
+        mappingStatus: dataMappingStatus,
+        bqLocationName: bqLocationName ?? null,
+      })
+      mem = await fetchLocationMembership({
+        listingStatus,
+        mappingStatus: dataMappingStatus,
+        bqLocationName: bqLocationName ?? null,
+      })
+    }
+
+    const data = buildLocationKpi(kpiData, rev?.metric ?? null, mem)
+    const revenueLive = data.revenue?.source === "bigquery"
+
+    const hasAnyKpi = data.revenue || data.membershipConversion
     if (!hasAnyKpi) return null
 
     return (
       <section className="mt-12">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          Live Performance Data
-        </h2>
-        <KpiCardRow kpiData={kpiData} />
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Performance Data</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          {revenueLive
+            ? "Net Sales and MCR are live from BigQuery (trailing 12 months)."
+            : "Live data not connected for this location."}
+        </p>
+        <KpiCardRow kpiData={data} />
       </section>
     )
   }
@@ -73,15 +105,16 @@ async function KpiSectionContent({
       return null  // All locations returned null
     }
 
-    const cumulative = aggregateBundleKpi(perLocationKpis)
-    const hasAnyKpi = cumulative.revenue || cumulative.newClients || cumulative.bookings || cumulative.membershipConversion
+    const cumulative = { ...aggregateBundleKpi(perLocationKpis), newClients: undefined, bookings: undefined }
+    const hasAnyKpi = cumulative.revenue || cumulative.membershipConversion
     if (!hasAnyKpi) return null
 
     return (
       <section className="mt-12">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          Live Performance Data ({locationCount} locations)
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">
+          Performance Data ({locationCount} locations)
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Live per-location data coming soon.</p>
 
         {/* Cumulative KPI cards */}
         <KpiCardRow kpiData={cumulative} />

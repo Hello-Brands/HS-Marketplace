@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { KpiData } from '@/lib/kpi/schema'
+import { kpiBadge } from '@/lib/kpi/badges'
 import { KpiCard } from './KpiCard'
 import { KpiTrendModal } from './KpiTrendModal'
 
@@ -30,7 +31,8 @@ const KPI_CONFIG = [
   {
     key: 'membershipConversion' as const,
     name: 'Membership Conversion',
-    format: (v: number) => `${(v * 100).toFixed(1)}%`,
+    // Stored as a percentage already (e.g. 38.0 → "38.0%").
+    format: (v: number) => `${v.toFixed(1)}%`,
   },
 ] as const
 
@@ -69,6 +71,7 @@ export function KpiCardRow({ kpiData }: KpiCardRowProps) {
               metric={metric}
               formatValue={config.format}
               onClick={() => setSelectedKpi(config.key)}
+              badge={kpiBadge(config.key, metric)}
             />
           )
         })}

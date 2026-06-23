@@ -203,6 +203,12 @@ async function insertLocations(listingId: string, locations: ListingFormData['lo
       openingDate: loc.openingDate,
       ttmRevenue: loc.ttmRevenue,
       mcr: loc.mcr,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      // Coordinates arrive from the seller-location source (internal API / mock).
+      // Rows without coords are filled in later by scripts/geocode-locations.ts.
+      geocodedAt: loc.latitude != null && loc.longitude != null ? new Date() : null,
+      geocodeSource: loc.latitude != null && loc.longitude != null ? "internal_api" : null,
       territoryLat: loc.territoryLat,
       territoryLng: loc.territoryLng,
       territoryRadius: loc.territoryRadius,
