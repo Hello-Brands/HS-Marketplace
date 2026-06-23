@@ -547,3 +547,23 @@ input[type="number"] {
   border-radius: 50%;
   border: 2px solid var(--background);
 }
+
+/* MapTiler geocoding control — Hello Sugar overrides (browse search) */
+.hs-geocoder {
+  position: relative;
+  z-index: 50; /* keep the suggestions dropdown above the map below it */
+  width: 100%;
+}
+.hs-geocoder .maptiler-ctrl,
+.hs-geocoder .maplibregl-ctrl-geocoder {
+  width: 100%;
+  box-shadow: none;
+  font-family: var(--font-source-sans), system-ui, sans-serif;
+}
+.hs-geocoder .options {
+  z-index: 60;
+}
+.hs-geocoder input:focus {
+  outline: 2px solid #db2777;
+  outline-offset: 1px;
+}

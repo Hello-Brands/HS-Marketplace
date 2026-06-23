@@ -23,12 +23,18 @@ export function LocationSearch({ onSelect }: LocationSearchProps) {
   }
 
   return (
-    <GeocodingControl
-      apiKey={process.env.NEXT_PUBLIC_MAPTILER_API_KEY!}
-      country={["US"]}
-      types={["place", "postcode", "region"]}
-      onPick={handlePick}
-      placeholder="Search by city, state, or zip..."
-    />
+    <div className="hs-geocoder">
+      <GeocodingControl
+        apiKey={process.env.NEXT_PUBLIC_MAPTILER_API_KEY!}
+        apiUrl="/api/geocode"
+        country={["US"]}
+        types={["place", "postcode", "region"]}
+        proximity={[{ type: "fixed", coordinates: [-98.5795, 39.8283] }]}
+        limit={5}
+        class="hs-geocoder-control"
+        onPick={handlePick}
+        placeholder="Search by city, state, or zip..."
+      />
+    </div>
   )
 }
