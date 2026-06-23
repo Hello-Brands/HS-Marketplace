@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/db"
 import { users, accounts, sessions, verificationTokens, allowlist } from "@/db/schema/auth"
 import { authConfig } from "./auth.config"
+import { linkOwnerAtLogin } from "@/lib/owner-directory/login"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -43,11 +44,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = user.id
         session.user.role = user.role
         session.user.sellerAccess = user.sellerAccess
+        session.user.ownerIdentifier = user.ownerIdentifier ?? null
       }
       return session
     },
   },
   events: {
+    // Additive: link a logged-in user to their owner directory record by email.
+    // Runs on every sign-in (so existing users get linked once the directory
+    // syncs), never blocks login.
+    async signIn({ user }) {
+      if (user.id) {
+        await linkOwnerAtLogin(user.id, user.email)
+      }
+    },
     async createUser({ user }) {
       // Bootstrap first admin on account creation
       const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL

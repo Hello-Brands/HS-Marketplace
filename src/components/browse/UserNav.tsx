@@ -7,9 +7,10 @@ import { signOut } from "next-auth/react"
 interface UserNavProps {
   isAdmin?: boolean
   hasSeller?: boolean
+  isOwner?: boolean
 }
 
-export function UserNav({ isAdmin, hasSeller }: UserNavProps) {
+export function UserNav({ isAdmin, hasSeller, isOwner }: UserNavProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   // Close drawer when pressing Escape
@@ -40,6 +41,14 @@ export function UserNav({ isAdmin, hasSeller }: UserNavProps) {
           </svg>
           Saved
         </Link>
+        {isOwner && (
+          <Link
+            href="/account/locations"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px] flex items-center"
+          >
+            My Locations
+          </Link>
+        )}
         {hasSeller && (
           <Link
             href="/seller/listings"
@@ -158,6 +167,20 @@ export function UserNav({ isAdmin, hasSeller }: UserNavProps) {
                 </svg>
                 Saved Listings
               </Link>
+
+              {isOwner && (
+                <Link
+                  href="/account/locations"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors min-h-[48px]"
+                >
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  My Locations
+                </Link>
+              )}
 
               <Link
                 href="/account/alerts"

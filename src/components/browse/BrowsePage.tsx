@@ -29,10 +29,11 @@ interface BrowsePageProps {
   initialListings: ListingCard[]
   isAdmin?: boolean
   hasSeller?: boolean
+  isOwner?: boolean
   favoriteIds?: string[]
 }
 
-export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = [] }: BrowsePageProps) {
+export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favoriteIds = [] }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("list")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
@@ -115,7 +116,7 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, favoriteIds = 
               </p>
             </div>
           </div>
-          <UserNav isAdmin={isAdmin} hasSeller={hasSeller} />
+          <UserNav isAdmin={isAdmin} hasSeller={hasSeller} isOwner={isOwner} />
         </div>
       </header>
 

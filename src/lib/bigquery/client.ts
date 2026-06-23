@@ -5,10 +5,11 @@ let cached: BigQuery | null | undefined
 
 /**
  * Lazily build a BigQuery client.
- * Prefers BIGQUERY_CREDENTIALS (JSON string, for Vercel); falls back to
- * GOOGLE_APPLICATION_CREDENTIALS (file path, local dev) which the SDK reads
- * automatically. Returns null when no project / creds are configured so callers
- * can degrade to "not connected".
+ * Prefers an inline service-account JSON string (GCP_SERVICE_ACCOUNT_JSON, or
+ * the older BIGQUERY_CREDENTIALS) — required on Vercel/serverless where there is
+ * no key file. Falls back to GOOGLE_APPLICATION_CREDENTIALS (file path, local
+ * dev) which the SDK reads automatically. Returns null when no project / creds
+ * are configured so callers can degrade to "not connected".
  */
 export function getBigQueryClient(): BigQuery | null {
   if (cached !== undefined) return cached
@@ -19,12 +20,17 @@ export function getBigQueryClient(): BigQuery | null {
     return cached
   }
 
-  const inlineJson = process.env.BIGQUERY_CREDENTIALS
+  // Inline JSON credential (parsed from env, never a file path — serverless safe).
+  const inlineJson =
+    process.env.GCP_SERVICE_ACCOUNT_JSON || process.env.BIGQUERY_CREDENTIALS
   if (inlineJson) {
     try {
       cached = new BigQuery({ projectId, credentials: JSON.parse(inlineJson) })
     } catch (err) {
-      console.warn("[bigquery] BIGQUERY_CREDENTIALS is not valid JSON:", err)
+      console.warn(
+        "[bigquery] GCP_SERVICE_ACCOUNT_JSON/BIGQUERY_CREDENTIALS is not valid JSON:",
+        err
+      )
       cached = null
     }
     return cached

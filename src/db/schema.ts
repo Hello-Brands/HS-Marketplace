@@ -10,3 +10,6 @@ export * from "./schema/photos"
 export * from "./schema/contacts"
 export * from "./schema/alerts"
 export * from "./schema/favorites"
+
+// Owner directory (Part A)
+export * from "./schema/ownerLocations"
