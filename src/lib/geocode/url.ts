@@ -24,7 +24,8 @@ export function buildUpstreamGeocodeUrl(
   apiKey: string
 ): string {
   const raw = segments.join("/").replace(/\.json$/i, "")
-  const url = new URL(`${MAPTILER_GEOCODING_BASE}/${encodeURIComponent(raw)}.json`)
+  const encoded = raw.split("/").map(encodeURIComponent).join("/")
+  const url = new URL(`${MAPTILER_GEOCODING_BASE}/${encoded}.json`)
   for (const key of ALLOWED_PARAMS) {
     const value = searchParams.get(key)
     if (value !== null) url.searchParams.set(key, value)

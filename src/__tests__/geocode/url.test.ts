@@ -30,4 +30,9 @@ describe("buildUpstreamGeocodeUrl", () => {
     expect(u.searchParams.get("proximity")).toBe("-98,39")
     expect(u.searchParams.has("evil")).toBe(false)
   })
+
+  it("encodes each path segment independently (keeps / as a separator)", () => {
+    const u = new URL(buildUpstreamGeocodeUrl(["place", "Paris.json"], new URLSearchParams(), "K"))
+    expect(u.pathname).toBe("/geocoding/place/Paris.json")
+  })
 })
