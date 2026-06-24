@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_OPTIONS, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
@@ -34,7 +34,7 @@ interface BrowsePageProps {
 }
 
 export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favoriteIds = [] }: BrowsePageProps) {
-  const [viewMode, setViewMode] = useState<"list" | "map">("list")
+  const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
@@ -43,10 +43,13 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
   const router = useRouter()
 
   // Active search center (drives radius filtering, the map circle, and "X mi away").
-  const searchCenter =
-    rawFilters.centerLat !== null && rawFilters.centerLng !== null
-      ? { lat: rawFilters.centerLat, lng: rawFilters.centerLng }
-      : null
+  const searchCenter = useMemo(
+    () =>
+      rawFilters.centerLat !== null && rawFilters.centerLng !== null
+        ? { lat: rawFilters.centerLat, lng: rawFilters.centerLng }
+        : null,
+    [rawFilters.centerLat, rawFilters.centerLng]
+  )
 
   // nuqs returns null for unset parseAsInteger values; ListingFilters uses undefined
   const filters = {
@@ -127,7 +130,7 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
 
       {/* View controls + mobile filter button */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
           {/* Mobile: Filters button */}
           <button
             onClick={() => setMobileFiltersOpen(true)}
@@ -183,8 +186,8 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
             </button>
           </div>
 
-          {/* Location search + radius + Save search — hidden on mobile */}
-          <div className="hidden sm:flex items-center gap-3 flex-1 justify-end">
+          {/* Location search + radius + Save search */}
+          <div className="flex w-full sm:w-auto sm:flex-1 items-center gap-3 justify-end order-last sm:order-none">
             <div className="max-w-sm flex-1">
               <LocationSearch onSelect={handleLocationSelect} />
             </div>

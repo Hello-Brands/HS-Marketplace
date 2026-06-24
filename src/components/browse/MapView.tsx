@@ -44,6 +44,7 @@ export function MapView({ listings, hoveredId, onHover, onListingClick, center, 
   const map = useRef<maptilersdk.Map | null>(null)
   const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
   const mapReady = useRef(false)
+  const centerMarker = useRef<maptilersdk.Marker | null>(null)
 
   // Initialize map once
   useEffect(() => {
@@ -222,6 +223,39 @@ export function MapView({ listings, hoveredId, onHover, onListingClick, center, 
     if (mapReady.current) apply()
     else m.once("load", apply)
   }, [center, radiusMiles])
+
+  // Drop / move / remove the branded search-center pin.
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+
+    const apply = () => {
+      if (centerMarker.current) {
+        centerMarker.current.remove()
+        centerMarker.current = null
+      }
+      if (center) {
+        const el = document.createElement("div")
+        const inner = document.createElement("div")
+        // hs-red-600 teardrop pin, anchored at its tip; distinct from the
+        // smaller pink listing dots.
+        inner.innerHTML = `
+          <svg width="30" height="38" viewBox="0 0 24 24" fill="#db2777"
+               stroke="white" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+            <circle cx="12" cy="9" r="2.5" fill="white" stroke="none"/>
+          </svg>`
+        inner.style.cssText = "filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));"
+        el.appendChild(inner)
+        centerMarker.current = new maptilersdk.Marker({ element: el, anchor: "bottom" })
+          .setLngLat([center.lng, center.lat])
+          .addTo(m)
+      }
+    }
+
+    if (mapReady.current) apply()
+    else m.once("load", apply)
+  }, [center])
 
   return (
     <div ref={mapContainer} className="h-full w-full" />
