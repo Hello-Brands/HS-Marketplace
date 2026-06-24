@@ -247,7 +247,21 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
               </div>
             )}
 
-            <SaveSearchButton states={filters.states} />
+            <SaveSearchButton
+              filters={{
+                query: rawFilters.query || undefined,
+                types: rawFilters.types,
+                states: rawFilters.states,
+                minPrice: rawFilters.minPrice,
+                maxPrice: rawFilters.maxPrice,
+                minYearsOpen: rawFilters.minYearsOpen,
+                sort: rawFilters.sort,
+                centerLat: rawFilters.centerLat,
+                centerLng: rawFilters.centerLng,
+                radiusMiles: rawFilters.radiusMiles,
+                centerLabel: rawFilters.centerLabel || undefined,
+              }}
+            />
           </div>
         </div>
       </div>
