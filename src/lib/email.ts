@@ -187,7 +187,7 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="color: #6b7280; font-size: 14px;">
         Hello Sugar Marketplace<br />
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/alerts" style="color: #6b7280;">Manage your alerts</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/account/alerts" style="color: #6b7280;">Manage your alerts</a>
       </p>
     </div>
   `
