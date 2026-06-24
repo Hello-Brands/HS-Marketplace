@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { FilterBar, useListingFilters, RADIUS_OPTIONS, DEFAULT_RADIUS_MILES } from "./FilterBar"
+import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { ListingGrid } from "./ListingGrid"
 import { LocationSearch } from "./LocationSearch"
@@ -38,6 +38,9 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
+  // Live slider value while dragging; committed to URL state (and a server
+  // re-fetch) only on release so we don't fire a request per tick. null = idle.
+  const [draftRadius, setDraftRadius] = useState<number | null>(null)
 
   const [rawFilters, setFilters] = useListingFilters()
   const router = useRouter()
@@ -80,7 +83,8 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
     if (viewMode === "list") setViewMode("map")
   }
 
-  function handleRadiusChange(miles: number) {
+  function handleRadiusCommit(miles: number) {
+    setDraftRadius(null)
     setFilters({ radiusMiles: miles }, { shallow: false })
   }
 
@@ -194,26 +198,31 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
 
             {/* Radius control + active-location chip (only when a center is set) */}
             {searchCenter && (
-              <div className="flex items-center gap-2">
-                <label htmlFor="radius-select" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              <div className="flex items-center gap-3">
+                <label htmlFor="radius-slider" className="text-sm font-medium text-gray-700 whitespace-nowrap">
                   Within
                 </label>
-                <select
-                  id="radius-select"
-                  value={rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES}
-                  onChange={(e) => handleRadiusChange(Number(e.target.value))}
+                <input
+                  id="radius-slider"
+                  type="range"
+                  min={RADIUS_MIN_MILES}
+                  max={RADIUS_MAX_MILES}
+                  step={1}
+                  value={draftRadius ?? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES}
+                  // Live visual update while dragging (no fetch).
+                  onChange={(e) => setDraftRadius(Number(e.target.value))}
+                  // Commit (and re-fetch) only when the interaction ends.
+                  onPointerUp={(e) => handleRadiusCommit(Number(e.currentTarget.value))}
+                  onKeyUp={(e) => handleRadiusCommit(Number(e.currentTarget.value))}
+                  aria-label="Search radius in miles"
                   className="
-                    text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 min-h-[44px]
-                    transition-all duration-200 ease-out
-                    focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500 hover:border-gray-400
+                    w-28 sm:w-32 h-2 cursor-pointer accent-hs-red-600
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500/40 rounded-full
                   "
-                >
-                  {RADIUS_OPTIONS.map((m) => (
-                    <option key={m} value={m}>
-                      {m} mi
-                    </option>
-                  ))}
-                </select>
+                />
+                <span className="text-sm font-medium text-gray-700 tabular-nums whitespace-nowrap w-12">
+                  {draftRadius ?? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES} mi
+                </span>
                 <button
                   type="button"
                   onClick={handleClearLocation}

@@ -3,8 +3,9 @@
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
 import { US_STATES } from "@/lib/us-states"
 
-// Radius options (miles) for the location search.
-export const RADIUS_OPTIONS = [5, 10, 25, 50, 100] as const
+// Radius range (miles) for the location search slider.
+export const RADIUS_MIN_MILES = 1
+export const RADIUS_MAX_MILES = 100
 export const DEFAULT_RADIUS_MILES = 25
 
 const PRICE_OPTIONS = [
