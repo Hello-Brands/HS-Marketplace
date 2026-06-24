@@ -382,4 +382,37 @@ describe("triggerAlertMatching", () => {
     expect(result.matched).toBe(0)
     expect(mockSendAlertMatchEmail).not.toHaveBeenCalled()
   })
+
+  it("matches when a location has been open at least minYearsOpen", async () => {
+    mockAlertsJoin([
+      { alert: { id: "a1", userId: "u1", states: [], listingTypes: [], minPrice: null, maxPrice: null, minYearsOpen: 3, centerLat: null, centerLng: null, radiusMiles: null, notifyEnabled: true }, user: { id: "u1", email: MOCK_USER_EMAIL, name: MOCK_USER_NAME } },
+    ])
+
+    const fiveYearsAgo = new Date()
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5)
+
+    const result = await triggerAlertMatching({
+      id: "L", type: "suite", city: "Provo", state: "UT", askingPrice: 1000, locationName: "X",
+      locations: [{ state: "UT", latitude: 40, longitude: -111, territoryLat: null, territoryLng: null, openingDate: fiveYearsAgo }],
+    })
+
+    expect(result.matched).toBe(1)
+  })
+
+  it("excludes a listing whose locations are too new for minYearsOpen", async () => {
+    mockAlertsJoin([
+      { alert: { id: "a1", userId: "u1", states: [], listingTypes: [], minPrice: null, maxPrice: null, minYearsOpen: 3, centerLat: null, centerLng: null, radiusMiles: null, notifyEnabled: true }, user: { id: "u1", email: MOCK_USER_EMAIL, name: MOCK_USER_NAME } },
+    ])
+
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+
+    const result = await triggerAlertMatching({
+      id: "L", type: "suite", city: "Provo", state: "UT", askingPrice: 1000, locationName: "X",
+      locations: [{ state: "UT", latitude: 40, longitude: -111, territoryLat: null, territoryLng: null, openingDate: oneYearAgo }],
+    })
+
+    expect(result.matched).toBe(0)
+    expect(mockSendAlertMatchEmail).not.toHaveBeenCalled()
+  })
 })

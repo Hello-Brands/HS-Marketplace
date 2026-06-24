@@ -23,7 +23,23 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Sort is ordering, not a filter — exclude it. An empty save would create an
+  // "all listings" alert that emails on every approved listing, so require at
+  // least one real filter.
+  const hasAnyFilter =
+    !!(filters.query && filters.query.trim()) ||
+    (filters.types?.length ?? 0) > 0 ||
+    (filters.states?.length ?? 0) > 0 ||
+    filters.minPrice != null ||
+    filters.maxPrice != null ||
+    (filters.minYearsOpen != null && filters.minYearsOpen > 0) ||
+    (filters.centerLat != null && filters.centerLng != null && filters.radiusMiles != null)
+
   async function handleSaveSearch() {
+    if (!hasAnyFilter) {
+      setError("Add at least one filter before saving a search.")
+      return
+    }
     setSaving(true)
     setError(null)
     const result = await createAlert({
