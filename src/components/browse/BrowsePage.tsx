@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
@@ -101,9 +101,14 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
     )
   }
 
-  function handleListingClick(id: string) {
-    router.push(`/listings/${id}`)
-  }
+  // Memoized so the MapView marker effect (which depends on it) doesn't rebuild
+  // every render. router is a stable instance.
+  const handleListingClick = useCallback(
+    (id: string) => {
+      router.push(`/listings/${id}`)
+    },
+    [router]
+  )
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -261,22 +266,24 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
             />
           </div>
         ) : (
-          /* Map view — split screen (list left, map right) on desktop; toggle on mobile */
+          /* Map view — map-dominant split (cards 1/3 left, map 2/3 right) on
+             desktop; map-only on mobile (toggle to List for the card grid). */
           <div className="flex h-[calc(100vh-200px)]">
             {/* List panel — hidden on mobile when in map view */}
-            <div className="hidden md:block w-1/2 overflow-y-auto border-r border-gray-200 bg-white">
+            <div className="hidden md:block md:w-1/3 overflow-y-auto border-r border-gray-200 bg-white">
               <div className="px-4 py-4">
                 <ListingGrid
                   initialListings={initialListings}
                   filters={filters}
                   hoveredId={hoveredId}
                   onHover={setHoveredId}
+                  singleColumn
                 />
               </div>
             </div>
 
             {/* Map panel */}
-            <div className="w-full md:w-1/2 relative">
+            <div className="w-full md:w-2/3 relative">
               <MapView
                 listings={initialListings}
                 hoveredId={hoveredId}
