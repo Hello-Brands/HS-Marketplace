@@ -560,10 +560,26 @@ input[type="number"] {
   box-shadow: none;
   font-family: var(--font-source-sans), system-ui, sans-serif;
 }
+/* The control sets font-family on its <form> (the input is `font: inherit`)
+   with high-specificity scoped classes, so override with !important to make
+   the search box use the app font and normal casing like the rest of the page. */
+.hs-geocoder form,
+.hs-geocoder input,
+.hs-geocoder .options,
+.hs-geocoder .options * {
+  font-family: var(--font-source-sans), system-ui, sans-serif !important;
+  text-transform: none !important;
+}
 .hs-geocoder .options {
   z-index: 60;
 }
 .hs-geocoder input:focus {
-  outline: 2px solid #db2777;
+  outline: 2px solid var(--hs-red-500);
   outline-offset: 1px;
+}
+
+/* Filter popover panel entrance */
+@keyframes filterpop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
