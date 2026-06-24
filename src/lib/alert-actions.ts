@@ -22,13 +22,43 @@ import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { sendAlertMatchEmail } from "@/lib/email"
 
-// Alert schema — STATES ONLY per CONTEXT.md decision
 const alertSchema = z.object({
+  name: z.string().max(120).optional().nullable(),
+  query: z.string().max(200).optional().nullable(),
   states: z.array(z.string()).optional(),
-  // NO listingTypes, minPrice, maxPrice per CONTEXT.md decision
+  listingTypes: z.array(z.string()).optional(),
+  minPrice: z.number().int().nonnegative().optional().nullable(),
+  maxPrice: z.number().int().nonnegative().optional().nullable(),
+  minYearsOpen: z.number().int().nonnegative().optional().nullable(),
+  sort: z.string().max(40).optional().nullable(),
+  centerLat: z.number().min(-90).max(90).optional().nullable(),
+  centerLng: z.number().min(-180).max(180).optional().nullable(),
+  radiusMiles: z.number().int().positive().max(500).optional().nullable(),
+  centerLabel: z.string().max(200).optional().nullable(),
+  notifyEnabled: z.boolean().optional(),
 })
 
-export async function createAlert(data: z.infer<typeof alertSchema>) {
+type AlertInput = z.infer<typeof alertSchema>
+
+function toRow(data: AlertInput) {
+  return {
+    name: data.name ?? null,
+    query: data.query ?? null,
+    states: data.states ?? [],
+    listingTypes: data.listingTypes ?? [],
+    minPrice: data.minPrice ?? null,
+    maxPrice: data.maxPrice ?? null,
+    minYearsOpen: data.minYearsOpen ?? null,
+    sort: data.sort ?? null,
+    centerLat: data.centerLat ?? null,
+    centerLng: data.centerLng ?? null,
+    radiusMiles: data.radiusMiles ?? null,
+    centerLabel: data.centerLabel ?? null,
+    notifyEnabled: data.notifyEnabled ?? true,
+  }
+}
+
+export async function createAlert(data: AlertInput) {
   const session = await auth()
   if (!session?.user) return { error: "Not authenticated" }
 
@@ -37,37 +67,26 @@ export async function createAlert(data: z.infer<typeof alertSchema>) {
 
   const [alert] = await db
     .insert(alerts)
-    .values({
-      userId: session.user.id!,
-      states: parsed.data.states || [],
-    })
+    .values({ userId: session.user.id!, ...toRow(parsed.data) })
     .returning()
 
   revalidatePath("/account/alerts")
   return { success: true, alert }
 }
 
-export async function updateAlert(id: string, data: z.infer<typeof alertSchema>) {
+export async function updateAlert(id: string, data: AlertInput) {
   const session = await auth()
   if (!session?.user) return { error: "Not authenticated" }
 
-  // Verify ownership
-  const existing = await db.query.alerts.findFirst({
-    where: eq(alerts.id, id),
-  })
-  if (!existing || existing.userId !== session.user.id) {
-    return { error: "Alert not found" }
-  }
+  const existing = await db.query.alerts.findFirst({ where: eq(alerts.id, id) })
+  if (!existing || existing.userId !== session.user.id) return { error: "Alert not found" }
 
   const parsed = alertSchema.safeParse(data)
   if (!parsed.success) return { error: "Invalid data" }
 
   await db
     .update(alerts)
-    .set({
-      states: parsed.data.states || [],
-      updatedAt: new Date(),
-    })
+    .set({ ...toRow(parsed.data), updatedAt: new Date() })
     .where(eq(alerts.id, id))
 
   revalidatePath("/account/alerts")

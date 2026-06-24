@@ -107,6 +107,28 @@ describe("createAlert", () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 
+  it("persists the full filter set", async () => {
+    mockSession()
+    const fakeAlert = { id: MOCK_ALERT_ID, userId: MOCK_USER_ID }
+    const valuesSpy = vi.fn().mockReturnValue({ returning: vi.fn().mockResolvedValue([fakeAlert]) })
+    mockInsert.mockReturnValue({ values: valuesSpy })
+
+    await createAlert({
+      states: ["UT"], listingTypes: ["suite"], minPrice: 50000000, maxPrice: 100000000,
+      minYearsOpen: 2, query: "salon", sort: "distance",
+      centerLat: 40.2, centerLng: -111.6, radiusMiles: 25, centerLabel: "Provo, UT",
+    })
+
+    expect(valuesSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: MOCK_USER_ID,
+        states: ["UT"], listingTypes: ["suite"], minPrice: 50000000, maxPrice: 100000000,
+        minYearsOpen: 2, query: "salon", sort: "distance",
+        centerLat: 40.2, centerLng: -111.6, radiusMiles: 25, centerLabel: "Provo, UT",
+      }),
+    )
+  })
+
   // Test 2: creates alert with states array only
   it("creates alert record with states array", async () => {
     mockSession()
