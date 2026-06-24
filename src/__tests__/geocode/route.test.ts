@@ -40,4 +40,13 @@ describe("GET /api/geocode/[...q]", () => {
     expect(calledUrl).toContain("key=SERVER")
     expect(calledUrl).not.toContain("CLIENT")
   })
+
+  it("returns 502 when the upstream fetch throws", async () => {
+    process.env.MAPTILER_API_KEY = "SERVER"
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network") }))
+    const res = await GET(new Request("http://localhost/api/geocode/Boise.json"), {
+      params: Promise.resolve({ q: ["Boise.json"] }),
+    })
+    expect(res.status).toBe(502)
+  })
 })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_OPTIONS, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
@@ -43,10 +43,13 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
   const router = useRouter()
 
   // Active search center (drives radius filtering, the map circle, and "X mi away").
-  const searchCenter =
-    rawFilters.centerLat !== null && rawFilters.centerLng !== null
-      ? { lat: rawFilters.centerLat, lng: rawFilters.centerLng }
-      : null
+  const searchCenter = useMemo(
+    () =>
+      rawFilters.centerLat !== null && rawFilters.centerLng !== null
+        ? { lat: rawFilters.centerLat, lng: rawFilters.centerLng }
+        : null,
+    [rawFilters.centerLat, rawFilters.centerLng]
+  )
 
   // nuqs returns null for unset parseAsInteger values; ListingFilters uses undefined
   const filters = {

@@ -31,7 +31,6 @@ export function LocationSearch({ onSelect }: LocationSearchProps) {
         types={["municipality", "place", "region", "subregion", "county", "postal_code"]}
         proximity={[{ type: "fixed", coordinates: [-98.5795, 39.8283] }]}
         limit={5}
-        class="hs-geocoder-control"
         onPick={handlePick}
         placeholder="Search by city, state, or zip..."
       />
