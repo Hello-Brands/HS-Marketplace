@@ -332,4 +332,54 @@ describe("triggerAlertMatching", () => {
     expect(result.matched).toBe(1)
     expect(mockSendAlertMatchEmail).toHaveBeenCalledTimes(1)
   })
+
+  function mockAlertsJoin(rows: unknown[]) {
+    mockSelect.mockReturnValue({
+      from: vi.fn().mockReturnValue({ innerJoin: vi.fn().mockResolvedValue(rows) }),
+    })
+  }
+
+  it("respects type, price, and notifyEnabled (AND of set criteria)", async () => {
+    mockAlertsJoin([
+      { alert: { id: "a1", userId: "u1", states: ["TX"], listingTypes: ["suite"], minPrice: null, maxPrice: 60000000, minYearsOpen: null, centerLat: null, centerLng: null, radiusMiles: null, notifyEnabled: true }, user: { id: "u1", email: MOCK_USER_EMAIL, name: MOCK_USER_NAME } },
+      { alert: { id: "a2", userId: "u2", states: ["TX"], listingTypes: ["flagship"], minPrice: null, maxPrice: null, minYearsOpen: null, centerLat: null, centerLng: null, radiusMiles: null, notifyEnabled: true }, user: { id: "u2", email: "b@example.com", name: "B" } },
+      { alert: { id: "a3", userId: "u3", states: ["TX"], listingTypes: ["suite"], minPrice: null, maxPrice: 60000000, minYearsOpen: null, centerLat: null, centerLng: null, radiusMiles: null, notifyEnabled: false }, user: { id: "u3", email: "c@example.com", name: "C" } },
+    ])
+
+    const result = await triggerAlertMatching({
+      id: "L", type: "suite", city: "Austin", state: "TX", askingPrice: 50000000, locationName: "X", locations: [],
+    })
+
+    // a1 matches (suite + ≤$600k). a2 fails type. a3 disabled.
+    expect(result.matched).toBe(1)
+    expect(mockSendAlertMatchEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it("matches on radius when a center is set", async () => {
+    mockAlertsJoin([
+      { alert: { id: "a1", userId: "u1", states: [], listingTypes: [], minPrice: null, maxPrice: null, minYearsOpen: null, centerLat: 40.234, centerLng: -111.658, radiusMiles: 25, notifyEnabled: true }, user: { id: "u1", email: MOCK_USER_EMAIL, name: MOCK_USER_NAME } },
+    ])
+
+    // Listing location ~22mi away (Heber City) → within 25mi
+    const result = await triggerAlertMatching({
+      id: "L", type: "bundle", city: "Heber City", state: "UT", askingPrice: 1000, locationName: "X",
+      locations: [{ state: "UT", latitude: 40.499, longitude: -111.413, territoryLat: null, territoryLng: null, openingDate: null }],
+    })
+
+    expect(result.matched).toBe(1)
+  })
+
+  it("excludes a listing outside the radius", async () => {
+    mockAlertsJoin([
+      { alert: { id: "a1", userId: "u1", states: [], listingTypes: [], minPrice: null, maxPrice: null, minYearsOpen: null, centerLat: 40.234, centerLng: -111.658, radiusMiles: 5, notifyEnabled: true }, user: { id: "u1", email: MOCK_USER_EMAIL, name: MOCK_USER_NAME } },
+    ])
+
+    const result = await triggerAlertMatching({
+      id: "L", type: "bundle", city: "Salt Lake City", state: "UT", askingPrice: 1000, locationName: "X",
+      locations: [{ state: "UT", latitude: 40.76, longitude: -111.89, territoryLat: null, territoryLng: null, openingDate: null }],
+    })
+
+    expect(result.matched).toBe(0)
+    expect(mockSendAlertMatchEmail).not.toHaveBeenCalled()
+  })
 })

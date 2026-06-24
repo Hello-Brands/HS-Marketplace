@@ -21,6 +21,7 @@ import { eq, desc } from "drizzle-orm"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { sendAlertMatchEmail } from "@/lib/email"
+import { isWithinRadius } from "@/lib/geo"
 
 const alertSchema = z.object({
   name: z.string().max(120).optional().nullable(),
@@ -120,64 +121,88 @@ export async function getMyAlerts() {
   })
 }
 
-/**
- * Trigger alert matching for a newly approved listing.
- *
- * INTEGRATION POINT: This function should be called from the listing
- * approval action in Phase 2 when a listing status changes to 'active'.
- *
- * Matching logic: Alert matches if listing.state is in alert.states array,
- * OR if alert.states is empty (matches all states).
- *
- * Example usage in listing approval action:
- * ```typescript
- * // After setting listing.status = 'active'
- * await triggerAlertMatching({
- *   id: listing.id,
- *   type: listing.type,
- *   city: listing.city,
- *   state: listing.state,
- *   askingPrice: listing.askingPrice,
- *   locationName: listing.locationName,
- * })
- * ```
- *
- * @param listing - The listing that was just approved
- * @returns Object with count of matched alerts
- */
-export async function triggerAlertMatching(listing: {
+type MatchLocation = {
+  state: string | null
+  latitude: number | null
+  longitude: number | null
+  territoryLat: number | null
+  territoryLng: number | null
+  openingDate: Date | null
+}
+
+type MatchListing = {
   id: string
   type: string
   city: string | null
   state: string | null
   askingPrice: number | null
   locationName: string | null
-}) {
-  // Find all alerts joined with user info (STATE ONLY matching)
+  locations?: MatchLocation[]
+}
+
+/**
+ * Trigger alert matching for a newly approved listing.
+ *
+ * INTEGRATION POINT: This function should be called from the listing
+ * approval action when a listing status changes to 'active'.
+ *
+ * Matching logic ANDs across all set criteria:
+ * - notifyEnabled: skip if false
+ * - states: listing.state must be in alert.states (empty = any)
+ * - listingTypes: listing.type must be in alert.listingTypes (empty = any)
+ * - minPrice/maxPrice: listing.askingPrice (cents) must be in range
+ * - minYearsOpen: at least one location open long enough
+ * - radius: at least one location within radiusMiles of centerLat/centerLng
+ * - query and sort are intentionally NOT matched
+ *
+ * @param listing - The listing that was just approved
+ * @returns Object with count of matched alerts
+ */
+export async function triggerAlertMatching(listing: MatchListing) {
+  const locations = listing.locations ?? []
+
   const allAlerts = await db
-    .select({
-      alert: alerts,
-      user: users,
-    })
+    .select({ alert: alerts, user: users })
     .from(alerts)
     .innerJoin(users, eq(alerts.userId, users.id))
 
   const matchingAlerts = allAlerts.filter(({ alert }) => {
-    // State match: if alert has states, listing.state must be in the list
-    // If alert.states is empty/null, it matches ALL states
-    if (alert.states && alert.states.length > 0) {
-      if (!listing.state || !alert.states.includes(listing.state)) {
-        return false
-      }
-    }
+    if (alert.notifyEnabled === false) return false
 
-    // NO type or price matching per CONTEXT.md decision
+    // State (primary listing state) — empty/null = any
+    if (alert.states && alert.states.length > 0) {
+      if (!listing.state || !alert.states.includes(listing.state)) return false
+    }
+    // Type — empty/null = any
+    if (alert.listingTypes && alert.listingTypes.length > 0) {
+      if (!alert.listingTypes.includes(listing.type)) return false
+    }
+    // Price (cents)
+    if (alert.minPrice != null && (listing.askingPrice == null || listing.askingPrice < alert.minPrice)) return false
+    if (alert.maxPrice != null && (listing.askingPrice == null || listing.askingPrice > alert.maxPrice)) return false
+    // Min years open — at least one location open long enough
+    if (alert.minYearsOpen != null && alert.minYearsOpen > 0) {
+      const cutoff = new Date()
+      cutoff.setFullYear(cutoff.getFullYear() - alert.minYearsOpen)
+      const ok = locations.some((l) => l.openingDate != null && l.openingDate <= cutoff)
+      if (!ok) return false
+    }
+    // Radius — at least one location within radius of the saved center
+    if (alert.centerLat != null && alert.centerLng != null && alert.radiusMiles != null) {
+      const ok = locations.some((l) => {
+        const lat = l.latitude ?? l.territoryLat
+        const lng = l.longitude ?? l.territoryLng
+        return lat != null && lng != null &&
+          isWithinRadius(alert.centerLat!, alert.centerLng!, lat, lng, alert.radiusMiles!)
+      })
+      if (!ok) return false
+    }
+    // query and sort are intentionally NOT matched
     return true
   })
 
-  // Send emails to all matching alerts
   await Promise.all(
-    matchingAlerts.map(({ alert, user }) =>
+    matchingAlerts.map(({ user }) =>
       sendAlertMatchEmail({
         buyerEmail: user.email!,
         buyerName: user.name || "Hello Sugar Buyer",
