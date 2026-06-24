@@ -85,11 +85,24 @@ export async function updateAlert(id: string, data: AlertInput) {
   const parsed = alertSchema.safeParse(data)
   if (!parsed.success) return { error: "Invalid data" }
 
-  await db
-    .update(alerts)
-    .set({ ...toRow(parsed.data), updatedAt: new Date() })
-    .where(eq(alerts.id, id))
+  // Only overwrite keys present in the input; leave the rest of the saved search intact.
+  const patch: Record<string, unknown> = { updatedAt: new Date() }
+  const d = parsed.data
+  if ("name" in d) patch.name = d.name ?? null
+  if ("query" in d) patch.query = d.query ?? null
+  if ("states" in d) patch.states = d.states ?? []
+  if ("listingTypes" in d) patch.listingTypes = d.listingTypes ?? []
+  if ("minPrice" in d) patch.minPrice = d.minPrice ?? null
+  if ("maxPrice" in d) patch.maxPrice = d.maxPrice ?? null
+  if ("minYearsOpen" in d) patch.minYearsOpen = d.minYearsOpen ?? null
+  if ("sort" in d) patch.sort = d.sort ?? null
+  if ("centerLat" in d) patch.centerLat = d.centerLat ?? null
+  if ("centerLng" in d) patch.centerLng = d.centerLng ?? null
+  if ("radiusMiles" in d) patch.radiusMiles = d.radiusMiles ?? null
+  if ("centerLabel" in d) patch.centerLabel = d.centerLabel ?? null
+  if ("notifyEnabled" in d) patch.notifyEnabled = d.notifyEnabled
 
+  await db.update(alerts).set(patch).where(eq(alerts.id, id))
   revalidatePath("/account/alerts")
   return { success: true }
 }
