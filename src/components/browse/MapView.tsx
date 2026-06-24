@@ -45,6 +45,10 @@ export function MapView({ listings, hoveredId, onHover, onListingClick, center, 
   const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
   const mapReady = useRef(false)
   const centerMarker = useRef<maptilersdk.Marker | null>(null)
+  // Latest click handler, read inside marker listeners without making it a
+  // dependency of the marker effect (keeps the effect from rebuilding markers).
+  const onListingClickRef = useRef(onListingClick)
+  onListingClickRef.current = onListingClick
 
   // Initialize map once
   useEffect(() => {
@@ -117,7 +121,7 @@ export function MapView({ listings, hoveredId, onHover, onListingClick, center, 
             <div style="margin-top:6px;">
               <span style="font-size:11px;font-weight:500;background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:999px;">${listing.type.charAt(0).toUpperCase() + listing.type.slice(1)}</span>
             </div>
-            <a href="/listings/${listing.id}" style="display:block;margin-top:8px;font-size:13px;color:#db2777;font-weight:500;">View listing →</a>
+            <div style="margin-top:8px;font-size:13px;color:#db2777;font-weight:500;">Click to view details →</div>
           </div>
         `)
 
@@ -126,14 +130,19 @@ export function MapView({ listings, hoveredId, onHover, onListingClick, center, 
           .setPopup(popup)
           .addTo(map.current!)
 
+        // Hover: highlight the matching list card + show the preview popup.
         el.addEventListener("mouseenter", () => {
           onHover(listing.id)
+          popup.addTo(map.current!)
         })
         el.addEventListener("mouseleave", () => {
           onHover(null)
+          popup.remove()
         })
-        el.addEventListener("click", () => {
-          popup.addTo(map.current!)
+        // Click: open the listing's detail page.
+        el.addEventListener("click", (e) => {
+          e.stopPropagation()
+          onListingClickRef.current(listing.id)
         })
 
         markers.current.push({ marker, id: listing.id })
