@@ -28,7 +28,7 @@ export function LocationSearch({ onSelect }: LocationSearchProps) {
         apiKey={process.env.NEXT_PUBLIC_MAPTILER_API_KEY!}
         apiUrl="/api/geocode"
         country={["US"]}
-        types={["place", "postcode", "region"]}
+        types={["municipality", "place", "region", "subregion", "county", "postal_code"]}
         proximity={[{ type: "fixed", coordinates: [-98.5795, 39.8283] }]}
         limit={5}
         class="hs-geocoder-control"
