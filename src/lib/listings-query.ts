@@ -3,6 +3,7 @@
 import { db } from "@/db"
 import { listings, listingLocations, listingPhotos } from "@/db/schema/listings"
 import { and, desc, asc, lt, gt, inArray, gte, lte, eq, ilike, or, sql } from "drizzle-orm"
+import { alias } from "drizzle-orm/pg-core"
 import { z } from "zod"
 import { EARTH_RADIUS_MILES, boundingBox } from "@/lib/geo"
 
@@ -118,6 +119,15 @@ export async function getListings(filters: ListingFilters): Promise<ListingsResu
           : desc(listings.createdAt) // "newest" default
 
   // --- Query ---------------------------------------------------------------
+  // When searching, the card/pin reflect the nearest MATCHED location (which is
+  // what put the listing in range), not the displayOrder-0 primary — otherwise
+  // a bundle can show a primary location that sits outside the search circle.
+  // The displayOrder-0 join is still used for the state/text/years filters.
+  const nearestLoc = alias(listingLocations, "nearest_loc")
+  // Cast collapses the alias/base union to one column type for `.select()`; the
+  // runtime value is still the chosen table, so the emitted SQL is correct.
+  const displayLoc = (distanceSub ? nearestLoc : listingLocations) as typeof listingLocations
+
   let q = db
     .select({
       listing: {
@@ -127,13 +137,13 @@ export async function getListings(filters: ListingFilters): Promise<ListingsResu
         createdAt: listings.createdAt,
       },
       primaryLocation: {
-        name: listingLocations.name,
-        city: listingLocations.city,
-        state: listingLocations.state,
-        latitude: listingLocations.latitude,
-        longitude: listingLocations.longitude,
-        territoryLat: listingLocations.territoryLat,
-        territoryLng: listingLocations.territoryLng,
+        name: displayLoc.name,
+        city: displayLoc.city,
+        state: displayLoc.state,
+        latitude: displayLoc.latitude,
+        longitude: displayLoc.longitude,
+        territoryLat: displayLoc.territoryLat,
+        territoryLng: displayLoc.territoryLng,
       },
       primaryPhoto: {
         url: listingPhotos.url,
@@ -152,8 +162,11 @@ export async function getListings(filters: ListingFilters): Promise<ListingsResu
     .$dynamic()
 
   // INNER JOIN when searching: excludes listings with no usable coordinates.
+  // Also join the nearest matched location for display (label/distance/pin).
   if (distanceSub) {
-    q = q.innerJoin(distanceSub, eq(distanceSub.listingId, listings.id))
+    q = q
+      .innerJoin(distanceSub, eq(distanceSub.listingId, listings.id))
+      .leftJoin(nearestLoc, eq(nearestLoc.id, distanceSub.nearestLocationId))
   }
 
   const rows = await q
@@ -192,9 +205,14 @@ export async function getListings(filters: ListingFilters): Promise<ListingsResu
 }
 
 /**
- * Subquery returning, per listing, the MIN Haversine distance (miles) from the
- * search center to any of its locations — with a lat/lng bounding-box prefilter
- * (index-friendly for salon rows) applied BEFORE the trig.
+ * Subquery returning, per listing, the SINGLE nearest location to the search
+ * center: its id and Haversine distance (miles). A lat/lng bounding-box
+ * prefilter (index-friendly for salon rows) is applied BEFORE the trig.
+ *
+ * DISTINCT ON keeps one row per listing — the minimum-distance location — so a
+ * multi-location listing (e.g. a bundle) surfaces by whichever location is in
+ * range, and the card/pin can show that matched location rather than the
+ * displayOrder-0 primary (which may sit outside the radius).
  */
 function buildDistanceSub(centerLat: number, centerLng: number, radiusMiles: number) {
   const { latMin, latMax, lngMin, lngMax } = boundingBox(centerLat, centerLng, radiusMiles)
@@ -211,9 +229,10 @@ function buildDistanceSub(centerLat: number, centerLng: number, radiusMiles: num
     ))`
 
   return db
-    .select({
+    .selectDistinctOn([listingLocations.listingId], {
       listingId: listingLocations.listingId,
-      distance: sql<number>`MIN(${haversine})`.as("distance"),
+      nearestLocationId: listingLocations.id,
+      distance: haversine.as("distance"),
     })
     .from(listingLocations)
     .where(
@@ -229,6 +248,8 @@ function buildDistanceSub(centerLat: number, centerLng: number, radiusMiles: num
         )`
       )
     )
-    .groupBy(listingLocations.listingId)
+    // DISTINCT ON requires the leading ORDER BY key to match the ON column;
+    // the distance tiebreak then selects the nearest location per listing.
+    .orderBy(listingLocations.listingId, asc(haversine))
     .as("loc_dist")
 }
