@@ -8,7 +8,7 @@ import { ListingGrid } from "./ListingGrid"
 import { LocationSearch } from "./LocationSearch"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
-import { UserNav } from "./UserNav"
+import { AppHeader } from "@/components/layout/AppHeader"
 import type { ListingCard } from "@/lib/listings-query"
 import { useRouter } from "next/navigation"
 
@@ -112,25 +112,13 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      {/* Header with branding */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-hs-red-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">HS</span>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900 tracking-tight">
-                Browse Listings
-              </h1>
-              <p className="text-sm text-gray-500">
-                {initialListings.length} active listing{initialListings.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </div>
-          <UserNav isAdmin={isAdmin} hasSeller={hasSeller} isOwner={isOwner} />
-        </div>
-      </header>
+      <AppHeader
+        title="Browse Listings"
+        subtitle={`${initialListings.length} active listing${initialListings.length !== 1 ? "s" : ""}`}
+        isAdmin={isAdmin}
+        hasSeller={hasSeller}
+        isOwner={isOwner}
+      />
 
       {/* Filter bar — desktop only, sticky at top */}
       <div className="hidden md:block">
