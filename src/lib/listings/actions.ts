@@ -152,7 +152,6 @@ export async function changeListingStatus(
   reason?: string
 ) {
   const user = await requireSellerAccess()
-  const userRole = user.role === 'admin' ? 'admin' : 'seller'
 
   const [listing] = await db.select()
     .from(listings)
@@ -160,10 +159,14 @@ export async function changeListingStatus(
 
   if (!listing) throw new Error('Listing not found')
 
-  // Sellers can only modify their own listings
-  if (userRole === 'seller' && listing.sellerId !== user.id) {
+  // The owner manages their own listing as a seller — even if they are also an
+  // admin. (This is the seller-area action; admins approve/reject other people's
+  // listings through the separate admin-queue path.) Non-owners must be admins.
+  const ownsListing = listing.sellerId === user.id
+  if (!ownsListing && user.role !== 'admin') {
     throw new Error('Not authorized')
   }
+  const userRole: 'seller' | 'admin' = ownsListing ? 'seller' : 'admin'
 
   // Validate transition
   if (!canTransition(listing.status as ListingStatus, targetStatus, userRole)) {
