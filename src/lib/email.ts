@@ -3,8 +3,11 @@ import { Resend } from "resend"
 // Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// From address configuration
-const FROM_ADDRESS = "Hello Sugar Marketplace <noreply@hellosugar.salon>"
+// From address configuration. Must be on a domain the Resend API key is
+// authorized for — the verified sending domain is the `noreply.hellosugar.salon`
+// subdomain (not the apex). Override per-environment with EMAIL_FROM if needed.
+const FROM_ADDRESS =
+  process.env.EMAIL_FROM || "Hello Sugar Marketplace <marketplace@noreply.hellosugar.salon>"
 
 // Type definitions
 export interface SendEmailOptions {
