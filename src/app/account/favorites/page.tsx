@@ -6,7 +6,7 @@ import { favorites } from '@/db/schema/favorites'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq, and, inArray } from 'drizzle-orm'
 import { EmptyStateIllustrated } from '@/components/ui/EmptyState'
-import { Breadcrumb } from '@/components/ui/Breadcrumb'
+import { SiteHeader } from '@/components/layout/SiteHeader'
 
 export const metadata = {
   title: 'Saved Listings - Hello Sugar Marketplace',
@@ -84,29 +84,13 @@ export default async function FavoritesPage() {
   const favoriteListings = await getFavoriteListings(session.user.id)
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
-      <Breadcrumb
-        items={[
-          { label: 'Browse', href: '/browse' },
-          { label: 'Saved Listings' },
-        ]}
+    <>
+      <SiteHeader
+        world="marketplace"
+        title="Saved Listings"
+        subtitle={`${favoriteListings.length} saved listing${favoriteListings.length !== 1 ? 's' : ''}`}
       />
-
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Saved Listings</h1>
-          <p className="text-gray-500 mt-1">
-            {favoriteListings.length} saved listing{favoriteListings.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <Link
-          href="/browse"
-          className="text-sm font-medium text-hs-red-600 hover:text-hs-red-700 hover:underline underline-offset-2"
-        >
-          Browse more
-        </Link>
-      </div>
-
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
       {favoriteListings.length === 0 ? (
         <EmptyStateIllustrated
           title="No saved listings yet"
@@ -176,6 +160,7 @@ export default async function FavoritesPage() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }

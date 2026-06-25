@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { getListings, type ListingFilters, type ListingSort } from "@/lib/listings-query"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
+import { SiteHeader } from "@/components/layout/SiteHeader"
 
 type RawSearchParams = Record<string, string | string[] | undefined>
 
@@ -58,17 +59,18 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
     redirect("/login")
   }
 
-  const isAdmin = session.user.role === "admin"
-  // Admins can also list/sell, and franchisees get seller access by default.
-  const hasSeller = !!session.user.sellerAccess || isAdmin
-  // Owners (linked to the directory) get a "My Locations" nav entry.
-  const isOwner = !!session.user.ownerIdentifier
-
-  // Fetch initial listings server-side (filtered by the URL) for fast first paint.
   const { items: initialListings } = await getListings(parseFilters(searchParams))
+  const count = initialListings.length
 
   return (
-    <BrowsePage initialListings={initialListings} isAdmin={isAdmin} hasSeller={hasSeller} isOwner={isOwner} />
+    <>
+      <SiteHeader
+        world="marketplace"
+        title="Browse Listings"
+        subtitle={`${count} active listing${count !== 1 ? "s" : ""}`}
+      />
+      <BrowsePage initialListings={initialListings} />
+    </>
   )
 }
 

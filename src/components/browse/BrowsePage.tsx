@@ -8,7 +8,6 @@ import { ListingGrid } from "./ListingGrid"
 import { LocationSearch } from "./LocationSearch"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
-import { AppHeader } from "@/components/layout/AppHeader"
 import type { ListingCard } from "@/lib/listings-query"
 import { useRouter } from "next/navigation"
 
@@ -27,13 +26,10 @@ const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
 
 interface BrowsePageProps {
   initialListings: ListingCard[]
-  isAdmin?: boolean
-  hasSeller?: boolean
-  isOwner?: boolean
   favoriteIds?: string[]
 }
 
-export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favoriteIds = [] }: BrowsePageProps) {
+export function BrowsePage({ initialListings, favoriteIds = [] }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
@@ -112,14 +108,6 @@ export function BrowsePage({ initialListings, isAdmin, hasSeller, isOwner, favor
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <AppHeader
-        title="Browse Listings"
-        subtitle={`${initialListings.length} active listing${initialListings.length !== 1 ? "s" : ""}`}
-        isAdmin={isAdmin}
-        hasSeller={hasSeller}
-        isOwner={isOwner}
-      />
-
       {/* Filter bar — desktop only, sticky at top */}
       <div className="hidden md:block">
         <FilterBar />

@@ -13,7 +13,7 @@ import { FinancialsGrid } from '@/components/listing-detail/FinancialsGrid'
 import { DetailMap } from '@/components/listing-detail/DetailMap'
 import { KpiSection } from '@/components/kpi/KpiSection'
 import { FloatingContactCta } from '@/components/listing-detail/FloatingContactCta'
-import { Breadcrumb } from '@/components/ui/Breadcrumb'
+import { SiteHeader } from '@/components/layout/SiteHeader'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -86,16 +86,9 @@ export default async function ListingDetailPage({ params }: Props) {
   const photos = listing.photos.map(p => ({ id: p.id, url: p.url }))
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 pb-24 sm:pb-8">
-      {/* Breadcrumb navigation */}
-      <Breadcrumb
-        items={[
-          { label: 'Marketplace', href: '/' },
-          { label: 'Browse', href: '/browse' },
-          { label: displayName },
-        ]}
-      />
-
+    <>
+      <SiteHeader world="marketplace" title={displayName} />
+      <main className="max-w-7xl mx-auto px-4 py-4 sm:py-8 pb-24 sm:pb-8">
       {/* Photo Gallery */}
       <ListingPhotos photos={photos} />
 
@@ -260,6 +253,7 @@ export default async function ListingDetailPage({ params }: Props) {
           />
         </div>
       </section>
-    </main>
+      </main>
+    </>
   )
 }

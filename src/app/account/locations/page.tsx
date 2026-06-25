@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { getMyOwnerLocations } from "@/lib/owner-directory/data"
 import { deriveLocationStatus, type OverallStatus } from "@/lib/owner-directory/status"
 import { Badge } from "@/components/ui/Badge"
-import { Breadcrumb } from "@/components/ui/Breadcrumb"
+import { SiteHeader } from "@/components/layout/SiteHeader"
 import { EmptyStateIllustrated } from "@/components/ui/EmptyState"
 
 export const metadata = {
@@ -25,20 +25,17 @@ export default async function MyLocationsPage() {
   const { ownerIdentifier, locations } = await getMyOwnerLocations()
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
-      <Breadcrumb
-        items={[{ label: "Browse", href: "/browse" }, { label: "My Locations" }]}
-      />
-
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Locations</h1>
-        <p className="text-gray-500 mt-1">
-          {ownerIdentifier
+    <>
+      <SiteHeader
+        world="marketplace"
+        title="My Locations"
+        subtitle={
+          ownerIdentifier
             ? `${locations.length} location${locations.length !== 1 ? "s" : ""} owned by you`
-            : "Locations linked to your owner account"}
-        </p>
-      </div>
-
+            : "Locations linked to your owner account"
+        }
+      />
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
       {!ownerIdentifier || locations.length === 0 ? (
         <EmptyStateIllustrated
           title="No owned locations linked yet"
@@ -81,6 +78,7 @@ export default async function MyLocationsPage() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
