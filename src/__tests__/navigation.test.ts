@@ -110,3 +110,22 @@ describe("isActive", () => {
     expect(isActive("/browser", browse)).toBe(false)
   })
 })
+
+describe("no admin leakage in marketplace", () => {
+  it("non-admin sees no admin links in marketplace world", () => {
+    const items = visibleNavItems("marketplace", {
+      isAdmin: false,
+      hasSeller: false,
+      isOwner: false,
+    })
+    expect(items.every((i) => !i.href.startsWith("/admin"))).toBe(true)
+  })
+  it("admin capability does not inject admin links into marketplace world", () => {
+    const items = visibleNavItems("marketplace", {
+      isAdmin: true,
+      hasSeller: true,
+      isOwner: true,
+    })
+    expect(items.every((i) => !i.href.startsWith("/admin"))).toBe(true)
+  })
+})
