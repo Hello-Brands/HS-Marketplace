@@ -81,7 +81,11 @@ export default async function ListingDetailPage({ params }: Props) {
     ? mapLocation.territoryLng
     : null
 
-  const displayName = listing.title || primaryLocation?.name || 'Listing'
+  const displayName =
+    listing.title ||
+    primaryLocation?.name ||
+    [primaryLocation?.city, primaryLocation?.state].filter(Boolean).join(', ') ||
+    'Listing'
 
   const photos = listing.photos.map(p => ({ id: p.id, url: p.url }))
 
