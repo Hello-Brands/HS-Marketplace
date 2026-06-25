@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { AdminListingCard } from './AdminListingCard'
 import { RejectionModal } from './RejectionModal'
 import { approveListing, rejectListing } from '@/lib/admin/actions'
@@ -27,14 +28,16 @@ export function ModerationQueue({ listings }: ModerationQueueProps) {
   const router = useRouter()
   const [processing, setProcessing] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const handleApprove = async (id: string) => {
     setProcessing(id)
+    setActionError(null)
     try {
       await approveListing(id)
       router.refresh()
     } catch (error) {
-      alert((error as Error).message)
+      setActionError((error as Error).message)
     } finally {
       setProcessing(null)
     }
@@ -42,16 +45,20 @@ export function ModerationQueue({ listings }: ModerationQueueProps) {
 
   const handleReject = async (id: string, reason: string, notes: string) => {
     setProcessing(id)
+    setActionError(null)
     try {
       await rejectListing(id, reason, notes)
       setRejectingId(null)
       router.refresh()
     } catch (error) {
-      alert((error as Error).message)
+      setActionError((error as Error).message)
     } finally {
       setProcessing(null)
     }
   }
+
+  // The data-mapping block is the common, actionable case — link straight to it.
+  const isMappingError = !!actionError && actionError.toLowerCase().includes('data mapping')
 
   if (listings.length === 0) {
     return (
@@ -65,6 +72,23 @@ export function ModerationQueue({ listings }: ModerationQueueProps) {
 
   return (
     <>
+      {actionError && (
+        <div
+          role="alert"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-hs-red-200 bg-hs-red-50 px-4 py-3 text-sm text-hs-red-700"
+        >
+          <span>{actionError}</span>
+          {isMappingError && (
+            <Link
+              href="/admin/data"
+              className="shrink-0 font-semibold text-hs-red-700 underline hover:text-hs-red-800"
+            >
+              Resolve data mappings →
+            </Link>
+          )}
+        </div>
+      )}
+
       <div className="space-y-4">
         {listings.map(listing => (
           <AdminListingCard
