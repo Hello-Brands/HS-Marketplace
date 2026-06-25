@@ -214,7 +214,7 @@ export async function triggerAlertMatching(listing: MatchListing) {
     return true
   })
 
-  await Promise.all(
+  const sendResults = await Promise.all(
     matchingAlerts.map(({ user }) =>
       sendAlertMatchEmail({
         buyerEmail: user.email!,
@@ -224,10 +224,17 @@ export async function triggerAlertMatching(listing: MatchListing) {
         listingType: listing.type,
         city: listing.city || "",
         state: listing.state || "",
-        askingPrice: listing.askingPrice || 0,
+        askingPrice: listing.askingPrice ?? 0,
       }),
     ),
   )
 
-  return { matched: matchingAlerts.length }
+  const failed = sendResults.filter((r) => !r.success).length
+  if (failed > 0) {
+    console.error(
+      `[alerts] ${failed}/${sendResults.length} alert emails failed for listing ${listing.id}`
+    )
+  }
+
+  return { matched: matchingAlerts.length, sent: sendResults.length - failed, failed }
 }

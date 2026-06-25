@@ -57,18 +57,40 @@ export interface ReminderEmailData {
  * Low-level send function — use specific functions below for typed templates
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
+  // No key configured → don't attempt a send (it would error); make it visible.
+  if (!process.env.RESEND_API_KEY) {
+    console.warn(`[email] RESEND_API_KEY not set — skipped "${subject}" to ${to}`)
+    return { success: false as const, skipped: true as const }
+  }
+
+  // Safe-by-default outside production: only deliver to real recipients when an
+  // EMAIL_OVERRIDE inbox is set (point it at your own address to test). In
+  // production, always send to the real recipient.
+  const override = process.env.EMAIL_OVERRIDE?.trim()
+  if (!override && process.env.NODE_ENV !== "production") {
+    console.warn(`[email] non-production: skipped "${subject}" to ${to} (set EMAIL_OVERRIDE to test real sends)`)
+    return { success: false as const, skipped: true as const }
+  }
+  const recipient = override || to
+
   try {
-    const result = await resend.emails.send({
+    // The Resend SDK returns API errors in `error` (it does NOT throw on them),
+    // so a 4xx like an unverified domain must be checked explicitly.
+    const { data, error } = await resend.emails.send({
       from: FROM_ADDRESS,
-      to,
-      subject,
+      to: recipient,
+      subject: override ? `[to: ${to}] ${subject}` : subject,
       html,
       text,
     })
-    return { success: true, data: result }
+    if (error) {
+      console.error(`[email] Resend rejected "${subject}" to ${recipient}:`, error)
+      return { success: false as const, error }
+    }
+    return { success: true as const, data }
   } catch (error) {
-    console.error("Failed to send email:", error)
-    return { success: false, error }
+    console.error(`[email] Failed to send "${subject}" to ${recipient}:`, error)
+    return { success: false as const, error }
   }
 }
 
@@ -103,12 +125,12 @@ export async function sendStatusChangeEmail(data: StatusChangeEmailData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #db2777;">${msg.heading}</h1>
+      <h1 style="color: #dc2626;">${msg.heading}</h1>
       <p>Hi ${recipientName},</p>
       <p>${msg.body}</p>
       <p><strong>Listing:</strong> ${listingTitle}</p>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #db2777; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View Listing
         </a>
       </p>
@@ -135,14 +157,14 @@ export async function sendContactNotification(data: ContactNotificationData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #db2777;">Someone is Interested!</h1>
+      <h1 style="color: #dc2626;">Someone is Interested!</h1>
       <p>Hi ${sellerName},</p>
       <p><strong>${buyerName}</strong> has expressed interest in your listing:</p>
       <p><strong>Listing:</strong> ${listingTitle}</p>
       ${message ? `<div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;"><p style="margin: 0;"><strong>Their message:</strong></p><p style="margin: 8px 0 0 0;">${message}</p></div>` : ""}
       <p><strong>Contact them at:</strong> <a href="mailto:${buyerEmail}">${buyerEmail}</a></p>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #db2777; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View Your Listing
         </a>
       </p>
@@ -170,7 +192,7 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #db2777;">New Listing Matches Your Alert</h1>
+      <h1 style="color: #dc2626;">New Listing Matches Your Alert</h1>
       <p>Hi ${buyerName},</p>
       <p>A new listing has been posted that matches your saved alert criteria:</p>
       <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
@@ -180,7 +202,7 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
         <p style="margin: 0;">Asking Price: ${formattedPrice}</p>
       </div>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #db2777; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View Listing
         </a>
       </p>
@@ -208,7 +230,7 @@ export async function sendReminderEmail(data: ReminderEmailData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #db2777;">Is Your Listing Still Active?</h1>
+      <h1 style="color: #dc2626;">Is Your Listing Still Active?</h1>
       <p>Hi ${sellerName},</p>
       <p>Your listing <strong>${listingTitle}</strong> has been active for ${daysSinceUpdate} days without an update.</p>
       <p>Has this location sold? If so, you can mark it sold with one click — no login required:</p>
@@ -227,7 +249,7 @@ export async function sendReminderEmail(data: ReminderEmailData) {
         <li>Any changes to included assets</li>
       </ul>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #db2777; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           Update Listing
         </a>
       </p>

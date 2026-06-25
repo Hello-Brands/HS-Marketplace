@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 // Mock Resend — use a class to satisfy `new Resend()` usage
 // Note: vi.mock is hoisted, so all mock logic must be self-contained inside the factory
@@ -21,10 +21,26 @@ import {
   sendReminderEmail,
 } from "@/lib/email"
 
+// sendEmail only delivers when a key is set AND (production OR an EMAIL_OVERRIDE
+// inbox is configured). Set both so the send path runs against the mocked SDK.
+beforeEach(() => {
+  vi.stubEnv("RESEND_API_KEY", "re_test_key")
+  vi.stubEnv("EMAIL_OVERRIDE", "test-inbox@hellosugar.salon")
+})
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
+
 describe("Email - Base sendEmail function", () => {
   it("exports sendEmail function", () => {
     expect(sendEmail).toBeDefined()
     expect(typeof sendEmail).toBe("function")
+  })
+
+  it("skips sending when RESEND_API_KEY is not configured", async () => {
+    vi.stubEnv("RESEND_API_KEY", "")
+    const result = await sendEmail({ to: "x@example.com", subject: "Hi", html: "<p>hi</p>" })
+    expect(result).toMatchObject({ success: false, skipped: true })
   })
 })
 
