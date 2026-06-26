@@ -1,8 +1,8 @@
 import { Suspense } from 'react'
-import { fetchLocationKpi, fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership } from '@/lib/kpi/fetch'
+import { fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership } from '@/lib/kpi/fetch'
 import { aggregateBundleKpi } from '@/lib/kpi/aggregate'
-import { buildLocationKpi } from '@/lib/kpi/assemble'
 import { KpiCardRow } from './KpiCardRow'
+import { LocationKpiCards } from './LocationKpiCards'
 import { BundleKpiSection } from './BundleKpiSection'
 
 interface Location {
@@ -47,12 +47,10 @@ async function KpiSectionContent({
   dataMappingStatus,
   listingStatus,
 }: KpiSectionProps) {
-  // Single location
+  // Single location — Net Sales + MCR come straight from BigQuery; New Clients
+  // and Bookings have no live source, so they are not shown. When a location is
+  // not connected we render placeholders rather than hide the section.
   if (listingType !== 'bundle' && locationId) {
-    // Optional base data (internal HS API / dev mock). May be null when that API
-    // is unavailable — that must NOT hide the live BigQuery metrics below.
-    const kpiData = await fetchLocationKpi(locationId)
-
     let rev: Awaited<ReturnType<typeof fetchLocationRevenue>> = null
     let mem: Awaited<ReturnType<typeof fetchLocationMembership>> = null
     if (dataMappingStatus && listingStatus) {
@@ -68,11 +66,8 @@ async function KpiSectionContent({
       })
     }
 
-    const data = buildLocationKpi(kpiData, rev?.metric ?? null, mem)
-    const revenueLive = data.revenue?.source === "bigquery"
-
-    const hasAnyKpi = data.revenue || data.membershipConversion
-    if (!hasAnyKpi) return null
+    const netSales = rev?.metric ?? null
+    const revenueLive = netSales !== null
 
     return (
       <section className="mt-12">
@@ -82,7 +77,7 @@ async function KpiSectionContent({
             ? "Net Sales and MCR are live from BigQuery (trailing 12 months)."
             : "Live data not connected for this location."}
         </p>
-        <KpiCardRow kpiData={data} />
+        <LocationKpiCards netSales={netSales} membership={mem} />
       </section>
     )
   }
