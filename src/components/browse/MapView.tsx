@@ -459,7 +459,9 @@ export function MapView({
           const btn = popup
             .getElement()
             ?.querySelector<HTMLButtonElement>("[data-save-place-id]")
-          btn?.addEventListener("click", (e) => {
+          if (!btn || btn.dataset.bound === "1") return
+          btn.dataset.bound = "1"
+          btn.addEventListener("click", (e) => {
             e.stopPropagation()
             onToggleSaveCompetitorRef.current?.(c)
           })
@@ -482,7 +484,7 @@ export function MapView({
 
     if (mapReady.current) apply()
     else m.once("load", apply)
-  }, [competitors, showCompetitors, savedPlaceIds.join(",")])
+  }, [competitors, showCompetitors, savedPlaceIds.join(","), onHover])
 
   return (
     <div ref={mapContainer} className="h-full w-full" />
