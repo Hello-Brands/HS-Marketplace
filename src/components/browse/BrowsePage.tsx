@@ -11,6 +11,8 @@ import { SaveSearchButton } from "./SaveSearchButton"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
 import { useRouter } from "next/navigation"
+import { competitorToSnapshot } from "@/lib/saved-competitors"
+import { toggleSavedCompetitor } from "@/lib/saved-competitors-actions"
 
 // Dynamic import for MapView avoids SSR issues with MapTiler SDK
 const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
@@ -29,12 +31,14 @@ interface BrowsePageProps {
   initialListings: ListingCard[]
   competitorClosures?: CompetitorClosure[]
   favoriteIds?: string[]
+  savedCompetitorIds?: string[]
 }
 
 export function BrowsePage({
   initialListings,
   competitorClosures = [],
   favoriteIds = [],
+  savedCompetitorIds = [],
 }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -42,6 +46,15 @@ export function BrowsePage({
   const [hintDismissed, setHintDismissed] = useState(false)
   // Competitor-closure layer: visible by default, toggleable to declutter.
   const [showCompetitors, setShowCompetitors] = useState(true)
+  // Which dataset the LEFT LIST shows. The map always shows both layers.
+  const [listMode, setListMode] = useState<"listings" | "competitors">("listings")
+  // Show/hide the Hello Sugar listing PIN layer on the map (independent of the
+  // competitor layer toggle).
+  const [showListings, setShowListings] = useState(true)
+  // Saved competitor place ids, hydrated from the server and updated
+  // optimistically. Shared by the list rows and the map popup so both reflect
+  // the same state within the session.
+  const [savedSet, setSavedSet] = useState<Set<string>>(() => new Set(savedCompetitorIds))
   const opportunityCount = useMemo(
     () => competitorClosures.filter((c) => c.isOpportunity).length,
     [competitorClosures]
@@ -117,6 +130,30 @@ export function BrowsePage({
     },
     [router]
   )
+
+  // Optimistic save/unsave; reverts on error. Used by the list rows and map popup.
+  const handleToggleSaveCompetitor = useCallback((c: CompetitorClosure) => {
+    const placeId = c.googlePlaceId
+    const wasSaved = savedSet.has(placeId)
+    setSavedSet((prev) => {
+      const next = new Set(prev)
+      if (wasSaved) next.delete(placeId)
+      else next.add(placeId)
+      return next
+    })
+    toggleSavedCompetitor(competitorToSnapshot(c)).catch(() => {
+      // revert on failure
+      setSavedSet((prev) => {
+        const next = new Set(prev)
+        if (wasSaved) next.add(placeId)
+        else next.delete(placeId)
+        return next
+      })
+    })
+  }, [savedSet])
+
+  // Stable array form for MapView (its marker effect keys off the joined ids).
+  const savedCompetitorIdList = useMemo(() => Array.from(savedSet), [savedSet])
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">

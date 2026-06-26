@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { getListings, type ListingFilters, type ListingSort } from "@/lib/listings-query"
 import { getCompetitorClosures } from "@/lib/competitor-query"
+import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
 import { SiteHeader } from "@/components/layout/SiteHeader"
@@ -63,9 +64,10 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   // Fetch listings and competitor closures together. getCompetitorClosures is
   // resilient (returns [] if the scraper table is empty/unavailable), so it
   // never blocks the page.
-  const [{ items: initialListings }, competitorClosures] = await Promise.all([
+  const [{ items: initialListings }, competitorClosures, savedCompetitorIds] = await Promise.all([
     getListings(parseFilters(searchParams)),
     getCompetitorClosures(),
+    getSavedCompetitorPlaceIds(),
   ])
   const count = initialListings.length
 
@@ -79,6 +81,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
       <BrowsePage
         initialListings={initialListings}
         competitorClosures={competitorClosures}
+        savedCompetitorIds={savedCompetitorIds}
       />
     </>
   )
