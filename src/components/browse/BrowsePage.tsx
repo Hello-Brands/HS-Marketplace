@@ -374,12 +374,45 @@ export function BrowsePage({
                 listings={initialListings}
                 competitors={competitorClosures}
                 showCompetitors={showCompetitors}
+                showListings={showListings}
+                savedPlaceIds={savedCompetitorIdList}
+                onToggleSaveCompetitor={handleToggleSaveCompetitor}
                 hoveredId={hoveredId}
                 onHover={setHoveredId}
                 onListingClick={handleListingClick}
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />
+
+              {/* Hello Sugar listing layer toggle (top-left), mirroring the
+                  competitor toggle on the right. Independent — both layers can
+                  show at once. */}
+              <button
+                type="button"
+                onClick={() => setShowListings((v) => !v)}
+                aria-pressed={showListings}
+                title={showListings ? "Hide Hello Sugar listings" : "Show Hello Sugar listings"}
+                className={`
+                  absolute top-3 left-3 z-10 inline-flex items-center gap-2
+                  rounded-full border px-3 py-2 text-sm font-semibold shadow-md
+                  transition-colors min-h-[40px]
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+                  ${showListings
+                    ? "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
+                    : "bg-gray-900/85 border-gray-900 text-white hover:bg-gray-900"}
+                `}
+              >
+                {/* pink dot mirrors the listing pin shape */}
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-3 w-3 rounded-full border border-white"
+                  style={{ backgroundColor: showListings ? "#db2777" : "#9ca3af" }}
+                />
+                <span>
+                  Hello Sugar listings
+                  <span className="ml-1 tabular-nums opacity-60">({initialListings.length})</span>
+                </span>
+              </button>
 
               {/* Competitor-closure layer toggle — only when the scraper has
                   pushed at least one closure. */}
