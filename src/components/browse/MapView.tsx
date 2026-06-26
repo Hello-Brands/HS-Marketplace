@@ -17,6 +17,9 @@ interface MapViewProps {
   // pin layer. Read-only — these are never listings and never navigate.
   competitors?: CompetitorClosure[]
   showCompetitors?: boolean
+  showListings?: boolean
+  savedPlaceIds?: string[]
+  onToggleSaveCompetitor?: (c: CompetitorClosure) => void
 }
 
 function formatPrice(cents: number): string {
@@ -75,7 +78,7 @@ function statusLabel(status: string): string {
 }
 
 // Detail panel shown when a competitor pin is clicked. Brand-styled inline.
-function competitorPopupHtml(c: CompetitorClosure): string {
+function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
   const permanent = c.businessStatus === "CLOSED_PERMANENTLY"
   const statusBg = permanent ? "#F7DCDA" : "#F3E4D0" // danger-soft / warning-soft
   const statusFg = permanent ? "#C0142F" : "#B9772E" // danger / warning
@@ -98,6 +101,12 @@ function competitorPopupHtml(c: CompetitorClosure): string {
     ? `<a href="${escapeHtml(c.mapsUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:#ED1845;text-decoration:none;">View on Google Maps →</a>`
     : ""
 
+  const saveBtn = `
+    <button type="button" data-save-place-id="${escapeHtml(c.googlePlaceId)}" aria-pressed="${saved}"
+      style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:600;cursor:pointer;background:none;border:none;padding:0;color:${saved ? "#ED1845" : "#8F7067"};">
+      <span style="font-size:14px;line-height:1;">${saved ? "♥" : "♡"}</span>${saved ? "Saved" : "Save competitor"}
+    </button>`
+
   return `
     <div style="font-family:'Montserrat',system-ui,sans-serif;padding:4px 4px 2px;max-width:240px;">
       ${oppChip}
@@ -109,6 +118,7 @@ function competitorPopupHtml(c: CompetitorClosure): string {
       ${nearest}
       ${detected}
       ${maps}
+      ${saveBtn}
     </div>`
 }
 
@@ -159,11 +169,17 @@ export function MapView({
   radiusMiles,
   competitors = [],
   showCompetitors = true,
+  showListings = true,
+  savedPlaceIds = [],
+  onToggleSaveCompetitor,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maptilersdk.Map | null>(null)
   const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
-  const competitorMarkers = useRef<maptilersdk.Marker[]>([])
+  const competitorMarkers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
+  // Read inside marker listeners without making it a dependency of the marker effect.
+  const onToggleSaveCompetitorRef = useRef(onToggleSaveCompetitor)
+  onToggleSaveCompetitorRef.current = onToggleSaveCompetitor
   const mapReady = useRef(false)
   const centerMarker = useRef<maptilersdk.Marker | null>(null)
   // Latest click handler, read inside marker listeners without making it a
@@ -203,6 +219,8 @@ export function MapView({
       // Remove existing markers
       markers.current.forEach(({ marker }) => marker.remove())
       markers.current = []
+
+      if (!showListings) return
 
       const validListings = listings.filter(
         (l) => l.latitude !== null && l.longitude !== null
@@ -284,7 +302,7 @@ export function MapView({
     } else {
       map.current.once("load", addMarkers)
     }
-  }, [listings, onHover])
+  }, [listings, onHover, showListings])
 
   // Highlight hovered marker
   useEffect(() => {
@@ -301,6 +319,22 @@ export function MapView({
       } else {
         inner.style.transform = "scale(1)"
         inner.style.backgroundColor = "#db2777"
+        el.style.zIndex = ""
+      }
+    }
+  }, [hoveredId])
+
+  // Highlight the competitor pin matching the hovered list row.
+  useEffect(() => {
+    for (const { marker, id } of competitorMarkers.current) {
+      const el = marker.getElement()
+      const inner = el.firstElementChild as HTMLElement | null
+      if (!inner) continue
+      if (id === hoveredId) {
+        inner.style.transform = "rotate(45deg) scale(1.35)"
+        el.style.zIndex = "6"
+      } else {
+        inner.style.transform = "rotate(45deg)"
         el.style.zIndex = ""
       }
     }
@@ -396,7 +430,7 @@ export function MapView({
 
     const apply = () => {
       // Clear any existing competitor markers first.
-      competitorMarkers.current.forEach((mk) => mk.remove())
+      competitorMarkers.current.forEach(({ marker }) => marker.remove())
       competitorMarkers.current = []
       if (!showCompetitors) return
 
@@ -412,7 +446,7 @@ export function MapView({
           offset: 16,
           closeButton: true,
           maxWidth: "260px",
-        }).setHTML(competitorPopupHtml(c))
+        }).setHTML(competitorPopupHtml(c, savedPlaceIds.includes(c.googlePlaceId)))
 
         // setPopup gives click-to-toggle for free; the close button + pinned
         // popup keep the Google Maps link reliably clickable.
@@ -421,23 +455,34 @@ export function MapView({
           .setPopup(popup)
           .addTo(m)
 
-        // Hover affordance only — preserve the 45° rotation while scaling.
+        popup.on("open", () => {
+          const btn = popup
+            .getElement()
+            ?.querySelector<HTMLButtonElement>("[data-save-place-id]")
+          btn?.addEventListener("click", (e) => {
+            e.stopPropagation()
+            onToggleSaveCompetitorRef.current?.(c)
+          })
+        })
+
         el.addEventListener("mouseenter", () => {
           inner.style.transform = "rotate(45deg) scale(1.25)"
           el.style.zIndex = "5"
+          onHover(c.googlePlaceId)
         })
         el.addEventListener("mouseleave", () => {
           inner.style.transform = "rotate(45deg)"
           el.style.zIndex = ""
+          onHover(null)
         })
 
-        competitorMarkers.current.push(marker)
+        competitorMarkers.current.push({ marker, id: c.googlePlaceId })
       }
     }
 
     if (mapReady.current) apply()
     else m.once("load", apply)
-  }, [competitors, showCompetitors])
+  }, [competitors, showCompetitors, savedPlaceIds.join(",")])
 
   return (
     <div ref={mapContainer} className="h-full w-full" />
