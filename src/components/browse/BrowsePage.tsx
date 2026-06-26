@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { ListingGrid } from "./ListingGrid"
+import { CompetitorList } from "./CompetitorList"
 import { LocationSearch } from "./LocationSearch"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
@@ -220,6 +221,32 @@ export function BrowsePage({
             </button>
           </div>
 
+          {/* List dataset switch — only meaningful when the scraper has pushed
+              at least one closure. Controls the LEFT LIST only; the map always
+              shows both layers. */}
+          {competitorClosures.length > 0 && (
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+              <button
+                onClick={() => setListMode("listings")}
+                aria-pressed={listMode === "listings"}
+                className={`px-4 py-2 text-sm font-semibold transition-all duration-200
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+                  ${listMode === "listings" ? "bg-gray-900 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >
+                Listings
+              </button>
+              <button
+                onClick={() => setListMode("competitors")}
+                aria-pressed={listMode === "competitors"}
+                className={`px-4 py-2 text-sm font-semibold transition-all duration-200 border-l border-gray-200
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+                  ${listMode === "competitors" ? "bg-gray-900 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >
+                Competitors
+              </button>
+            </div>
+          )}
+
           {/* Location search + radius + Save search */}
           <div className="flex w-full sm:w-auto sm:flex-1 items-center gap-3 justify-end order-last sm:order-none">
             <div className="max-w-sm flex-1">
@@ -296,13 +323,23 @@ export function BrowsePage({
         {viewMode === "list" ? (
           /* List view — full width grid */
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <ListingGrid
-              initialListings={initialListings}
-              filters={filters}
-              hoveredId={hoveredId}
-              onHover={setHoveredId}
-              favoriteIds={favoriteIds}
-            />
+            {listMode === "competitors" ? (
+              <CompetitorList
+                competitors={competitorClosures}
+                savedSet={savedSet}
+                onToggleSave={handleToggleSaveCompetitor}
+                hoveredId={hoveredId}
+                onHover={setHoveredId}
+              />
+            ) : (
+              <ListingGrid
+                initialListings={initialListings}
+                filters={filters}
+                hoveredId={hoveredId}
+                onHover={setHoveredId}
+                favoriteIds={favoriteIds}
+              />
+            )}
           </div>
         ) : (
           /* Map view — map-dominant split (cards 1/3 left, map 2/3 right) on
@@ -311,13 +348,23 @@ export function BrowsePage({
             {/* List panel — hidden on mobile when in map view */}
             <div className="hidden md:block md:w-1/3 overflow-y-auto border-r border-gray-200 bg-white">
               <div className="px-4 py-4">
-                <ListingGrid
-                  initialListings={initialListings}
-                  filters={filters}
-                  hoveredId={hoveredId}
-                  onHover={setHoveredId}
-                  singleColumn
-                />
+                {listMode === "competitors" ? (
+                  <CompetitorList
+                    competitors={competitorClosures}
+                    savedSet={savedSet}
+                    onToggleSave={handleToggleSaveCompetitor}
+                    hoveredId={hoveredId}
+                    onHover={setHoveredId}
+                  />
+                ) : (
+                  <ListingGrid
+                    initialListings={initialListings}
+                    filters={filters}
+                    hoveredId={hoveredId}
+                    onHover={setHoveredId}
+                    singleColumn
+                  />
+                )}
               </div>
             </div>
 
