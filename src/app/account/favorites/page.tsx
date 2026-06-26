@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { db } from '@/db'
 import { favorites } from '@/db/schema/favorites'
+import { savedCompetitors } from '@/db/schema/savedCompetitors'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq, and, inArray } from 'drizzle-orm'
 import { EmptyStateIllustrated } from '@/components/ui/EmptyState'
@@ -57,6 +58,19 @@ async function getFavoriteListings(userId: string) {
   }))
 }
 
+async function getSavedCompetitors(userId: string) {
+  return db.query.savedCompetitors.findMany({
+    where: eq(savedCompetitors.userId, userId),
+    orderBy: (sc, { desc }) => [desc(sc.createdAt)],
+  })
+}
+
+function competitorStatusLabel(status: string): string {
+  if (status === 'CLOSED_PERMANENTLY') return 'Permanently Closed'
+  if (status === 'CLOSED_TEMPORARILY') return 'Temporarily Closed'
+  return status
+}
+
 function formatPrice(cents: number): string {
   const dollars = cents / 100
   if (dollars >= 1_000_000) {
@@ -82,13 +96,14 @@ export default async function FavoritesPage() {
   }
 
   const favoriteListings = await getFavoriteListings(session.user.id)
+  const savedComps = await getSavedCompetitors(session.user.id)
 
   return (
     <>
       <SiteHeader
         world="marketplace"
         title="Saved Listings"
-        subtitle={`${favoriteListings.length} saved listing${favoriteListings.length !== 1 ? 's' : ''}`}
+        subtitle={`${favoriteListings.length} saved listing${favoriteListings.length !== 1 ? 's' : ''} · ${savedComps.length} competitor${savedComps.length !== 1 ? 's' : ''}`}
       />
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
       {favoriteListings.length === 0 ? (
@@ -160,6 +175,47 @@ export default async function FavoritesPage() {
           ))}
         </div>
       )}
+        {savedComps.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Saved competitor locations</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {savedComps.map((c) => {
+                const permanent = c.businessStatus === 'CLOSED_PERMANENTLY'
+                const place = [c.city, c.state].filter(Boolean).join(', ')
+                return (
+                  <div
+                    key={c.id}
+                    className="flex flex-col gap-2 p-4 bg-white rounded-xl border border-gray-200"
+                  >
+                    <p className="text-sm font-bold text-gray-900 truncate">{c.brandName}</p>
+                    <span
+                      className="inline-block w-fit text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: permanent ? '#F7DCDA' : '#F3E4D0',
+                        color: permanent ? '#C0142F' : '#B9772E',
+                      }}
+                    >
+                      {competitorStatusLabel(c.businessStatus)}
+                    </span>
+                    <p className="text-xs text-gray-500 truncate">
+                      {c.address}{place ? ` · ${place}` : ''}
+                    </p>
+                    {c.mapsUrl && (
+                      <a
+                        href={c.mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700"
+                      >
+                        View on Google Maps →
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </>
   )
