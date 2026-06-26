@@ -13,3 +13,6 @@ export * from "./schema/favorites"
 
 // Owner directory (Part A)
 export * from "./schema/ownerLocations"
+
+// Competitor closures — scraper-owned, app read-only (see schema file header)
+export * from "./schema/competitorOpportunities"

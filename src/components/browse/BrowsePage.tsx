@@ -9,6 +9,7 @@ import { LocationSearch } from "./LocationSearch"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
 import type { ListingCard } from "@/lib/listings-query"
+import type { CompetitorClosure } from "@/lib/competitor-query"
 import { useRouter } from "next/navigation"
 
 // Dynamic import for MapView avoids SSR issues with MapTiler SDK
@@ -26,14 +27,25 @@ const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
 
 interface BrowsePageProps {
   initialListings: ListingCard[]
+  competitorClosures?: CompetitorClosure[]
   favoriteIds?: string[]
 }
 
-export function BrowsePage({ initialListings, favoriteIds = [] }: BrowsePageProps) {
+export function BrowsePage({
+  initialListings,
+  competitorClosures = [],
+  favoriteIds = [],
+}: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
+  // Competitor-closure layer: visible by default, toggleable to declutter.
+  const [showCompetitors, setShowCompetitors] = useState(true)
+  const opportunityCount = useMemo(
+    () => competitorClosures.filter((c) => c.isOpportunity).length,
+    [competitorClosures]
+  )
   // Live slider value while dragging; committed to URL state (and a server
   // re-fetch) only on release so we don't fire a request per tick. null = idle.
   const [draftRadius, setDraftRadius] = useState<number | null>(null)
@@ -276,12 +288,55 @@ export function BrowsePage({ initialListings, favoriteIds = [] }: BrowsePageProp
             <div className="w-full md:w-2/3 relative">
               <MapView
                 listings={initialListings}
+                competitors={competitorClosures}
+                showCompetitors={showCompetitors}
                 hoveredId={hoveredId}
                 onHover={setHoveredId}
                 onListingClick={handleListingClick}
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />
+
+              {/* Competitor-closure layer toggle — only when the scraper has
+                  pushed at least one closure. */}
+              {competitorClosures.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowCompetitors((v) => !v)}
+                  aria-pressed={showCompetitors}
+                  title={
+                    showCompetitors
+                      ? "Hide competitor closures"
+                      : "Show competitor closures"
+                  }
+                  className={`
+                    absolute top-3 right-3 z-10 inline-flex items-center gap-2
+                    rounded-full border px-3 py-2 text-sm font-semibold shadow-md
+                    transition-colors min-h-[40px]
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+                    ${
+                      showCompetitors
+                        ? "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
+                        : "bg-gray-900/85 border-gray-900 text-white hover:bg-gray-900"
+                    }
+                  `}
+                >
+                  {/* diamond glyph mirrors the competitor pin shape */}
+                  <span
+                    aria-hidden="true"
+                    className="inline-block h-3 w-3 rotate-45 rounded-[2px] border border-white"
+                    style={{ backgroundColor: showCompetitors ? "#B9772E" : "#8F7067" }}
+                  />
+                  <span>
+                    Competitor closures
+                    <span className="ml-1 tabular-nums opacity-60">
+                      ({competitorClosures.length}
+                      {opportunityCount > 0 ? `, ${opportunityCount} opp.` : ""})
+                    </span>
+                  </span>
+                </button>
+              )}
+
               {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
                 <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />
               )}

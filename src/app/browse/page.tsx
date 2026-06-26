@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { getListings, type ListingFilters, type ListingSort } from "@/lib/listings-query"
+import { getCompetitorClosures } from "@/lib/competitor-query"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
 import { SiteHeader } from "@/components/layout/SiteHeader"
@@ -59,7 +60,13 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
     redirect("/login")
   }
 
-  const { items: initialListings } = await getListings(parseFilters(searchParams))
+  // Fetch listings and competitor closures together. getCompetitorClosures is
+  // resilient (returns [] if the scraper table is empty/unavailable), so it
+  // never blocks the page.
+  const [{ items: initialListings }, competitorClosures] = await Promise.all([
+    getListings(parseFilters(searchParams)),
+    getCompetitorClosures(),
+  ])
   const count = initialListings.length
 
   return (
@@ -69,7 +76,10 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         title="Browse Listings"
         subtitle={`${count} active listing${count !== 1 ? "s" : ""}`}
       />
-      <BrowsePage initialListings={initialListings} />
+      <BrowsePage
+        initialListings={initialListings}
+        competitorClosures={competitorClosures}
+      />
     </>
   )
 }

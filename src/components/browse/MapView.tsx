@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import * as maptilersdk from "@maptiler/sdk"
 import "@maptiler/sdk/dist/maptiler-sdk.css"
 import type { ListingCard } from "@/lib/listings-query"
+import type { CompetitorClosure } from "@/lib/competitor-query"
 
 interface MapViewProps {
   listings: ListingCard[]
@@ -12,6 +13,10 @@ interface MapViewProps {
   onListingClick: (id: string) => void
   center?: { lng: number; lat: number } | null
   radiusMiles?: number | null
+  // Scraper-owned competitor closures rendered as a second, visually distinct
+  // pin layer. Read-only — these are never listings and never navigate.
+  competitors?: CompetitorClosure[]
+  showCompetitors?: boolean
 }
 
 function formatPrice(cents: number): string {
@@ -39,10 +44,126 @@ function circlePolygon(lng: number, lat: number, radiusMiles: number, points = 6
 
 const RADIUS_SOURCE = "search-radius"
 
-export function MapView({ listings, hoveredId, onHover, onListingClick, center, radiusMiles }: MapViewProps) {
+// Brand tokens for the competitor layer (kept inline to match the existing
+// DOM-marker styling approach). Opportunities use the warm "warning" caramel so
+// they read as a flag and stay distinct from the pink listing dots; the rest
+// render as muted taupe diamonds.
+const COMP_OPP = "#B9772E" // brand warning (caramel)
+const COMP_OPP_HALO = "rgba(187,130,101,0.35)"
+const COMP_MUTED = "#8F7067" // brand taupe
+
+// Escape untrusted scraper text before injecting into popup HTML.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function formatClosedDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+}
+
+function statusLabel(status: string): string {
+  if (status === "CLOSED_PERMANENTLY") return "Permanently Closed"
+  if (status === "CLOSED_TEMPORARILY") return "Temporarily Closed"
+  return status
+}
+
+// Detail panel shown when a competitor pin is clicked. Brand-styled inline.
+function competitorPopupHtml(c: CompetitorClosure): string {
+  const permanent = c.businessStatus === "CLOSED_PERMANENTLY"
+  const statusBg = permanent ? "#F7DCDA" : "#F3E4D0" // danger-soft / warning-soft
+  const statusFg = permanent ? "#C0142F" : "#B9772E" // danger / warning
+  const place = [c.city, c.state].filter(Boolean).map(escapeHtml).join(", ")
+
+  const oppChip = c.isOpportunity
+    ? `<div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#F3E4D0;color:#B9772E;padding:2px 8px;border-radius:999px;margin-bottom:6px;">★ Opportunity</div>`
+    : ""
+
+  const detected = c.closedAt
+    ? `<div style="font-size:11px;color:#CBA499;margin-top:6px;">Detected ${escapeHtml(formatClosedDate(c.closedAt))}</div>`
+    : ""
+
+  const nearest =
+    c.nearestHsName && c.nearestHsMiles != null
+      ? `<div style="font-size:12px;color:#8F7067;margin-top:6px;">${c.nearestHsMiles.toFixed(1)} mi from ${escapeHtml(c.nearestHsName)}</div>`
+      : ""
+
+  const maps = c.mapsUrl
+    ? `<a href="${escapeHtml(c.mapsUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:#ED1845;text-decoration:none;">View on Google Maps →</a>`
+    : ""
+
+  return `
+    <div style="font-family:'Montserrat',system-ui,sans-serif;padding:4px 4px 2px;max-width:240px;">
+      ${oppChip}
+      <div style="font-size:15px;font-weight:700;color:#1F1917;line-height:1.25;">${escapeHtml(c.brandName)}</div>
+      <div style="margin-top:6px;">
+        <span style="font-size:11px;font-weight:600;background:${statusBg};color:${statusFg};padding:2px 8px;border-radius:999px;">${escapeHtml(statusLabel(c.businessStatus))}</span>
+      </div>
+      <div style="font-size:12px;color:#8F7067;margin-top:8px;line-height:1.4;">${escapeHtml(c.address)}${place ? `<br/>${place}` : ""}</div>
+      ${nearest}
+      ${detected}
+      ${maps}
+    </div>`
+}
+
+// Build the diamond marker element for a competitor closure.
+function competitorMarkerEl(c: CompetitorClosure): HTMLDivElement {
+  const el = document.createElement("div")
+  el.dataset.competitorId = c.googlePlaceId
+
+  // Inner element carries all visuals + the 45° rotation (MapTiler rewrites the
+  // outer element's transform every frame, so we must not touch it).
+  const inner = document.createElement("div")
+  if (c.isOpportunity) {
+    inner.style.cssText = `
+      width: 16px;
+      height: 16px;
+      background-color: ${COMP_OPP};
+      border: 2px solid white;
+      border-radius: 3px;
+      cursor: pointer;
+      box-shadow: 0 0 0 4px ${COMP_OPP_HALO}, 0 2px 4px rgba(0,0,0,0.3);
+      transform: rotate(45deg);
+      transition: transform 0.15s ease;
+    `
+  } else {
+    inner.style.cssText = `
+      width: 12px;
+      height: 12px;
+      background-color: white;
+      border: 2px solid ${COMP_MUTED};
+      border-radius: 2px;
+      cursor: pointer;
+      opacity: 0.75;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+      transform: rotate(45deg);
+      transition: transform 0.15s ease;
+    `
+  }
+  el.appendChild(inner)
+  return el
+}
+
+export function MapView({
+  listings,
+  hoveredId,
+  onHover,
+  onListingClick,
+  center,
+  radiusMiles,
+  competitors = [],
+  showCompetitors = true,
+}: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maptilersdk.Map | null>(null)
   const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
+  const competitorMarkers = useRef<maptilersdk.Marker[]>([])
   const mapReady = useRef(false)
   const centerMarker = useRef<maptilersdk.Marker | null>(null)
   // Latest click handler, read inside marker listeners without making it a
@@ -265,6 +386,58 @@ export function MapView({ listings, hoveredId, onHover, onListingClick, center, 
     if (mapReady.current) apply()
     else m.once("load", apply)
   }, [center])
+
+  // Competitor-closure layer: a second, visually distinct marker set. Rebuilt
+  // when the closures change or the layer is toggled. Independent of the listing
+  // markers (no fitBounds here — listings own the viewport framing).
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+
+    const apply = () => {
+      // Clear any existing competitor markers first.
+      competitorMarkers.current.forEach((mk) => mk.remove())
+      competitorMarkers.current = []
+      if (!showCompetitors) return
+
+      const valid = competitors.filter(
+        (c) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude)
+      )
+
+      for (const c of valid) {
+        const el = competitorMarkerEl(c)
+        const inner = el.firstElementChild as HTMLElement
+
+        const popup = new maptilersdk.Popup({
+          offset: 16,
+          closeButton: true,
+          maxWidth: "260px",
+        }).setHTML(competitorPopupHtml(c))
+
+        // setPopup gives click-to-toggle for free; the close button + pinned
+        // popup keep the Google Maps link reliably clickable.
+        const marker = new maptilersdk.Marker({ element: el })
+          .setLngLat([c.longitude, c.latitude])
+          .setPopup(popup)
+          .addTo(m)
+
+        // Hover affordance only — preserve the 45° rotation while scaling.
+        el.addEventListener("mouseenter", () => {
+          inner.style.transform = "rotate(45deg) scale(1.25)"
+          el.style.zIndex = "5"
+        })
+        el.addEventListener("mouseleave", () => {
+          inner.style.transform = "rotate(45deg)"
+          el.style.zIndex = ""
+        })
+
+        competitorMarkers.current.push(marker)
+      }
+    }
+
+    if (mapReady.current) apply()
+    else m.once("load", apply)
+  }, [competitors, showCompetitors])
 
   return (
     <div ref={mapContainer} className="h-full w-full" />
