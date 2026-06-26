@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
@@ -132,9 +132,16 @@ export function BrowsePage({
     [router]
   )
 
+  // Tracks competitor saves currently awaiting the server, keyed by placeId, so
+  // a rapid re-click on the SAME competitor can't fire an out-of-order toggle
+  // that leaves the DB disagreeing with the optimistic UI.
+  const savingCompetitors = useRef<Set<string>>(new Set())
+
   // Optimistic save/unsave; reverts on error. Used by the list rows and map popup.
   const handleToggleSaveCompetitor = useCallback((c: CompetitorClosure) => {
     const placeId = c.googlePlaceId
+    if (savingCompetitors.current.has(placeId)) return // a toggle for this competitor is in flight
+    savingCompetitors.current.add(placeId)
     const wasSaved = savedSet.has(placeId)
     setSavedSet((prev) => {
       const next = new Set(prev)
@@ -142,15 +149,20 @@ export function BrowsePage({
       else next.add(placeId)
       return next
     })
-    toggleSavedCompetitor(competitorToSnapshot(c)).catch(() => {
-      // revert on failure
-      setSavedSet((prev) => {
-        const next = new Set(prev)
-        if (wasSaved) next.add(placeId)
-        else next.delete(placeId)
-        return next
+    toggleSavedCompetitor(competitorToSnapshot(c))
+      .catch((err) => {
+        console.error("Failed to toggle saved competitor", err)
+        // revert on failure
+        setSavedSet((prev) => {
+          const next = new Set(prev)
+          if (wasSaved) next.add(placeId)
+          else next.delete(placeId)
+          return next
+        })
       })
-    })
+      .finally(() => {
+        savingCompetitors.current.delete(placeId)
+      })
   }, [savedSet])
 
   // Stable array form for MapView (its marker effect keys off the joined ids).
