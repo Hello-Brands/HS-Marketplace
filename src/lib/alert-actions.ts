@@ -22,6 +22,9 @@ import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { sendAlertMatchEmail } from "@/lib/email"
 import { isWithinRadius } from "@/lib/geo"
+import { getCompetitorClosures } from "@/lib/competitor-query"
+import { scopeIsBounded } from "@/lib/competitor-filter"
+import { recordCompetitorAlerts } from "@/lib/competitor-alert-log"
 
 const alertSchema = z.object({
   name: z.string().max(120).optional().nullable(),
@@ -37,6 +40,8 @@ const alertSchema = z.object({
   radiusMiles: z.number().int().positive().max(500).optional().nullable(),
   centerLabel: z.string().max(200).optional().nullable(),
   notifyEnabled: z.boolean().optional(),
+  includeListings: z.boolean().optional(),
+  includeCompetitors: z.boolean().optional(),
 })
 
 type AlertInput = z.infer<typeof alertSchema>
@@ -56,7 +61,23 @@ function toRow(data: AlertInput) {
     radiusMiles: data.radiusMiles ?? null,
     centerLabel: data.centerLabel ?? null,
     notifyEnabled: data.notifyEnabled ?? true,
+    includeListings: data.includeListings ?? true,
+    includeCompetitors: data.includeCompetitors ?? true,
   }
+}
+
+/**
+ * Seed the competitor ledger with all competitors currently in a saved search's
+ * scope, WITHOUT emailing — so the first weekly cron run doesn't blast every
+ * pre-existing closure. No-op when the scope can't narrow competitors.
+ */
+async function seedCompetitorLog(
+  alertId: string,
+  scope: { centerLat: number | null; centerLng: number | null; radiusMiles: number | null; states: string[] }
+) {
+  if (!scopeIsBounded(scope)) return
+  const inScope = await getCompetitorClosures(scope)
+  await recordCompetitorAlerts(alertId, inScope.map((c) => c.googlePlaceId))
 }
 
 export async function createAlert(data: AlertInput) {
@@ -70,6 +91,15 @@ export async function createAlert(data: AlertInput) {
     .insert(alerts)
     .values({ userId: session.user.id!, ...toRow(parsed.data) })
     .returning()
+
+  if (alert.includeCompetitors) {
+    await seedCompetitorLog(alert.id, {
+      centerLat: alert.centerLat,
+      centerLng: alert.centerLng,
+      radiusMiles: alert.radiusMiles,
+      states: alert.states ?? [],
+    })
+  }
 
   revalidatePath("/account/alerts")
   return { success: true, alert }
@@ -101,8 +131,22 @@ export async function updateAlert(id: string, data: AlertInput) {
   if ("radiusMiles" in d) patch.radiusMiles = d.radiusMiles ?? null
   if ("centerLabel" in d) patch.centerLabel = d.centerLabel ?? null
   if ("notifyEnabled" in d) patch.notifyEnabled = d.notifyEnabled
+  if ("includeListings" in d) patch.includeListings = d.includeListings ?? true
+  if ("includeCompetitors" in d) patch.includeCompetitors = d.includeCompetitors ?? true
 
   await db.update(alerts).set(patch).where(eq(alerts.id, id))
+
+  const turnedCompetitorsOn =
+    existing.includeCompetitors === false && patch.includeCompetitors === true
+  if (turnedCompetitorsOn) {
+    await seedCompetitorLog(id, {
+      centerLat: (patch.centerLat as number | null | undefined) ?? existing.centerLat,
+      centerLng: (patch.centerLng as number | null | undefined) ?? existing.centerLng,
+      radiusMiles: (patch.radiusMiles as number | null | undefined) ?? existing.radiusMiles,
+      states: ((patch.states as string[] | undefined) ?? existing.states) ?? [],
+    })
+  }
+
   revalidatePath("/account/alerts")
   return { success: true }
 }
