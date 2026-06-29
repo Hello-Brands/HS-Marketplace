@@ -16,11 +16,14 @@ interface ListingGridProps {
   // browse card — reserved for the favorite indicator. Kept optional/inert so
   // the prop typechecks without dead destructuring.
   favoriteIds?: string[]
+  // Stack cards in one column (used by the narrow map-view side panel); the
+  // full-width list view keeps the responsive 1–3 column grid.
+  singleColumn?: boolean
 }
 
 const PAGE_SIZE = 12
 
-export function ListingGrid({ initialListings, filters, hoveredId, onHover }: ListingGridProps) {
+export function ListingGrid({ initialListings, filters, hoveredId, onHover, singleColumn }: ListingGridProps) {
   const [listings, setListings] = useState<ListingCardType[]>(initialListings)
   const [cursor, setCursor] = useState<string | null>(() => {
     if (initialListings.length !== PAGE_SIZE) return null
@@ -38,40 +41,52 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover }: Li
 
   const { ref: sentinelRef, inView } = useInView({ threshold: 0 })
 
-  // Track previous filters to detect changes
   const filtersKey = JSON.stringify(filters)
-  const prevFiltersKey = useRef(filtersKey)
   const isFirstRender = useRef(true)
+  // Always-current filters for the pagination effect, so a filter change does
+  // not itself trigger an append — page 1 is owned by the effect below.
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
+  // Monotonic request id so a slow in-flight response can never overwrite a
+  // newer one (e.g. rapid successive radius/clear changes).
+  const requestId = useRef(0)
 
-  // Reset when filters change (not on first render)
+  // Filters changed → refetch page 1 immediately. Crucially this does NOT wait
+  // for the scroll sentinel to be in view, so results (or the empty state)
+  // appear as soon as the location/radius/filters change or are cleared.
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
       return
     }
-    if (prevFiltersKey.current === filtersKey) return
-    prevFiltersKey.current = filtersKey
-
-    setListings([])
-    setCursor(null)
-    setHasMore(true)
-  }, [filtersKey])
-
-  // Load more when sentinel is in view
-  useEffect(() => {
-    if (!inView || !hasMore || loading) return
-
+    const id = ++requestId.current
     setLoading(true)
-    getListings({ ...filters, cursor: cursor ?? undefined }).then(({ items, nextCursor }) => {
-      setListings((prev) => {
-        // After filter reset, prev will be [] so this just sets the initial page
-        return [...prev, ...items]
-      })
+    getListings({ ...filters, cursor: undefined }).then(({ items, nextCursor }) => {
+      if (id !== requestId.current) return // superseded by a newer change
+      setListings(items)
       setCursor(nextCursor)
       setHasMore(!!nextCursor)
       setLoading(false)
     })
-  }, [inView, hasMore, loading, filters, cursor])
+    // filtersKey is the stable string form of filters; filters itself is a fresh
+    // object every render, so we intentionally key off the string.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey])
+
+  // Scroll sentinel → append the next page. Reads filtersRef so a filter change
+  // never races this effect; only scrolling or a fresh cursor triggers it.
+  useEffect(() => {
+    if (!inView || !hasMore || loading) return
+    const id = ++requestId.current
+    setLoading(true)
+    getListings({ ...filtersRef.current, cursor: cursor ?? undefined }).then(({ items, nextCursor }) => {
+      if (id !== requestId.current) return
+      setListings((prev) => [...prev, ...items])
+      setCursor(nextCursor)
+      setHasMore(!!nextCursor)
+      setLoading(false)
+    })
+  }, [inView, hasMore, loading, cursor])
 
   const totalCount = listings.length
 
@@ -92,13 +107,14 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover }: Li
       </p>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className={`grid ${singleColumn ? "grid-cols-1 gap-3" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"}`}>
         {listings.map((listing) => (
           <ListingCard
             key={listing.id}
             listing={listing}
             isHovered={hoveredId === listing.id}
             onHover={onHover}
+            compact={singleColumn}
           />
         ))}
 

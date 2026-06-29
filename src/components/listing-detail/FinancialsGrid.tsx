@@ -2,8 +2,6 @@ import type { ListingDetail } from '@/lib/listing-detail'
 
 interface FinancialsGridProps {
   listing: ListingDetail
-  netSalesTtm?: { cents: number; asOf: string } | null
-  hasSalonLocations?: boolean
 }
 
 function formatPrice(cents: number | null | undefined): string {
@@ -55,10 +53,10 @@ function MetricCard({ label, value, subLabel, variant = 'default' }: MetricCardP
   )
 }
 
-export function FinancialsGrid({ listing, netSalesTtm, hasSalonLocations }: FinancialsGridProps) {
+export function FinancialsGrid({ listing }: FinancialsGridProps) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <MetricCard
           label="Asking Price"
           value={formatPrice(listing.askingPrice)}
@@ -69,28 +67,6 @@ export function FinancialsGrid({ listing, netSalesTtm, hasSalonLocations }: Fina
           value={formatPrice(listing.ttmProfit)}
           subLabel="Trailing 12 months"
         />
-        {netSalesTtm != null ? (
-          <div className="rounded-xl p-4 transition-all duration-200 bg-white border border-gray-200">
-            <div className="flex items-center gap-1.5 mb-1">
-              <p className="text-sm text-gray-500">Net Sales (Trailing 12 Months, Cash + Credit)</p>
-              <span className="bg-green-100 text-green-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">
-                Live
-              </span>
-            </div>
-            <p className="font-bold tabular-nums text-2xl text-gray-900">
-              {formatPrice(netSalesTtm.cents)}
-            </p>
-            <p className="text-xs mt-1 text-gray-400">
-              As of {new Date(netSalesTtm.asOf).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </p>
-          </div>
-        ) : hasSalonLocations ? (
-          <MetricCard
-            label="Net Sales (Trailing 12 Months, Cash + Credit)"
-            value="—"
-            subLabel="Not connected"
-          />
-        ) : null}
       </div>
 
       {/* Divider */}

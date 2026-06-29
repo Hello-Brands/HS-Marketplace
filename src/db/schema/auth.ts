@@ -1,5 +1,5 @@
 import {
-  pgTable, text, timestamp, integer, boolean, primaryKey
+  pgTable, text, timestamp, integer, boolean, primaryKey, index
 } from "drizzle-orm/pg-core"
 
 export const users = pgTable("users", {
@@ -12,7 +12,14 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["user", "admin"] }).default("user").notNull(),
   sellerAccess: boolean("seller_access").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-})
+  // Owner directory link (Part A). Resolved from owner_locations by email at
+  // login. source=manual is an admin override and must never be overwritten by
+  // the automatic email match.
+  ownerIdentifier: text("owner_identifier"),
+  ownerLinkSource: text("owner_link_source", { enum: ["auto", "manual"] }),
+}, (table) => [
+  index("users_owner_identifier_idx").on(table.ownerIdentifier),
+])
 
 export const accounts = pgTable("accounts", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),

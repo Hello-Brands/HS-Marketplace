@@ -15,6 +15,20 @@
       "when": 1781734568523,
       "tag": "0001_boulevard_mapping",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782421025648,
+      "tag": "0002_competitor_opportunities",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782460262463,
+      "tag": "0003_saved_competitors",
+      "breakpoints": true
     }
   ]
 }

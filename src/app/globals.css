@@ -136,6 +136,11 @@ body {
   line-height: 1.6;
 }
 
+/* Lock background scroll while the mobile nav drawer is open (HeaderNav). */
+body.drawer-open {
+  overflow: hidden;
+}
+
 /* Display headings use Outfit */
 h1, h2, h3, .font-display {
   font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
@@ -546,4 +551,40 @@ input[type="number"] {
   background: var(--hs-red-600);
   border-radius: 50%;
   border: 2px solid var(--background);
+}
+
+/* MapTiler geocoding control — Hello Sugar overrides (browse search) */
+.hs-geocoder {
+  position: relative;
+  z-index: 50; /* keep the suggestions dropdown above the map below it */
+  width: 100%;
+}
+.hs-geocoder .maptiler-ctrl,
+.hs-geocoder .maplibregl-ctrl-geocoder {
+  width: 100%;
+  box-shadow: none;
+  font-family: var(--font-source-sans), system-ui, sans-serif;
+}
+/* The control sets font-family on its <form> (the input is `font: inherit`)
+   with high-specificity scoped classes, so override with !important to make
+   the search box use the app font and normal casing like the rest of the page. */
+.hs-geocoder form,
+.hs-geocoder input,
+.hs-geocoder .options,
+.hs-geocoder .options * {
+  font-family: var(--font-source-sans), system-ui, sans-serif !important;
+  text-transform: none !important;
+}
+.hs-geocoder .options {
+  z-index: 60;
+}
+.hs-geocoder input:focus {
+  outline: 2px solid var(--hs-red-500);
+  outline-offset: 1px;
+}
+
+/* Filter popover panel entrance */
+@keyframes filterpop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }

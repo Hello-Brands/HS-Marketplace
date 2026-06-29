@@ -20,6 +20,9 @@ interface ListingCardProps {
   listing: ListingCardType
   isHovered?: boolean
   onHover?: (id: string | null) => void
+  // Horizontal, low-height layout for the narrow map-view side panel so several
+  // results are visible at once. The full-width grid uses the default card.
+  compact?: boolean
 }
 
 function formatPrice(cents: number): string {
@@ -33,7 +36,68 @@ function formatPrice(cents: number): string {
   return `$${dollars.toLocaleString()}`
 }
 
-export function ListingCard({ listing, isHovered, onHover }: ListingCardProps) {
+export function ListingCard({ listing, isHovered, onHover, compact }: ListingCardProps) {
+  const cityState =
+    [listing.city, listing.state].filter(Boolean).join(", ") || "Location not specified"
+
+  if (compact) {
+    return (
+      <Link
+        href={`/listings/${listing.id}`}
+        className={`
+          group flex gap-3 rounded-xl border bg-white p-2
+          transition-all duration-200 ease-out hover:shadow-md
+          ${isHovered ? "ring-2 ring-hs-red-500 shadow-md border-hs-red-200" : "border-gray-200 shadow-sm"}
+        `}
+        onMouseEnter={() => onHover?.(listing.id)}
+        onMouseLeave={() => onHover?.(null)}
+      >
+        {/* Thumbnail */}
+        <div className="relative h-20 w-20 shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+          {listing.primaryPhotoUrl ? (
+            <Image
+              src={listing.primaryPhotoUrl}
+              alt={listing.locationName ?? "Listing photo"}
+              fill
+              className="object-cover"
+              sizes="80px"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-hs-red-50">
+              <span className="text-hs-red-300 text-lg font-bold">HS</span>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="min-w-0 flex-1 py-0.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-base font-bold text-hs-red-600 tracking-tight tabular-nums">
+              {formatPrice(listing.askingPrice)}
+            </p>
+            <span
+              className={`
+                shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-md
+                ${TYPE_COLORS[listing.type] ?? "bg-gray-100 text-gray-700"}
+              `}
+            >
+              {TYPE_LABELS[listing.type] ?? listing.type}
+            </span>
+          </div>
+          <p className="text-sm font-medium text-gray-900 truncate mt-0.5">{cityState}</p>
+          {listing.locationName && (
+            <p className="text-xs text-gray-500 truncate">{listing.locationName}</p>
+          )}
+          {listing.distanceMiles != null && (
+            <p className="text-xs font-semibold text-hs-red-600 mt-0.5">
+              {listing.distanceMiles < 0.1 ? "< 0.1" : listing.distanceMiles.toFixed(1)} mi away
+            </p>
+          )}
+        </div>
+      </Link>
+    )
+  }
+
   return (
     <Link
       href={`/listings/${listing.id}`}

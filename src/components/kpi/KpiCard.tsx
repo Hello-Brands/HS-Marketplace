@@ -9,9 +9,10 @@ interface KpiCardProps {
   formatValue: (value: number) => string
   onClick: () => void
   badge: KpiBadge
+  showDelta?: boolean
 }
 
-export function KpiCard({ name, metric, formatValue, onClick, badge }: KpiCardProps) {
+export function KpiCard({ name, metric, formatValue, onClick, badge, showDelta = true }: KpiCardProps) {
   return (
     <button
       onClick={onClick}
@@ -38,7 +39,9 @@ export function KpiCard({ name, metric, formatValue, onClick, badge }: KpiCardPr
       <p className="text-3xl font-semibold text-gray-900 mb-2">{formatValue(metric.lastMonth)}</p>
 
       {/* MoM Change */}
-      <p className="text-sm text-gray-600 mb-2">{formatMomChange(metric.momChange)}</p>
+      {showDelta && (
+        <p className="text-sm text-gray-600 mb-2">{formatMomChange(metric.momChange)}</p>
+      )}
 
       {/* Freshness Timestamp */}
       <p className="text-xs text-gray-400">{formatRelativeTime(metric.updatedAt)}</p>

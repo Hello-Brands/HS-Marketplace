@@ -10,3 +10,10 @@ export * from "./schema/photos"
 export * from "./schema/contacts"
 export * from "./schema/alerts"
 export * from "./schema/favorites"
+export * from "./schema/savedCompetitors"
+
+// Owner directory (Part A)
+export * from "./schema/ownerLocations"
+
+// Competitor closures — scraper-owned, app read-only (see schema file header)
+export * from "./schema/competitorOpportunities"

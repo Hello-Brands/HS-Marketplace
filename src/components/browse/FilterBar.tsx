@@ -1,20 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
 import { US_STATES } from "@/lib/us-states"
+import { FilterPopover } from "./FilterPopover"
 
-// Radius options (miles) for the location search.
-export const RADIUS_OPTIONS = [5, 10, 25, 50, 100] as const
+// Radius range (miles) for the location search slider.
+export const RADIUS_MIN_MILES = 1
+export const RADIUS_MAX_MILES = 100
 export const DEFAULT_RADIUS_MILES = 25
-
-const PRICE_OPTIONS = [
-  { label: "Any", value: undefined },
-  { label: "$100k", value: 100_000 },
-  { label: "$250k", value: 250_000 },
-  { label: "$500k", value: 500_000 },
-  { label: "$1M", value: 1_000_000 },
-  { label: "$2M+", value: 2_000_000 },
-]
 
 const LISTING_TYPES = [
   { label: "Suite", value: "suite" },
@@ -44,6 +38,8 @@ export function useListingFilters() {
     query: parseAsString.withDefault(""),
     types: parseAsArrayOf(parseAsString).withDefault([]),
     states: parseAsArrayOf(parseAsString).withDefault([]),
+    // Stored in cents (matches listings.asking_price); the Price control
+    // converts to/from whole dollars for entry/display.
     minPrice: parseAsInteger,
     maxPrice: parseAsInteger,
     sort: parseAsString.withDefault("newest"),
@@ -54,6 +50,20 @@ export function useListingFilters() {
     radiusMiles: parseAsInteger,
     centerLabel: parseAsString.withDefault(""),
   })
+}
+
+// ---- Price helpers (URL stores cents; users enter whole dollars) ----------
+function fmtShortPrice(cents: number): string {
+  const d = cents / 100
+  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(d % 1_000_000 === 0 ? 0 : 1)}M`
+  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`
+  return `$${d}`
+}
+function priceSummary(minCents: number | null, maxCents: number | null): string | null {
+  if (minCents != null && maxCents != null) return `${fmtShortPrice(minCents)}–${fmtShortPrice(maxCents)}`
+  if (minCents != null) return `${fmtShortPrice(minCents)}+`
+  if (maxCents != null) return `≤${fmtShortPrice(maxCents)}`
+  return null
 }
 
 export function FilterBar() {
@@ -105,222 +115,180 @@ export function FilterBar() {
     )
   }
 
-  const selectBaseClass = `
-    text-sm border border-gray-300 rounded-lg px-3 py-2
-    bg-white text-gray-700
-    transition-all duration-200 ease-out
-    focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
-    hover:border-gray-400
-    min-h-[44px]
-  `
+  const yearsSummary =
+    filters.minYearsOpen && filters.minYearsOpen > 0 ? `${filters.minYearsOpen}+ yr` : null
 
   return (
-    <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Search */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="filter-search" className="text-sm font-semibold text-gray-900">
-              Search
-            </label>
-            <div className="relative">
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <input
-                id="filter-search"
-                type="text"
-                value={filters.query}
-                onChange={(e) => setFilters({ query: e.target.value || null })}
-                placeholder="City, location..."
-                className="
-                  text-sm border border-gray-300 rounded-lg pl-9 pr-3 py-2 w-44
-                  transition-all duration-200 ease-out
-                  focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
-                  hover:border-gray-400
-                  placeholder:text-gray-400
-                  min-h-[44px]
-                "
+    <div className="bg-white border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Text search */}
+          <div className="relative">
+            <svg
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              aria-label="Search by city or location"
+              value={filters.query}
+              onChange={(e) => setFilters({ query: e.target.value || null })}
+              placeholder="Search by city or location…"
+              className="
+                h-11 w-56 rounded-full border border-gray-300 bg-white pl-10 pr-4 text-sm text-gray-800
+                transition-all duration-200 ease-out placeholder:text-gray-400
+                hover:border-gray-400
+                focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
+              "
+            />
+          </div>
+
+          <div className="hidden sm:block h-7 w-px bg-gray-200" />
+
+          {/* Type — kept as direct-click pills */}
+          <div className="flex gap-1.5">
+            {LISTING_TYPES.map((type) => {
+              const isActive = filters.types.includes(type.value)
+              return (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => toggleType(type.value)}
+                  aria-pressed={isActive}
+                  className={`
+                    h-11 px-4 rounded-full text-sm font-medium border
+                    transition-all duration-200 ease-out
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-1
+                    ${
+                      isActive
+                        ? "bg-hs-red-600 border-hs-red-600 text-white shadow-sm"
+                        : "bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                    }
+                  `}
+                >
+                  {type.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* State — multi-select dropdown */}
+          <FilterPopover
+            label="State"
+            active={filters.states.length > 0}
+            summary={filters.states.length > 0 ? String(filters.states.length) : null}
+          >
+            {() => (
+              <StatePanel
+                selected={filters.states}
+                onToggle={toggleState}
+                onClear={() => setFilters({ states: [] })}
               />
-            </div>
-          </div>
+            )}
+          </FilterPopover>
 
-          {/* Vertical divider */}
-          <div className="hidden sm:block h-8 w-px bg-gray-200" />
+          {/* Price — free numeric entry */}
+          <FilterPopover
+            label="Price"
+            active={filters.minPrice !== null || filters.maxPrice !== null}
+            summary={priceSummary(filters.minPrice, filters.maxPrice)}
+          >
+            {(close) => (
+              <PricePanel
+                minCents={filters.minPrice}
+                maxCents={filters.maxPrice}
+                onApply={(minCents, maxCents) => setFilters({ minPrice: minCents, maxPrice: maxCents })}
+                close={close}
+              />
+            )}
+          </FilterPopover>
 
-          {/* Type filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900">Type</span>
-            <div className="flex gap-1.5">
-              {LISTING_TYPES.map((type) => {
-                const isActive = filters.types.includes(type.value)
-                return (
-                  <button
-                    key={type.value}
-                    onClick={() => toggleType(type.value)}
-                    className={`
-                      px-3 py-2 text-sm font-medium rounded-lg
-                      transition-all duration-200 ease-out
-                      min-h-[44px]
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
-                      ${
-                        isActive
-                          ? "bg-hs-red-600 text-white shadow-sm"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }
-                    `}
-                  >
-                    {type.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Vertical divider */}
-          <div className="hidden sm:block h-8 w-px bg-gray-200" />
-
-          {/* State filter */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="filter-states" className="text-sm font-semibold text-gray-900">
-              State
-            </label>
-            <div className="relative flex items-center">
-              <select
-                id="filter-states"
-                multiple
-                value={filters.states}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions).map((o) => o.value)
-                  setFilters({ states: selected })
-                }}
-                className={`${selectBaseClass} h-9 min-w-[100px]`}
-                title="Hold Ctrl/Cmd to select multiple states"
-              >
-                {US_STATES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-              {filters.states.length > 0 && (
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-hs-red-100 text-hs-red-700 text-xs font-semibold rounded-full">
-                  {filters.states.length}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Vertical divider */}
-          <div className="hidden sm:block h-8 w-px bg-gray-200" />
-
-          {/* Price range */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="filter-min-price" className="text-sm font-semibold text-gray-900">
-              Price
-            </label>
-            <select
-              id="filter-min-price"
-              value={filters.minPrice ?? ""}
-              onChange={(e) =>
-                setFilters({ minPrice: e.target.value ? Number(e.target.value) : null })
-              }
-              className={selectBaseClass}
-            >
-              <option value="">Min</option>
-              {PRICE_OPTIONS.filter((o) => o.value !== undefined).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <span className="text-gray-400">–</span>
-            <select
-              id="filter-max-price"
-              aria-label="Maximum price"
-              value={filters.maxPrice ?? ""}
-              onChange={(e) =>
-                setFilters({ maxPrice: e.target.value ? Number(e.target.value) : null })
-              }
-              className={selectBaseClass}
-            >
-              <option value="">Max</option>
-              {PRICE_OPTIONS.filter((o) => o.value !== undefined).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Vertical divider */}
-          <div className="hidden lg:block h-8 w-px bg-gray-200" />
-
-          {/* Time open */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="filter-years-open" className="text-sm font-semibold text-gray-900">
-              Years Open
-            </label>
-            <select
-              id="filter-years-open"
-              value={filters.minYearsOpen ?? 0}
-              onChange={(e) => setFilters({ minYearsOpen: Number(e.target.value) || null })}
-              className={selectBaseClass}
-            >
-              {TIME_OPEN_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Years open */}
+          <FilterPopover
+            label="Years Open"
+            active={!!yearsSummary}
+            summary={yearsSummary}
+          >
+            {(close) => (
+              <div className="min-w-[200px]">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Minimum years open
+                </h4>
+                {TIME_OPEN_OPTIONS.map((o) => {
+                  const checked = (filters.minYearsOpen ?? 0) === o.value
+                  return (
+                    <label
+                      key={o.value}
+                      className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+                    >
+                      <input
+                        type="radio"
+                        name="years-open"
+                        checked={checked}
+                        onChange={() => {
+                          setFilters({ minYearsOpen: o.value || null })
+                          close()
+                        }}
+                        className="w-4 h-4 accent-hs-red-600"
+                      />
+                      {o.label}
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </FilterPopover>
 
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Sort */}
+          {/* Sort — labelled so it reads as sorting, not filtering */}
           <div className="flex items-center gap-2">
-            <label htmlFor="filter-sort" className="text-sm font-semibold text-gray-900">
-              Sort
-            </label>
-            <select
-              id="filter-sort"
-              value={filters.sort}
-              onChange={(e) => setFilters({ sort: e.target.value })}
-              className={selectBaseClass}
-            >
-              {SORT_OPTIONS.filter((o) => !o.requiresCenter || filters.centerLat !== null).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <span className="text-sm font-semibold text-gray-700">Sort</span>
+            <div className="relative">
+              <select
+                aria-label="Sort listings"
+                value={filters.sort}
+                onChange={(e) => setFilters({ sort: e.target.value })}
+                className="
+                  h-11 appearance-none rounded-full border border-gray-300 bg-white pl-4 pr-9 text-sm font-medium text-gray-700
+                  transition-all duration-200 ease-out hover:border-gray-400
+                  focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
+                "
+              >
+                {SORT_OPTIONS.filter((o) => !o.requiresCenter || filters.centerLat !== null).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <svg
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
           </div>
 
           {/* Clear all */}
           <button
             onClick={clearAll}
             className={`
-              text-sm font-semibold text-hs-red-600
-              hover:text-hs-red-700
-              px-3 py-2
-              rounded-lg
-              transition-all duration-200 ease-out
-              hover:bg-hs-red-50
+              text-sm font-semibold text-hs-red-600 hover:text-hs-red-700
+              px-3 py-2 rounded-lg transition-all duration-200 ease-out hover:bg-hs-red-50
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
-              min-h-[44px]
-              ${hasActiveFilters ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none'}
+              ${hasActiveFilters ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2 pointer-events-none"}
             `}
             tabIndex={hasActiveFilters ? 0 : -1}
             aria-hidden={!hasActiveFilters}
@@ -329,6 +297,160 @@ export function FilterBar() {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---- State dropdown panel --------------------------------------------------
+function StatePanel({
+  selected,
+  onToggle,
+  onClear,
+}: {
+  selected: string[]
+  onToggle: (value: string) => void
+  onClear: () => void
+}) {
+  const [q, setQ] = useState("")
+  const filtered = US_STATES.filter((s) => s.label.toLowerCase().includes(q.trim().toLowerCase()))
+
+  return (
+    <div className="w-[300px]">
+      <input
+        type="text"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search states…"
+        className="
+          w-full h-9 rounded-lg border border-gray-300 px-3 text-sm mb-2
+          focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
+        "
+      />
+      <div className="max-h-[240px] overflow-y-auto grid grid-cols-2 gap-0.5 pr-0.5">
+        {filtered.map((s) => {
+          const checked = selected.includes(s.value)
+          return (
+            <label
+              key={s.value}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onToggle(s.value)}
+                className="w-4 h-4 accent-hs-red-600 shrink-0"
+              />
+              <span className="truncate">{s.label}</span>
+            </label>
+          )
+        })}
+        {filtered.length === 0 && (
+          <p className="col-span-2 text-sm text-gray-400 px-2 py-3 text-center">No matches</p>
+        )}
+      </div>
+      <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700"
+        >
+          Clear
+        </button>
+        <span className="text-xs text-gray-400 tabular-nums">{selected.length} selected</span>
+      </div>
+    </div>
+  )
+}
+
+// ---- Price entry panel -----------------------------------------------------
+function PricePanel({
+  minCents,
+  maxCents,
+  onApply,
+  close,
+}: {
+  minCents: number | null
+  maxCents: number | null
+  onApply: (minCents: number | null, maxCents: number | null) => void
+  close: () => void
+}) {
+  // Drafts hold whole-dollar digit strings; committed to cents on Apply.
+  const [min, setMin] = useState(minCents != null ? String(Math.round(minCents / 100)) : "")
+  const [max, setMax] = useState(maxCents != null ? String(Math.round(maxCents / 100)) : "")
+
+  const toCents = (v: string) => {
+    const digits = v.replace(/[^0-9]/g, "")
+    return digits ? Number(digits) * 100 : null
+  }
+  const apply = () => {
+    onApply(toCents(min), toCents(max))
+    close()
+  }
+  const clear = () => {
+    setMin("")
+    setMax("")
+    onApply(null, null)
+    close()
+  }
+
+  return (
+    <div className="min-w-[260px]">
+      <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">Price range</h4>
+      <div className="flex items-center gap-2">
+        <PriceInput value={min} onChange={setMin} placeholder="Min" onEnter={apply} />
+        <span className="text-gray-400">–</span>
+        <PriceInput value={max} onChange={setMax} placeholder="Max" onEnter={apply} />
+      </div>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={clear}
+          className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700"
+        >
+          Clear
+        </button>
+        <button
+          type="button"
+          onClick={apply}
+          className="px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700"
+        >
+          Apply
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PriceInput({
+  value,
+  onChange,
+  placeholder,
+  onEnter,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  onEnter: () => void
+}) {
+  // Show grouped thousands while keeping the stored value as raw digits.
+  const display = value ? Number(value).toLocaleString("en-US") : ""
+  return (
+    <div className="relative flex-1">
+      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={display}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onEnter()
+        }}
+        placeholder={placeholder}
+        className="
+          w-full h-10 rounded-lg border border-gray-300 pl-6 pr-2 text-sm text-gray-800 tabular-nums
+          focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
+        "
+      />
     </div>
   )
 }

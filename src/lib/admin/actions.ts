@@ -3,7 +3,7 @@
 import { auth } from '@/auth'
 import { db } from '@/db'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { sendStatusChangeEmail } from '@/lib/email'
 import { canTransition } from '@/lib/listings/status-machine'
@@ -99,21 +99,26 @@ export async function approveListing(listingId: string) {
   }
 
   // Trigger alert emails for buyers with matching alert criteria
-  // Fetch primary location for alert matching
-  const primaryLocation = await db.query.listingLocations.findFirst({
-    where: and(
-      eq(listingLocations.listingId, listingId),
-      eq(listingLocations.displayOrder, 0)
-    ),
+  const locations = await db.query.listingLocations.findMany({
+    where: eq(listingLocations.listingId, listingId),
   })
+  const primary = locations.find((l) => l.displayOrder === 0) ?? locations[0]
 
   await triggerAlertMatching({
     id: listing.id,
     type: listing.type,
-    city: primaryLocation?.city ?? null,
-    state: primaryLocation?.state ?? null,
+    city: primary?.city ?? null,
+    state: primary?.state ?? null,
     askingPrice: listing.askingPrice,
-    locationName: primaryLocation?.name ?? listing.title ?? null,
+    locationName: primary?.name ?? listing.title ?? null,
+    locations: locations.map((l) => ({
+      state: l.state,
+      latitude: l.latitude,
+      longitude: l.longitude,
+      territoryLat: l.territoryLat,
+      territoryLng: l.territoryLng,
+      openingDate: l.openingDate,
+    })),
   })
 
   revalidatePath('/admin/queue')
