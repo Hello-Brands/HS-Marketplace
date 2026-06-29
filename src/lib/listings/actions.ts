@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import type { ListingFormData, ListingStatus } from './types'
 import { canTransition } from './status-machine'
+import { nextListedAt } from '@/lib/analytics/helpers'
 
 async function requireSellerAccess() {
   const session = await auth()
@@ -176,6 +177,7 @@ export async function changeListingStatus(
   await db.update(listings)
     .set({
       status: targetStatus,
+      listedAt: nextListedAt(listing.listedAt, targetStatus, new Date()),
       rejectionReason: targetStatus === 'rejected' ? reason : null,
       updatedAt: new Date(),
     })
