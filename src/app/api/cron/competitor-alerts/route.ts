@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         buyerEmail: user.email,
         buyerName: user.name || "Hello Sugar Buyer",
         searchName: alert.name || "your saved search",
-        searchUrl: `${appUrl}/browse?${savedSearchToBrowseParams(alert)}`,
+        searchUrl: `${appUrl}/browse?${savedSearchToBrowseParams(alert)}&showCompetitors=true`,
         competitors: fresh.map((c) => ({
           brandName: c.brandName,
           city: c.city,
@@ -70,6 +70,8 @@ export async function GET(request: Request) {
       if (res.success) {
         await recordCompetitorAlerts(alert.id, fresh.map((c) => c.googlePlaceId))
         emailed++
+      } else {
+        console.warn(`[competitor-alerts] send not confirmed for alert ${alert.id}`)
       }
     } catch (err) {
       console.error(`[competitor-alerts] alert ${alert.id} failed`, err)
