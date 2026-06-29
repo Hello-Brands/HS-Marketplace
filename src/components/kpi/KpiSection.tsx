@@ -1,9 +1,10 @@
 import { Suspense } from 'react'
-import { fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership } from '@/lib/kpi/fetch'
+import { fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership, fetchLocationReviews } from '@/lib/kpi/fetch'
 import { aggregateBundleKpi } from '@/lib/kpi/aggregate'
 import { KpiCardRow } from './KpiCardRow'
 import { LocationKpiCards } from './LocationKpiCards'
 import { BundleKpiSection } from './BundleKpiSection'
+import { LocationReviewsPanel } from './LocationReviewsPanel'
 
 interface Location {
   id: string
@@ -53,6 +54,7 @@ async function KpiSectionContent({
   if (listingType !== 'bundle' && locationId) {
     let rev: Awaited<ReturnType<typeof fetchLocationRevenue>> = null
     let mem: Awaited<ReturnType<typeof fetchLocationMembership>> = null
+    let reviews: Awaited<ReturnType<typeof fetchLocationReviews>> = null
     if (dataMappingStatus && listingStatus) {
       rev = await fetchLocationRevenue({
         listingStatus,
@@ -60,6 +62,11 @@ async function KpiSectionContent({
         bqLocationName: bqLocationName ?? null,
       })
       mem = await fetchLocationMembership({
+        listingStatus,
+        mappingStatus: dataMappingStatus,
+        bqLocationName: bqLocationName ?? null,
+      })
+      reviews = await fetchLocationReviews({
         listingStatus,
         mappingStatus: dataMappingStatus,
         bqLocationName: bqLocationName ?? null,
@@ -78,6 +85,7 @@ async function KpiSectionContent({
             : "Live data not connected for this location."}
         </p>
         <LocationKpiCards netSales={netSales} membership={mem} />
+        <LocationReviewsPanel reviews={reviews} />
       </section>
     )
   }
