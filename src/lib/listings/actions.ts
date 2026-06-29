@@ -177,7 +177,7 @@ export async function changeListingStatus(
   await db.update(listings)
     .set({
       status: targetStatus,
-      listedAt: nextListedAt(listing.listedAt, targetStatus, new Date()),
+      listedAt: nextListedAt(listing.listedAt ?? null, targetStatus, new Date()),
       rejectionReason: targetStatus === 'rejected' ? reason : null,
       updatedAt: new Date(),
     })
