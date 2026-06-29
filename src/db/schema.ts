@@ -9,6 +9,7 @@ export * from "./schema/listings"
 export * from "./schema/photos"
 export * from "./schema/contacts"
 export * from "./schema/alerts"
+export * from "./schema/competitorAlertLog"
 export * from "./schema/favorites"
 export * from "./schema/savedCompetitors"
 

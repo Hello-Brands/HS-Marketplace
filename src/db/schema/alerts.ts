@@ -23,6 +23,9 @@ export const alerts = pgTable("alerts", {
   centerLabel: text("center_label"),
   // Per-search email toggle
   notifyEnabled: boolean("notify_enabled").default(true).notNull(),
+  // Layer toggles captured from the browse filter bar; gate which alerts fire.
+  includeListings: boolean("include_listings").default(true).notNull(),
+  includeCompetitors: boolean("include_competitors").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull().$onUpdate(() => new Date()),
 })
