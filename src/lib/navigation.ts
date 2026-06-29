@@ -49,6 +49,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Listings", href: "/admin/listings" },
   { label: "Inquiries", href: "/admin/inquiries" },
   { label: "Users", href: "/admin/users" },
+  { label: "Analytics", href: "/admin/analytics" },
   { label: "Data", href: "/admin/data" },
   { label: "Owners", href: "/admin/owner-directory" },
 ]

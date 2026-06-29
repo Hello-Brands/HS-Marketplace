@@ -11,6 +11,8 @@ export * from "./schema/contacts"
 export * from "./schema/alerts"
 export * from "./schema/competitorAlertLog"
 export * from "./schema/favorites"
+export * from "./schema/listingViews"
+export * from "./schema/loginEvents"
 export * from "./schema/savedCompetitors"
 
 // Owner directory (Part A)

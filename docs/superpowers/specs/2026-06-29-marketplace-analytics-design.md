@@ -113,7 +113,7 @@ In `src/app/listings/[id]/page.tsx`:
   - Bordered rounded container, three equal cells, large bold number + uppercase label,
     red-accent (`--hs-red-600` = `#dc2626`) icons (calendar / eye / heart).
 - **Days listed** = whole days between `listedAt` (fallback `createdAt`) and today;
-  renders as `Listed today` when 0.
+  renders as `New` when 0 (the big-number cell shows the word "New" rather than a count).
 - **Views** = `listings.viewCount`.
 - **Saves** = count of `favorites` for the listing.
 - **Remove** the existing small gray "views / inquiries" pills near the title (lines
@@ -157,7 +157,7 @@ Vitest (existing setup). Unit-test the pure logic and query builders:
   day → count 2; seller's own view → not counted; admin view → not counted.
 - **`listedAt` set-once:** transition to `active` sets it; a later transition does not
   overwrite it.
-- **Days-listed math:** 0 → "Listed today"; correct whole-day count across a boundary.
+- **Days-listed math:** 0 → renders "New"; correct whole-day count across a boundary.
 - **Aggregations:** per-user reach-outs sent / inquiries received / saves / listings;
   active-this-week and 30-day login counts.
 
