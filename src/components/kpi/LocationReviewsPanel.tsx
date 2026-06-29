@@ -65,7 +65,9 @@ export function LocationReviewsPanel({ reviews }: { reviews: LocationReviewSumma
                 </div>
               </div>
             </div>
-            <p className="text-sm text-gray-700">{featured.comment}</p>
+            {featured.comment.trim() && (
+              <p className="text-sm text-gray-700">{featured.comment}</p>
+            )}
             {featured.ownerReplied && (
               <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
                 ✓ Owner replied
