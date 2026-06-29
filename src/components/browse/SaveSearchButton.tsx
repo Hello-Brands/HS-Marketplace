@@ -16,6 +16,8 @@ export interface SaveSearchInput {
   centerLng?: number | null
   radiusMiles?: number | null
   centerLabel?: string | null
+  includeListings?: boolean
+  includeCompetitors?: boolean
 }
 
 export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
@@ -54,6 +56,8 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
       centerLng: filters.centerLng ?? undefined,
       radiusMiles: filters.radiusMiles ?? undefined,
       centerLabel: filters.centerLabel || undefined,
+      includeListings: filters.includeListings,
+      includeCompetitors: filters.includeCompetitors,
     })
     setSaving(false)
     if (result.error) setError(result.error)

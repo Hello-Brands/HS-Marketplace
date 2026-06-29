@@ -45,13 +45,8 @@ export function BrowsePage({
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
-  // Competitor-closure layer: visible by default, toggleable to declutter.
-  const [showCompetitors, setShowCompetitors] = useState(true)
   // Which dataset the LEFT LIST shows. The map always shows both layers.
   const [listMode, setListMode] = useState<"listings" | "competitors">("listings")
-  // Show/hide the Hello Sugar listing PIN layer on the map (independent of the
-  // competitor layer toggle).
-  const [showListings, setShowListings] = useState(true)
   // Saved competitor place ids, hydrated from the server and updated
   // optimistically. Shared by the list rows and the map popup so both reflect
   // the same state within the session.
@@ -65,6 +60,8 @@ export function BrowsePage({
   const [draftRadius, setDraftRadius] = useState<number | null>(null)
 
   const [rawFilters, setFilters] = useListingFilters()
+  const showListings = rawFilters.showListings
+  const showCompetitors = rawFilters.showCompetitors
   const router = useRouter()
 
   // Active search center (drives radius filtering, the map circle, and "X mi away").
@@ -324,6 +321,8 @@ export function BrowsePage({
                 centerLng: rawFilters.centerLng,
                 radiusMiles: rawFilters.radiusMiles,
                 centerLabel: rawFilters.centerLabel || undefined,
+                includeListings: rawFilters.showListings,
+                includeCompetitors: rawFilters.showCompetitors,
               }}
             />
           </div>
@@ -395,76 +394,6 @@ export function BrowsePage({
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />
-
-              {/* Hello Sugar listing layer toggle (top-left), mirroring the
-                  competitor toggle on the right. Independent — both layers can
-                  show at once. */}
-              <button
-                type="button"
-                onClick={() => setShowListings((v) => !v)}
-                aria-pressed={showListings}
-                title={showListings ? "Hide Hello Sugar listings" : "Show Hello Sugar listings"}
-                className={`
-                  absolute top-3 left-3 z-10 inline-flex items-center gap-2
-                  rounded-full border px-3 py-2 text-sm font-semibold shadow-md
-                  transition-colors min-h-[40px]
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
-                  ${showListings
-                    ? "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
-                    : "bg-gray-900/85 border-gray-900 text-white hover:bg-gray-900"}
-                `}
-              >
-                {/* pink dot mirrors the listing pin shape */}
-                <span
-                  aria-hidden="true"
-                  className="inline-block h-3 w-3 rounded-full border border-white"
-                  style={{ backgroundColor: showListings ? "#db2777" : "#9ca3af" }}
-                />
-                <span>
-                  Hello Sugar listings
-                  <span className="ml-1 tabular-nums opacity-60">({initialListings.length})</span>
-                </span>
-              </button>
-
-              {/* Competitor-closure layer toggle — only when the scraper has
-                  pushed at least one closure. */}
-              {competitorClosures.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowCompetitors((v) => !v)}
-                  aria-pressed={showCompetitors}
-                  title={
-                    showCompetitors
-                      ? "Hide competitor closures"
-                      : "Show competitor closures"
-                  }
-                  className={`
-                    absolute top-3 right-3 z-10 inline-flex items-center gap-2
-                    rounded-full border px-3 py-2 text-sm font-semibold shadow-md
-                    transition-colors min-h-[40px]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
-                    ${
-                      showCompetitors
-                        ? "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
-                        : "bg-gray-900/85 border-gray-900 text-white hover:bg-gray-900"
-                    }
-                  `}
-                >
-                  {/* diamond glyph mirrors the competitor pin shape */}
-                  <span
-                    aria-hidden="true"
-                    className="inline-block h-3 w-3 rotate-45 rounded-[2px] border border-white"
-                    style={{ backgroundColor: showCompetitors ? "#B9772E" : "#8F7067" }}
-                  />
-                  <span>
-                    Competitor closures
-                    <span className="ml-1 tabular-nums opacity-60">
-                      ({competitorClosures.length}
-                      {opportunityCount > 0 ? `, ${opportunityCount} opp.` : ""})
-                    </span>
-                  </span>
-                </button>
-              )}
 
               {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
                 <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />

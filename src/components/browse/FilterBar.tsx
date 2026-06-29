@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
+import { parseAsArrayOf, parseAsBoolean, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
 import { US_STATES } from "@/lib/us-states"
 import { FilterPopover } from "./FilterPopover"
 
@@ -49,6 +49,9 @@ export function useListingFilters() {
     centerLng: parseAsFloat,
     radiusMiles: parseAsInteger,
     centerLabel: parseAsString.withDefault(""),
+    // Map-layer visibility; persisted onto a saved search and gating its alerts.
+    showListings: parseAsBoolean.withDefault(true),
+    showCompetitors: parseAsBoolean.withDefault(true),
   })
 }
 
@@ -244,6 +247,8 @@ export function FilterBar() {
               </div>
             )}
           </FilterPopover>
+
+          <LayerToggles />
 
           {/* Spacer */}
           <div className="flex-1" />
@@ -452,5 +457,56 @@ function PriceInput({
         "
       />
     </div>
+  )
+}
+
+// ---- Map-layer toggles (Hello Sugar / Competitors) -------------------------
+export function LayerToggles() {
+  const [filters, setFilters] = useListingFilters()
+  return (
+    <div className="flex items-center gap-1.5">
+      <LayerChip
+        label="Hello Sugar"
+        color="#db2777"
+        active={filters.showListings}
+        onClick={() => setFilters({ showListings: !filters.showListings })}
+      />
+      <LayerChip
+        label="Competitors"
+        color="#B9772E"
+        diamond
+        active={filters.showCompetitors}
+        onClick={() => setFilters({ showCompetitors: !filters.showCompetitors })}
+      />
+    </div>
+  )
+}
+
+function LayerChip({
+  label, color, active, onClick, diamond = false,
+}: {
+  label: string; color: string; active: boolean; onClick: () => void; diamond?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`
+        inline-flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium border
+        transition-all duration-200 ease-out
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-1
+        ${active
+          ? "bg-white border-gray-300 text-gray-800 hover:bg-gray-50"
+          : "bg-gray-100 border-gray-200 text-gray-400 hover:bg-gray-200"}
+      `}
+    >
+      <span
+        aria-hidden="true"
+        className={`inline-block h-3 w-3 border border-white ${diamond ? "rotate-45 rounded-[2px]" : "rounded-full"}`}
+        style={{ backgroundColor: active ? color : "#9ca3af" }}
+      />
+      {label}
+    </button>
   )
 }

@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/sync-owner-directory",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/competitor-alerts",
+      "schedule": "0 3 * * 2"
     }
   ]
 }

@@ -14,6 +14,7 @@ export default defineConfig({
     globals: true,
     env: {
       SKIP_ENV_VALIDATION: "1",
+      RESEND_API_KEY: "re_test",
     },
   },
   resolve: {
