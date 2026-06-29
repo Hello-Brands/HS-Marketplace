@@ -223,6 +223,7 @@ const REVIEW_SUMMARY_SQL = `
       ) AS rn
     FROM \`even-affinity-388602.snowflake_data.vw_review_account_location_view_raw\`
     WHERE LOCATION_NAME IS NOT NULL
+      AND NUMERIC_STAR_RATING BETWEEN 1 AND 5
   )
   SELECT
     LOCATION_NAME, avg_rating, total_reviews, c1, c2, c3, c4, c5,
