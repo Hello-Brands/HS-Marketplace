@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { redirect, notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getListingById } from '@/lib/listing-detail'
+import { recordListingView } from '@/lib/analytics/views'
 import { hasContactedListing } from '@/lib/contact-actions'
 import { isFavorited } from '@/lib/favorites-actions'
 import { ListingPhotos } from './ListingPhotos'
@@ -44,6 +45,8 @@ export default async function ListingDetailPage({ params }: Props) {
   if (!listing) {
     notFound()
   }
+
+  await recordListingView(listing.id)
 
   const [contacted, favorited] = await Promise.all([
     hasContactedListing(listing.id),
