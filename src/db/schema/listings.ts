@@ -46,6 +46,8 @@ export const listings = pgTable("listings", {
 
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Set once, the first time status becomes 'active'. Powers "days listed".
+  listedAt: timestamp("listed_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 

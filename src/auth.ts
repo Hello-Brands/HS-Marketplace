@@ -5,6 +5,7 @@ import { db } from "@/db"
 import { users, accounts, sessions, verificationTokens, allowlist } from "@/db/schema/auth"
 import { authConfig } from "./auth.config"
 import { linkOwnerAtLogin } from "@/lib/owner-directory/login"
+import { recordLogin } from "@/lib/analytics/logins"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -56,6 +57,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user }) {
       if (user.id) {
         await linkOwnerAtLogin(user.id, user.email)
+        // Never let a tracking failure block login.
+        try {
+          await recordLogin(user.id)
+        } catch (err) {
+          console.error("recordLogin failed", err)
+        }
       }
     },
     async createUser({ user }) {

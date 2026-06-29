@@ -2,8 +2,9 @@
 
 import { db } from '@/db'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
+import { favorites } from '@/db/schema/favorites'
 import { users } from '@/db/schema/auth'
-import { eq } from 'drizzle-orm'
+import { eq, count } from 'drizzle-orm'
 
 export interface ListingDetailLocation {
   id: string
@@ -38,6 +39,8 @@ export interface ListingDetail {
   otherAssets: string | null
   notes: string | null
   createdAt: Date
+  listedAt: Date | null
+  savesCount: number
   viewCount: number
   inquiryCount: number
   seller: {
@@ -68,6 +71,11 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
     return null
   }
 
+  const [saves] = await db
+    .select({ value: count() })
+    .from(favorites)
+    .where(eq(favorites.listingId, id))
+
   return {
     id: listing.id,
     type: listing.type as 'suite' | 'flagship' | 'territory' | 'bundle',
@@ -81,6 +89,8 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
     otherAssets: listing.otherAssets ?? null,
     notes: listing.notes ?? null,
     createdAt: listing.createdAt,
+    listedAt: listing.listedAt ?? null,
+    savesCount: saves?.value ?? 0,
     viewCount: listing.viewCount,
     inquiryCount: listing.inquiryCount,
     seller: {

@@ -7,6 +7,7 @@ import { eq, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { sendStatusChangeEmail } from '@/lib/email'
 import { canTransition } from '@/lib/listings/status-machine'
+import { nextListedAt } from '@/lib/analytics/helpers'
 import { unresolvedSalonLocations } from '@/lib/data/mapping'
 import { triggerAlertMatching } from '@/lib/alert-actions'
 import type { ListingStatus, ListingFormData } from '@/lib/listings/types'
@@ -82,6 +83,7 @@ export async function approveListing(listingId: string) {
   await db.update(listings)
     .set({
       status: 'active',
+      listedAt: nextListedAt(listing.listedAt ?? null, 'active', new Date()),
       rejectionReason: null,
       updatedAt: new Date(),
     })
