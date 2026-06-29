@@ -2,7 +2,13 @@ import "server-only"
 import { unstable_cache } from "next/cache"
 import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
 import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
-import { getNetSalesByLocation, getMcrByLocation, getMcrTrendByLocation } from "@/lib/bigquery/queries"
+import {
+  getNetSalesByLocation,
+  getMcrByLocation,
+  getMcrTrendByLocation,
+  getReviewSummaryByLocation,
+  type LocationReviewSummary,
+} from "@/lib/bigquery/queries"
 import { canFetchLiveData } from "./access"
 
 /**
@@ -156,4 +162,16 @@ export async function fetchLocationRevenue(args: {
       source: "bigquery",
     },
   }
+}
+
+export async function fetchLocationReviews(args: {
+  listingStatus: string
+  mappingStatus: string
+  bqLocationName: string | null
+}): Promise<LocationReviewSummary | null> {
+  if (!args.bqLocationName || !canFetchLiveData(args.listingStatus, args.mappingStatus)) {
+    return null // "not connected"
+  }
+  const map = await getReviewSummaryByLocation()
+  return map.get(args.bqLocationName) ?? null
 }
