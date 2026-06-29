@@ -48,6 +48,15 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }))
 
+vi.mock("server-only", () => ({}))
+vi.mock("@/lib/competitor-query", () => ({
+  getCompetitorClosures: vi.fn().mockResolvedValue([]),
+}))
+vi.mock("@/lib/competitor-alert-log", () => ({
+  getLoggedCompetitorPlaceIds: vi.fn().mockResolvedValue(new Set()),
+  recordCompetitorAlerts: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Import after mocks are set up
 import {
   createAlert,
