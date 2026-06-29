@@ -56,6 +56,21 @@ export interface ReminderEmailData {
   markSoldUrl?: string
 }
 
+export interface CompetitorAlertData {
+  buyerEmail: string
+  buyerName: string
+  searchName: string
+  searchUrl: string
+  competitors: Array<{
+    brandName: string
+    city: string | null
+    state: string | null
+    nearestHsName: string | null
+    nearestHsMiles: number | null
+    mapsUrl: string | null
+  }>
+}
+
 /**
  * Low-level send function — use specific functions below for typed templates
  */
@@ -268,4 +283,63 @@ export async function sendReminderEmail(data: ReminderEmailData) {
     subject: `Reminder: Is your listing still active? - ${listingTitle}`,
     html,
   })
+}
+
+/**
+ * Build the competitor-closure digest email (pure — exported for tests).
+ */
+export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject: string; html: string } {
+  const { buyerName, searchName, searchUrl, competitors } = data
+  const n = competitors.length
+  const subject = `${n} new competitor closure${n !== 1 ? "s" : ""} near your saved search`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
+
+  const cards = competitors
+    .map((c) => {
+      const loc = [c.city, c.state].filter(Boolean).join(", ")
+      const nearest =
+        c.nearestHsName != null && c.nearestHsMiles != null
+          ? `<p style="margin: 0 0 4px 0; color: #6b7280;">Nearest Hello Sugar: ${c.nearestHsName} (${c.nearestHsMiles} mi)</p>`
+          : ""
+      const maps = c.mapsUrl
+        ? `<p style="margin: 0;"><a href="${c.mapsUrl}" style="color: #dc2626;">View on Google Maps</a></p>`
+        : ""
+      return `
+        <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 0 0 12px 0;">
+          <p style="margin: 0 0 4px 0;"><strong>${c.brandName}</strong></p>
+          ${loc ? `<p style="margin: 0 0 4px 0;">${loc}</p>` : ""}
+          ${nearest}
+          ${maps}
+        </div>`
+    })
+    .join("")
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #dc2626;">New Competitor Closures Near Your Search</h1>
+      <p>Hi ${buyerName},</p>
+      <p>${n} new competitor closure${n !== 1 ? "s" : ""} appeared in the area of your saved search <strong>${searchName}</strong>:</p>
+      ${cards}
+      <p>
+        <a href="${searchUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+          View your saved search
+        </a>
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="color: #6b7280; font-size: 14px;">
+        Hello Sugar Marketplace<br />
+        <a href="${appUrl}/account/alerts" style="color: #6b7280;">Manage your alerts</a>
+      </p>
+    </div>
+  `
+
+  return { subject, html }
+}
+
+/**
+ * Send the competitor-closure digest to a saved-search owner.
+ */
+export async function sendCompetitorAlertEmail(data: CompetitorAlertData) {
+  const { subject, html } = buildCompetitorAlertEmail(data)
+  return sendEmail({ to: data.buyerEmail, subject, html })
 }
