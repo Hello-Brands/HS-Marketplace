@@ -21,7 +21,7 @@ import { eq, desc } from "drizzle-orm"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { sendAlertMatchEmail } from "@/lib/email"
-import { isWithinRadius } from "@/lib/geo"
+import { listingMatchesAlert } from "@/lib/alert-match"
 import { getCompetitorClosures } from "@/lib/competitor-query"
 import { scopeIsBounded } from "@/lib/competitor-filter"
 import { recordCompetitorAlerts } from "@/lib/competitor-alert-log"
@@ -223,40 +223,10 @@ export async function triggerAlertMatching(listing: MatchListing) {
     .from(alerts)
     .innerJoin(users, eq(alerts.userId, users.id))
 
-  const matchingAlerts = allAlerts.filter(({ alert }) => {
-    if (alert.notifyEnabled === false) return false
-
-    // State (primary listing state) — empty/null = any
-    if (alert.states && alert.states.length > 0) {
-      if (!listing.state || !alert.states.includes(listing.state)) return false
-    }
-    // Type — empty/null = any
-    if (alert.listingTypes && alert.listingTypes.length > 0) {
-      if (!alert.listingTypes.includes(listing.type)) return false
-    }
-    // Price (cents)
-    if (alert.minPrice != null && (listing.askingPrice == null || listing.askingPrice < alert.minPrice)) return false
-    if (alert.maxPrice != null && (listing.askingPrice == null || listing.askingPrice > alert.maxPrice)) return false
-    // Min years open — at least one location open long enough
-    if (alert.minYearsOpen != null && alert.minYearsOpen > 0) {
-      const cutoff = new Date()
-      cutoff.setFullYear(cutoff.getFullYear() - alert.minYearsOpen)
-      const ok = locations.some((l) => l.openingDate != null && l.openingDate <= cutoff)
-      if (!ok) return false
-    }
-    // Radius — at least one location within radius of the saved center
-    if (alert.centerLat != null && alert.centerLng != null && alert.radiusMiles != null) {
-      const ok = locations.some((l) => {
-        const lat = l.latitude ?? l.territoryLat
-        const lng = l.longitude ?? l.territoryLng
-        return lat != null && lng != null &&
-          isWithinRadius(alert.centerLat!, alert.centerLng!, lat, lng, alert.radiusMiles!)
-      })
-      if (!ok) return false
-    }
-    // query and sort are intentionally NOT matched
-    return true
-  })
+  const now = new Date()
+  const matchingAlerts = allAlerts.filter(({ alert }) =>
+    listingMatchesAlert(alert, listing, locations, now)
+  )
 
   const sendResults = await Promise.all(
     matchingAlerts.map(({ user }) =>
