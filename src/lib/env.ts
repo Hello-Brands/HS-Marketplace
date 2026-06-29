@@ -27,5 +27,7 @@ export const env = createEnv({
   experimental__runtimeEnv: {
     NEXT_PUBLIC_MAPTILER_API_KEY: process.env.NEXT_PUBLIC_MAPTILER_API_KEY,
   },
-  skipValidation: true, // Disabled for debugging
+  // Validate in dev/build/runtime; skipped under the test runner, which sets
+  // SKIP_ENV_VALIDATION (see vitest.config.mts) so tests don't need real vars.
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 })
