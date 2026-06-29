@@ -1,10 +1,6 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 
-// Mock server-side deps so the "use server" file can be imported in node env
-vi.mock("@/auth", () => ({ auth: vi.fn() }))
-vi.mock("@/db", () => ({ db: {} }))
-
-import { fillTrend } from "@/app/admin/analytics/actions"
+import { fillTrend } from "@/app/admin/analytics/trend"
 
 describe("fillTrend", () => {
   const today = new Date("2026-06-29T12:00:00Z")
