@@ -7,7 +7,7 @@ import { listings } from "@/db/schema/listings"
 import { contacts } from "@/db/schema/contacts"
 import { favorites } from "@/db/schema/favorites"
 import { loginEvents } from "@/db/schema/loginEvents"
-import { and, count, countDistinct, eq, gte, sql } from "drizzle-orm"
+import { count, countDistinct, eq, gte, sql } from "drizzle-orm"
 
 export interface AnalyticsSummary {
   totalUsers: number
