@@ -64,9 +64,15 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   // Fetch listings and competitor closures together. getCompetitorClosures is
   // resilient (returns [] if the scraper table is empty/unavailable), so it
   // never blocks the page.
+  const filters = parseFilters(searchParams)
   const [{ items: initialListings }, competitorClosures, savedCompetitorIds] = await Promise.all([
-    getListings(parseFilters(searchParams)),
-    getCompetitorClosures(),
+    getListings(filters),
+    getCompetitorClosures({
+      centerLat: filters.centerLat,
+      centerLng: filters.centerLng,
+      radiusMiles: filters.radiusMiles,
+      states: filters.states,
+    }),
     getSavedCompetitorPlaceIds(),
   ])
   const count = initialListings.length
