@@ -12,6 +12,9 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["user", "admin"] }).default("user").notNull(),
   sellerAccess: boolean("seller_access").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Login analytics (denormalized; login_events is source of truth)
+  loginCount: integer("login_count").default(0).notNull(),
+  lastLoginAt: timestamp("last_login_at"),
   // Owner directory link (Part A). Resolved from owner_locations by email at
   // login. source=manual is an admin override and must never be overwritten by
   // the automatic email match.
