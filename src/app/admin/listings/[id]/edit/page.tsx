@@ -61,6 +61,8 @@ export default async function AdminEditListingPage({
     })),
     inventoryIncluded: listing.inventoryIncluded,
     laserIncluded: listing.laserIncluded,
+    inventoryCostEstimate:
+      listing.inventoryCostEstimate != null ? listing.inventoryCostEstimate / 100 : undefined,
     otherAssets: listing.otherAssets || undefined,
     notes: listing.notes || undefined,
   }

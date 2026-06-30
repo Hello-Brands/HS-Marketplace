@@ -30,6 +30,7 @@ export function ListingEditForm({ listingId, initialData, isRejected, isAdmin = 
 
   const { register, control, watch, formState: { errors } } = methods
   const photos = watch('photos') || []
+  const inventoryIncluded = watch('inventoryIncluded')
 
   const handleSubmit = async (data: ListingFormData) => {
     setFormError(null)
@@ -165,6 +166,25 @@ export function ListingEditForm({ listingId, initialData, isRejected, isAdmin = 
               />
               <span>Laser device included</span>
             </label>
+            {inventoryIncluded && (
+              <div className="pt-1">
+                <label htmlFor="inventoryCostEstimate" className="block text-sm font-medium text-gray-700 mb-1">
+                  Estimated value of inventory included
+                </label>
+                <div className="relative max-w-xs">
+                  <span className="absolute left-3 top-2 text-gray-500">$</span>
+                  <input
+                    id="inventoryCostEstimate"
+                    type="number"
+                    min="0"
+                    {...register('inventoryCostEstimate', {
+                      setValueAs: (v) => (v === '' || v == null ? undefined : Number(v)),
+                    })}
+                    className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <div className="mt-4">
             <label htmlFor="otherAssets" className="block text-sm font-medium text-gray-700 mb-1">
