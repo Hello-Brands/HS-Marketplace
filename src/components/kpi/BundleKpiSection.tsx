@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import type { BundleLocationKpi } from '@/lib/kpi/bundle'
 import { KpiTrendChart } from './KpiTrendChart'
 
@@ -14,6 +14,11 @@ type SortDirection = 'asc' | 'desc'
 
 const formatDollars = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 const formatPct = (v: number) => `${v.toFixed(1)}%`
+
+function SortArrow({ active, direction }: { active: boolean; direction: SortDirection }) {
+  if (!active) return null
+  return <span className="ml-1 text-hs-red-600">{direction === 'asc' ? '↑' : '↓'}</span>
+}
 
 export function BundleKpiSection({ locations, territories }: BundleKpiSectionProps) {
   const [sortKey, setSortKey] = useState<SortKey>('name')
@@ -31,24 +36,36 @@ export function BundleKpiSection({ locations, territories }: BundleKpiSectionPro
 
   const sorted = useMemo(() => {
     return [...locations].sort((a, b) => {
-      let cmp: number
       if (sortKey === 'name') {
-        cmp = a.name.localeCompare(b.name)
+        const cmp = a.name.localeCompare(b.name)
+        return sortDirection === 'asc' ? cmp : -cmp
       } else {
-        const av = a[sortKey]?.lastMonth ?? -1
-        const bv = b[sortKey]?.lastMonth ?? -1
-        cmp = av - bv
+        const av = a[sortKey]?.lastMonth
+        const bv = b[sortKey]?.lastMonth
+        if (av == null && bv == null) return 0
+        if (av == null) return 1   // missing metric always last
+        if (bv == null) return -1
+        const cmp = av - bv
+        return sortDirection === 'asc' ? cmp : -cmp
       }
-      return sortDirection === 'asc' ? cmp : -cmp
     })
   }, [locations, sortKey, sortDirection])
 
   const selected = selectedId ? locations.find((l) => l.id === selectedId) ?? null : null
 
-  const SortArrow = ({ columnKey }: { columnKey: SortKey }) =>
-    sortKey !== columnKey ? null : (
-      <span className="ml-1 text-hs-red-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-    )
+  // Close on Escape key
+  useEffect(() => {
+    if (!selected) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedId(null)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selected])
 
   return (
     <div className="mt-8 space-y-6">
@@ -57,13 +74,13 @@ export function BundleKpiSection({ locations, territories }: BundleKpiSectionPro
           <thead className="bg-gray-50">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>
-                Location<SortArrow columnKey="name" />
+                Location<SortArrow active={sortKey === 'name'} direction={sortDirection} />
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('netSales')}>
-                Net Sales (TTM)<SortArrow columnKey="netSales" />
+                Net Sales (TTM)<SortArrow active={sortKey === 'netSales'} direction={sortDirection} />
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('membership')}>
-                MCR<SortArrow columnKey="membership" />
+                MCR<SortArrow active={sortKey === 'membership'} direction={sortDirection} />
               </th>
             </tr>
           </thead>
@@ -101,7 +118,7 @@ export function BundleKpiSection({ locations, territories }: BundleKpiSectionPro
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedId(null)} aria-hidden="true" />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8" role="dialog" aria-modal="true">
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8" role="dialog" aria-modal="true" aria-labelledby="bundle-location-modal-title">
             <button
               onClick={() => setSelectedId(null)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
@@ -111,7 +128,7 @@ export function BundleKpiSection({ locations, territories }: BundleKpiSectionPro
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">{selected.name}</h3>
+            <h3 id="bundle-location-modal-title" className="text-xl font-semibold text-gray-900 mb-6">{selected.name}</h3>
 
             <div className="space-y-8">
               <div>
