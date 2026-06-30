@@ -203,12 +203,11 @@ describe("rankFeaturedReviews", () => {
 })
 
 describe("rowsToReviewSummaryByLocation topReviews", () => {
-  it("exposes up to 5 ranked comment-bearing reviews", () => {
+  it("exposes at most 5 ranked comment-bearing reviews from 8 candidates", () => {
     const rows = Array.from({ length: 8 }, (_, i) => ({
       ...baseRow,
       REVIEWER_DISPLAY_NAME: `Reviewer ${i}`,
       COMMENT: "k".repeat(200),
-      create_date: `2026-0${(i % 8) + 1}-01`.replace("0", "0"),
     }))
     const s = rowsToReviewSummaryByLocation(rows).get("AZ Peoria | Park West 007")!
     expect(s.topReviews.length).toBe(5)
