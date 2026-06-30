@@ -178,6 +178,7 @@ export type LocationReviewSummary = {
   totalReviews: number
   distribution: { stars: 1 | 2 | 3 | 4 | 5; count: number }[] // ordered 5,4,3,2,1
   featured: FeaturedReview | null
+  topReviews: FeaturedReview[] // ranked best-first, ≤5; topReviews[0] === featured
 }
 
 // One row per candidate review (top 8 per location), carrying per-location
@@ -233,25 +234,30 @@ const REVIEW_SUMMARY_SQL = `
   ORDER BY LOCATION_NAME, rn`
 
 /**
- * Pure: pick one featured review from comment-bearing candidates.
+ * Pure: rank comment-bearing candidates best-first.
  * Order: rating desc -> 120-600 char window preferred -> owner-replied preferred
  * -> most recent. Relaxes the length window when nothing falls inside it.
  * Exported for tests.
  */
-export function pickFeaturedReview(candidates: FeaturedReview[]): FeaturedReview | null {
+export function rankFeaturedReviews(candidates: FeaturedReview[]): FeaturedReview[] {
   const eligible = candidates.filter((c) => c.comment.trim().length > 0)
-  if (eligible.length === 0) return null
-
   const inWindow = (c: FeaturedReview) => c.comment.length >= 120 && c.comment.length <= 600
 
-  const sorted = [...eligible].sort(
+  return [...eligible].sort(
     (a, b) =>
       b.rating - a.rating ||
       (Number(inWindow(b)) - Number(inWindow(a))) ||
       (a.ownerReplied === b.ownerReplied ? 0 : a.ownerReplied ? -1 : 1) ||
       b.date.localeCompare(a.date)
   )
-  return sorted[0]
+}
+
+/**
+ * Pure: pick one featured review from comment-bearing candidates.
+ * Exported for tests.
+ */
+export function pickFeaturedReview(candidates: FeaturedReview[]): FeaturedReview | null {
+  return rankFeaturedReviews(candidates)[0] ?? null
 }
 
 /** Pure: candidate rows -> per-location summary map. Exported for tests. */
@@ -279,6 +285,8 @@ export function rowsToReviewSummaryByLocation(
         ownerReplied: r.REPLIED === true,
       }))
 
+    const ranked = rankFeaturedReviews(candidates)
+
     map.set(name, {
       avgRating: toNumber(head.avg_rating),
       totalReviews: toNumber(head.total_reviews),
@@ -289,7 +297,8 @@ export function rowsToReviewSummaryByLocation(
         { stars: 2, count: toNumber(head.c2) },
         { stars: 1, count: toNumber(head.c1) },
       ],
-      featured: pickFeaturedReview(candidates),
+      featured: ranked[0] ?? null,
+      topReviews: ranked.slice(0, 5),
     })
   }
   return map
