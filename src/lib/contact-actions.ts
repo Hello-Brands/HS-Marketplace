@@ -35,16 +35,8 @@ export async function submitContactForm(prevState: unknown, formData: FormData) 
   })
   if (!listing) return { error: 'Listing not found' }
 
-  // Check for duplicate contact
-  const existing = await db.query.contacts.findFirst({
-    where: and(
-      eq(contacts.listingId, parsed.data.listingId),
-      eq(contacts.buyerId, session.user.id!),
-    ),
-  })
-  if (existing) return { error: 'Already contacted' }
-
-  // Create contact record
+  // Record the inquiry first so the team can always see it (admin inquiries view),
+  // even if notifying the seller fails below. Buyers may reach out more than once.
   await db.insert(contacts).values({
     listingId: parsed.data.listingId,
     buyerId: session.user.id!,
@@ -54,8 +46,10 @@ export async function submitContactForm(prevState: unknown, formData: FormData) 
     buyerPhone: parsed.data.phone ?? null,
   })
 
-  // Send email notification to seller
-  await sendContactNotification({
+  // Notify the seller. sendEmail returns the outcome rather than throwing, so we
+  // must inspect it: a real send failure is surfaced to the buyer; an intentional
+  // skip (no API key / non-production) is treated as success.
+  const emailResult = await sendContactNotification({
     sellerEmail: listing.seller.email!,
     sellerName: listing.seller.name ?? 'Seller',
     buyerName: session.user.name ?? 'A buyer',
@@ -64,6 +58,16 @@ export async function submitContactForm(prevState: unknown, formData: FormData) 
     listingId: listing.id,
     message: parsed.data.message,
   })
+
+  if (!emailResult.success && !('skipped' in emailResult)) {
+    console.error(
+      `[contact] Failed to notify seller for listing ${listing.id}:`,
+      emailResult.error,
+    )
+    return {
+      error: "We couldn't notify the seller right now. Please try again in a moment.",
+    }
+  }
 
   return { success: true }
 }
