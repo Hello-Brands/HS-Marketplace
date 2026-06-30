@@ -112,6 +112,7 @@ export async function approveListing(listingId: string) {
     city: primary?.city ?? null,
     state: primary?.state ?? null,
     askingPrice: listing.askingPrice,
+    inventoryIncluded: listing.inventoryIncluded,
     locationName: primary?.name ?? listing.title ?? null,
     locations: locations.map((l) => ({
       state: l.state,

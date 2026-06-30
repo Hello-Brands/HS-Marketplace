@@ -5,7 +5,7 @@ export type AlertMatchCriteria = Pick<
   Alert,
   | "notifyEnabled" | "includeListings" | "states" | "listingTypes"
   | "minPrice" | "maxPrice" | "minYearsOpen" | "centerLat" | "centerLng" | "radiusMiles"
->
+> & { inventoryIncluded?: boolean | null }
 
 export interface MatchLocation {
   latitude: number | null
@@ -19,6 +19,7 @@ export interface MatchListingInput {
   type: string
   state: string | null
   askingPrice: number | null
+  inventoryIncluded?: boolean
 }
 
 /**
@@ -43,6 +44,8 @@ export function listingMatchesAlert(
   }
   if (alert.minPrice != null && (listing.askingPrice == null || listing.askingPrice < alert.minPrice)) return false
   if (alert.maxPrice != null && (listing.askingPrice == null || listing.askingPrice > alert.maxPrice)) return false
+
+  if (alert.inventoryIncluded === true && listing.inventoryIncluded !== true) return false
 
   if (alert.minYearsOpen != null && alert.minYearsOpen > 0) {
     const cutoff = new Date(now)

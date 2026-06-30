@@ -196,6 +196,7 @@ type MatchListing = {
   city: string | null
   state: string | null
   askingPrice: number | null
+  inventoryIncluded?: boolean
   locationName: string | null
   locations?: MatchLocation[]
 }

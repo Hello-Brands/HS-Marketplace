@@ -14,8 +14,9 @@ const baseAlert: AlertMatchCriteria = {
   centerLat: null,
   centerLng: null,
   radiusMiles: null,
+  inventoryIncluded: false,
 }
-const listing = { type: "suite", state: "AZ", askingPrice: 5_000_000 }
+const listing = { type: "suite", state: "AZ", askingPrice: 5_000_000, inventoryIncluded: false }
 
 describe("listingMatchesAlert", () => {
   it("matches an unconstrained, enabled alert", () => {
@@ -49,5 +50,13 @@ describe("listingMatchesAlert", () => {
     const scope = { centerLat: 33.45, centerLng: -112.07, radiusMiles: 25 }
     expect(listingMatchesAlert({ ...baseAlert, ...scope }, listing, [near], NOW)).toBe(true)
     expect(listingMatchesAlert({ ...baseAlert, ...scope }, listing, [], NOW)).toBe(false)
+  })
+  it("matches any listing when the alert does not require inventory", () => {
+    expect(listingMatchesAlert(baseAlert, { ...listing, inventoryIncluded: false }, [], NOW)).toBe(true)
+  })
+  it("requires inventory when the alert sets inventoryIncluded", () => {
+    const alert = { ...baseAlert, inventoryIncluded: true }
+    expect(listingMatchesAlert(alert, { ...listing, inventoryIncluded: false }, [], NOW)).toBe(false)
+    expect(listingMatchesAlert(alert, { ...listing, inventoryIncluded: true }, [], NOW)).toBe(true)
   })
 })
