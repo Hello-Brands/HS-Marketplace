@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { LocationSelection } from '@/lib/listings/types'
-import { getSellerLocations } from '@/lib/listings/mock-data'
+import { getSellerLocations } from '@/lib/listings/seller-locations'
 
 interface LocationSelectorProps {
   value: LocationSelection[]
@@ -34,6 +34,26 @@ export function LocationSelector({ value, onChange, userId }: LocationSelectorPr
     return <div className="animate-pulse h-32 bg-gray-100 rounded-lg" />
   }
 
+  if (available.length === 0) {
+    return (
+      <div className="rounded-lg border-2 border-dashed border-gray-200 p-6 text-center">
+        <p className="text-sm font-medium text-gray-900">
+          No locations found for your account
+        </p>
+        <p className="mt-1 text-sm text-gray-500">
+          Contact{' '}
+          <a
+            href="mailto:support@hellosugar.salon"
+            className="text-hs-red-600 underline hover:text-hs-red-700"
+          >
+            support@hellosugar.salon
+          </a>{' '}
+          to get your locations linked.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-gray-600">
@@ -42,6 +62,7 @@ export function LocationSelector({ value, onChange, userId }: LocationSelectorPr
       <div className="grid gap-3">
         {available.map(loc => {
           const isSelected = value.some(v => v.id === loc.id)
+          const cityState = [loc.city, loc.state].filter(Boolean).join(', ')
           return (
             <button
               key={loc.id}
@@ -56,12 +77,21 @@ export function LocationSelector({ value, onChange, userId }: LocationSelectorPr
               `}
             >
               <div className="font-medium">{loc.name}</div>
-              <div className="text-sm text-gray-500">
-                {loc.city}, {loc.state} • {loc.squareFootage} sq ft
-              </div>
-              <div className="text-sm text-gray-500">
-                TTM Revenue: ${((loc.ttmRevenue || 0) / 100).toLocaleString()}
-              </div>
+              {loc.address && (
+                <div className="text-sm text-gray-500">{loc.address}</div>
+              )}
+              {(cityState || loc.squareFootage != null) && (
+                <div className="text-sm text-gray-500">
+                  {[cityState, loc.squareFootage != null ? `${loc.squareFootage} sq ft` : null]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </div>
+              )}
+              {loc.ttmRevenue != null && (
+                <div className="text-sm text-gray-500">
+                  TTM Revenue: ${(loc.ttmRevenue / 100).toLocaleString()}
+                </div>
+              )}
             </button>
           )
         })}

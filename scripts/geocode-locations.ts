@@ -23,6 +23,7 @@ import { drizzle } from "drizzle-orm/neon-http"
 import { neon } from "@neondatabase/serverless"
 import { and, eq, isNull } from "drizzle-orm"
 import { listingLocations } from "../src/db/schema/listings"
+import { cleanAddress, parseUsAddressTail } from "../src/lib/geocode/address"
 
 const RELEVANCE_THRESHOLD = 0.8 // MapTiler relevance (0..1); below this we don't trust the match
 const THROTTLE_MS = 300 // delay between geocoding calls
@@ -36,10 +37,12 @@ function buildQuery(loc: {
   state: string | null
   zipCode: string | null
 }): string | null {
-  const parts = [loc.address, loc.city, loc.state, loc.zipCode].filter(Boolean)
-  // Need at least a city+state (or address) to have any chance of a good match.
-  if (parts.length < 2) return null
-  return parts.join(", ")
+  // A directory address is self-contained ("street, City ST ZIP"), so it stands
+  // on its own once unit/suite noise is stripped. Fall back to city+state+zip
+  // only when there's no address at all.
+  if (loc.address) return cleanAddress(loc.address)
+  const parts = [loc.city, loc.state, loc.zipCode].filter(Boolean)
+  return parts.length >= 2 ? parts.join(", ") : null
 }
 
 interface GeocodeResult {
@@ -124,6 +127,8 @@ async function main() {
             `(relevance ${result.relevance.toFixed(2)}) [${result.placeName}]`
         )
         if (!DRY_RUN) {
+          // Also backfill any missing display components from the address tail.
+          const parsed = row.address ? parseUsAddressTail(row.address) : null
           await db
             .update(listingLocations)
             .set({
@@ -131,6 +136,9 @@ async function main() {
               longitude: result.lng,
               geocodedAt: new Date(),
               geocodeSource: "maptiler",
+              ...(parsed && row.city == null ? { city: parsed.city } : {}),
+              ...(parsed && row.state == null ? { state: parsed.state } : {}),
+              ...(parsed && row.zipCode == null ? { zipCode: parsed.zipCode } : {}),
             })
             .where(eq(listingLocations.id, row.id))
         }
