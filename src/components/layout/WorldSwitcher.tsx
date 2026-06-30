@@ -11,15 +11,13 @@ export function WorldSwitcher({ world }: { world: NavWorld }) {
     <div
       role="group"
       aria-label="Switch between Marketplace and Admin"
-      className={`inline-flex p-0.5 rounded-lg ${
-        isAdmin ? "bg-gray-900" : "bg-gray-100 border border-gray-200"
-      }`}
+      className="inline-flex p-0.5 rounded-lg bg-white/18"
     >
       <Link
         href="/browse"
         aria-current={!isAdmin ? "page" : undefined}
         className={`${base} ${
-          !isAdmin ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-white"
+          !isAdmin ? "bg-white text-[#ED1845] shadow-sm" : "text-white hover:bg-white/10"
         }`}
       >
         Marketplace
@@ -28,7 +26,7 @@ export function WorldSwitcher({ world }: { world: NavWorld }) {
         href="/admin"
         aria-current={isAdmin ? "page" : undefined}
         className={`${base} ${
-          isAdmin ? "bg-hs-red-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900"
+          isAdmin ? "bg-white text-[#ED1845] shadow-sm" : "text-white hover:bg-white/10"
         }`}
       >
         Admin
