@@ -156,6 +156,8 @@ export default async function ListingDetailPage({ params }: Props) {
                     id: loc.id,
                     name: loc.name,
                     type: loc.locationType === 'territory' ? 'territory' : 'suite',
+                    bqLocationName: loc.bqLocationName,
+                    dataMappingStatus: loc.dataMappingStatus,
                   }))
                 : undefined
             }
