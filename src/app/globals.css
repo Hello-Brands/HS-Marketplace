@@ -588,6 +588,8 @@ input[type="number"] {
   height: 52px;
   border-radius: 9999px;
   font-size: 0.95rem;
+  border: 2px solid #db2777;
+  box-shadow: 0 1px 3px rgba(219, 39, 119, 0.12);
 }
 
 /* Filter popover panel entrance */

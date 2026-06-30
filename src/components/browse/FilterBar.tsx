@@ -131,11 +131,9 @@ export function FilterBar({ onLocationSelect }: FilterBarProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-wrap items-center gap-3">
           {/* Prominent geographic search (desktop bar; mobile uses the second-row copy) */}
-          <div className="hidden md:block w-[320px] lg:w-[360px]">
+          <div className="hidden md:block flex-1 max-w-[520px]">
             <LocationSearch onSelect={onLocationSelect} variant="prominent" />
           </div>
-
-          <div className="hidden md:block h-7 w-px bg-gray-200" />
 
           {/* Listing Type — multi-select dropdown */}
           <FilterPopover
