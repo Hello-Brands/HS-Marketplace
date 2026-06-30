@@ -11,6 +11,7 @@ export interface SaveSearchInput {
   minPrice?: number | null
   maxPrice?: number | null
   minYearsOpen?: number | null
+  inventoryIncluded?: boolean | null
   sort?: string | null
   centerLat?: number | null
   centerLng?: number | null
