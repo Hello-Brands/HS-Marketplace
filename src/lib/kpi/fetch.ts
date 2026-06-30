@@ -1,7 +1,7 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
 import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
-import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
+import { mockLocationKpi } from "./mock-data"
 import {
   getNetSalesByLocation,
   getMcrByLocation,
@@ -77,35 +77,6 @@ export const fetchLocationKpi = unstable_cache(
   ["kpi-location"],
   { revalidate: 300 } // 5 min cache
 )
-
-/**
- * Fetch KPI data for multiple locations (bundle).
- * Returns mock data in development when API credentials aren't configured.
- * Returns object mapping locationId -> KpiData, excluding failed fetches.
- */
-export async function fetchBundleKpi(locationIds: string[]): Promise<Record<string, KpiData>> {
-  // Return mock bundle data when API credentials aren't configured
-  if (shouldUseMockData()) {
-    console.info("[KPI] Using mock bundle data (API credentials not configured)")
-    return generateMockBundleKpi(locationIds)
-  }
-
-  const results = await Promise.all(
-    locationIds.map(async (id) => {
-      const data = await fetchLocationKpi(id)
-      return { id, data }
-    })
-  )
-
-  const bundle: Record<string, KpiData> = {}
-  for (const { id, data } of results) {
-    if (data !== null) {
-      bundle[id] = data
-    }
-  }
-
-  return bundle
-}
 
 export async function fetchLocationMembership(args: {
   listingStatus: string
