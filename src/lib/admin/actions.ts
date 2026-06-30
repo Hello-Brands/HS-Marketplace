@@ -196,6 +196,10 @@ export async function adminUpdateListing(listingId: string, data: Partial<Listin
       inventoryIncluded: data.inventoryIncluded ?? listing.inventoryIncluded,
       laserIncluded: data.laserIncluded ?? listing.laserIncluded,
       otherAssets: data.otherAssets,
+      inventoryCostEstimate:
+        (data.inventoryIncluded ?? listing.inventoryIncluded) && data.inventoryCostEstimate
+          ? Math.round(data.inventoryCostEstimate * 100)
+          : null,
       updatedAt: new Date(),
     })
     .where(eq(listings.id, listingId))
