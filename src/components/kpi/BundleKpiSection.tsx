@@ -65,7 +65,7 @@ export function BundleKpiSection({ locations, territories }: BundleKpiSectionPro
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [selected])
+  }, [selectedId])
 
   return (
     <div className="mt-8 space-y-6">
