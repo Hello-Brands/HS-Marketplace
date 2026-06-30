@@ -60,7 +60,7 @@ export function MobileFilterDrawer({ isOpen, onClose, onLocationSelect }: Mobile
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 pb-safe-lg">
           <FilterBar onLocationSelect={onLocationSelect} />
         </div>
       </div>

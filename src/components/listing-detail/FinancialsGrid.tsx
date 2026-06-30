@@ -60,21 +60,24 @@ function MetricCard({ label, value, subLabel, variant = 'default', ownerProvided
 }
 
 export function FinancialsGrid({ listing }: FinancialsGridProps) {
+  const isTerritory = listing.type === 'territory'
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${isTerritory ? '' : 'sm:grid-cols-2'}`}>
         <MetricCard
           label="Asking Price"
           value={formatPrice(listing.askingPrice)}
           variant="primary"
           ownerProvided
         />
-        <MetricCard
-          label="TTM Profit"
-          value={formatPrice(listing.ttmProfit)}
-          subLabel="Trailing 12 months"
-          ownerProvided
-        />
+        {!isTerritory && (
+          <MetricCard
+            label="TTM Profit"
+            value={formatPrice(listing.ttmProfit)}
+            subLabel="Trailing 12 months"
+            ownerProvided
+          />
+        )}
       </div>
 
       {/* Divider */}

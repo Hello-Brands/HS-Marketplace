@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
-import { fetchBundleKpi, fetchLocationRevenue, fetchLocationMembership, fetchLocationReviews } from '@/lib/kpi/fetch'
-import { aggregateBundleKpi } from '@/lib/kpi/aggregate'
-import { KpiCardRow } from './KpiCardRow'
+import { fetchLocationRevenue, fetchLocationMembership, fetchLocationReviews, fetchBundleLocationKpis } from '@/lib/kpi/fetch'
+import { aggregateBundleLocationKpis } from '@/lib/kpi/bundle'
 import { LocationKpiCards } from './LocationKpiCards'
 import { BundleKpiSection } from './BundleKpiSection'
 import { LocationReviewsPanel } from './LocationReviewsPanel'
@@ -10,6 +9,8 @@ interface Location {
   id: string
   name: string
   type: 'suite' | 'flagship' | 'territory'
+  bqLocationName?: string | null
+  dataMappingStatus?: string
 }
 
 interface KpiSectionProps {
@@ -100,43 +101,57 @@ async function KpiSectionContent({
     )
   }
 
-  // Bundle listing
+  // Bundle listing — real BigQuery Net Sales + MCR, aggregate + per-location drill-in.
   if (listingType === 'bundle' && bundleLocations?.length) {
-    // Filter out territories (they have no KPI data)
-    const openLocations = bundleLocations.filter(loc => loc.type !== 'territory')
-    const territories = bundleLocations.filter(loc => loc.type === 'territory')
+    const openLocations = bundleLocations.filter((loc) => loc.type !== 'territory')
+    const territories = bundleLocations.filter((loc) => loc.type === 'territory')
 
     if (openLocations.length === 0) {
-      return null  // No open locations to show KPIs for
+      return null // nothing operational to show
     }
 
-    const locationIds = openLocations.map(loc => loc.id)
-    const perLocationKpis = await fetchBundleKpi(locationIds)
-    const locationCount = Object.keys(perLocationKpis).length
-
-    if (locationCount === 0) {
-      return null  // All locations returned null
-    }
-
-    const cumulative = { ...aggregateBundleKpi(perLocationKpis), newClients: undefined, bookings: undefined }
-    const hasAnyKpi = cumulative.revenue || cumulative.membershipConversion
-    if (!hasAnyKpi) return null
+    const perLocation = await fetchBundleLocationKpis(
+      openLocations.map((l) => ({
+        id: l.id,
+        name: l.name,
+        bqLocationName: l.bqLocationName ?? null,
+        dataMappingStatus: l.dataMappingStatus ?? 'not_connected',
+      })),
+      listingStatus ?? '',
+    )
+    const aggregate = aggregateBundleLocationKpis(perLocation)
+    const anyLive = perLocation.some((l) => l.netSales || l.membership)
 
     return (
       <section className="mt-12">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">
-          Performance Data ({locationCount} locations)
-        </h2>
-        <p className="text-sm text-gray-500 mb-6">Live per-location data coming soon.</p>
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Performance Data ({openLocations.length} locations)
+          </h2>
+          {anyLive && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-lg">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Verified by Hello Sugar
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-gray-500 mb-6">
+          {anyLive
+            ? 'Aggregate across the bundle — Net Sales summed, MCR averaged (trailing 12 months). Tap a location for its detail.'
+            : 'Live data not connected for these locations.'}
+        </p>
 
-        {/* Cumulative KPI cards */}
-        <KpiCardRow kpiData={cumulative} />
+        <LocationKpiCards
+          netSales={aggregate.netSales}
+          membership={aggregate.membership}
+          membershipLabel="Membership Conversion (avg.)"
+        />
 
-        {/* Per-location breakdown */}
         <BundleKpiSection
-          locations={openLocations}
-          perLocationKpis={perLocationKpis}
-          territories={territories}
+          locations={perLocation}
+          territories={territories.map((t) => ({ id: t.id, name: t.name }))}
         />
       </section>
     )

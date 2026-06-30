@@ -8,6 +8,7 @@ import { KpiTrendModal } from './KpiTrendModal'
 interface LocationKpiCardsProps {
   netSales: KpiMetric | null
   membership: KpiMetric | null
+  membershipLabel?: string
 }
 
 type SlotKey = 'netSales' | 'membership'
@@ -41,7 +42,7 @@ function PlaceholderCard({ label }: { label: string }) {
   )
 }
 
-export function LocationKpiCards({ netSales, membership }: LocationKpiCardsProps) {
+export function LocationKpiCards({ netSales, membership, membershipLabel }: LocationKpiCardsProps) {
   const [open, setOpen] = useState<SlotKey | null>(null)
 
   const metrics: Record<SlotKey, KpiMetric | null> = { netSales, membership }
@@ -53,11 +54,12 @@ export function LocationKpiCards({ netSales, membership }: LocationKpiCardsProps
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {SLOTS.map((slot) => {
           const metric = metrics[slot.key]
-          if (!metric) return <PlaceholderCard key={slot.key} label={slot.cardLabel} />
+          const label = slot.key === 'membership' && membershipLabel ? membershipLabel : slot.cardLabel
+          if (!metric) return <PlaceholderCard key={slot.key} label={label} />
           return (
             <KpiCard
               key={slot.key}
-              name={slot.cardLabel}
+              name={label}
               metric={metric}
               formatValue={slot.format}
               onClick={() => setOpen(slot.key)}

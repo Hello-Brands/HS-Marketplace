@@ -106,15 +106,22 @@ export default async function ListingDetailPage({ params }: Props) {
           </div>
         </div>
         {listing.locations.length > 0 && (
-          <div className="mt-1 space-y-0.5">
-            {listing.locations.map(loc => (
-              <p key={loc.id} className="text-gray-600">
-                {loc.name}
-                {loc.city && ` — ${loc.city}, ${loc.state}`}
-                {loc.squareFootage && ` · ${loc.squareFootage.toLocaleString()} sq ft`}
-                {loc.openingDate && ` · Opened ${new Date(loc.openingDate).getFullYear()}`}
-              </p>
-            ))}
+          <div className="mt-1 space-y-1.5">
+            {listing.locations.map(loc => {
+              const cityState = [loc.city, loc.state].filter(Boolean).join(', ')
+              return (
+                <div key={loc.id} className="text-gray-600">
+                  <p>
+                    {loc.name}
+                    {loc.squareFootage ? ` · ${loc.squareFootage.toLocaleString()} sq ft` : ''}
+                    {loc.openingDate ? ` · Opened ${new Date(loc.openingDate).getFullYear()}` : ''}
+                  </p>
+                  {(loc.address || cityState) && (
+                    <p className="text-sm text-gray-500">{loc.address ?? cityState}</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
         <StatStrip
@@ -149,6 +156,8 @@ export default async function ListingDetailPage({ params }: Props) {
                     id: loc.id,
                     name: loc.name,
                     type: loc.locationType === 'territory' ? 'territory' : 'suite',
+                    bqLocationName: loc.bqLocationName,
+                    dataMappingStatus: loc.dataMappingStatus,
                   }))
                 : undefined
             }

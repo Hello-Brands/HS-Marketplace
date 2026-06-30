@@ -1,7 +1,7 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
 import { kpiResponseSchema, type KpiData, type KpiMetric } from "./schema"
-import { mockLocationKpi, generateMockBundleKpi } from "./mock-data"
+import { mockLocationKpi } from "./mock-data"
 import {
   getNetSalesByLocation,
   getMcrByLocation,
@@ -10,6 +10,7 @@ import {
   type LocationReviewSummary,
 } from "@/lib/bigquery/queries"
 import { canFetchLiveData } from "./access"
+import type { BundleLocationKpi } from "./bundle"
 
 /**
  * Check if we should use mock data (dev mode without API credentials).
@@ -76,35 +77,6 @@ export const fetchLocationKpi = unstable_cache(
   ["kpi-location"],
   { revalidate: 300 } // 5 min cache
 )
-
-/**
- * Fetch KPI data for multiple locations (bundle).
- * Returns mock data in development when API credentials aren't configured.
- * Returns object mapping locationId -> KpiData, excluding failed fetches.
- */
-export async function fetchBundleKpi(locationIds: string[]): Promise<Record<string, KpiData>> {
-  // Return mock bundle data when API credentials aren't configured
-  if (shouldUseMockData()) {
-    console.info("[KPI] Using mock bundle data (API credentials not configured)")
-    return generateMockBundleKpi(locationIds)
-  }
-
-  const results = await Promise.all(
-    locationIds.map(async (id) => {
-      const data = await fetchLocationKpi(id)
-      return { id, data }
-    })
-  )
-
-  const bundle: Record<string, KpiData> = {}
-  for (const { id, data } of results) {
-    if (data !== null) {
-      bundle[id] = data
-    }
-  }
-
-  return bundle
-}
 
 export async function fetchLocationMembership(args: {
   listingStatus: string
@@ -174,4 +146,60 @@ export async function fetchLocationReviews(args: {
   }
   const map = await getReviewSummaryByLocation()
   return map.get(args.bqLocationName) ?? null
+}
+
+/**
+ * Fetch real BigQuery Net Sales + MCR per bundle location. Loads the cached
+ * maps once and looks up each location by bqLocationName (gated like single
+ * listings). Locations that are not connected / absent return null metrics but
+ * are still included so the caller can list them.
+ */
+export async function fetchBundleLocationKpis(
+  locations: { id: string; name: string; bqLocationName: string | null; dataMappingStatus: string }[],
+  listingStatus: string,
+): Promise<BundleLocationKpi[]> {
+  const [netMap, mcrMap, mcrTrendMap] = await Promise.all([
+    getNetSalesByLocation(),
+    getMcrByLocation(),
+    getMcrTrendByLocation(),
+  ])
+
+  return locations.map((loc) => {
+    const connected = !!loc.bqLocationName && canFetchLiveData(listingStatus, loc.dataMappingStatus)
+    let netSales: KpiMetric | null = null
+    let membership: KpiMetric | null = null
+
+    if (connected && loc.bqLocationName) {
+      const ns = netMap.get(loc.bqLocationName)
+      if (ns) {
+        const trend = ns.trend
+        const last = trend.length > 0 ? trend[trend.length - 1].value : 0
+        const prior = trend.length > 1 ? trend[trend.length - 2].value : 0
+        netSales = {
+          lastMonth: ns.totalCents / 100,
+          momChange: prior !== 0 ? (last - prior) / prior : 0,
+          trend,
+          updatedAt: new Date().toISOString(),
+          source: "bigquery",
+        }
+      }
+
+      const pct = mcrMap.get(loc.bqLocationName)
+      if (pct !== undefined) {
+        const points = mcrTrendMap.get(loc.bqLocationName) ?? []
+        const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
+        const last = points.length > 0 ? points[points.length - 1].value : 0
+        const prior = points.length > 1 ? points[points.length - 2].value : 0
+        membership = {
+          lastMonth: pct,
+          momChange: points.length > 1 && prior !== 0 ? (last - prior) / prior : 0,
+          trend,
+          updatedAt: new Date().toISOString(),
+          source: "bigquery",
+        }
+      }
+    }
+
+    return { id: loc.id, name: loc.name, netSales, membership }
+  })
 }

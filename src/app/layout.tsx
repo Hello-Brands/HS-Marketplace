@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit, Source_Sans_3, Geist_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
@@ -27,6 +27,15 @@ export const metadata: Metadata = {
   title: "Hello Sugar Marketplace",
   description: "Find and sell Hello Sugar franchise locations",
   metadataBase: new URL("https://marketplace.hellosugar.salon"),
+};
+
+// viewport-fit=cover lets the page extend into the display cutout / home-indicator
+// region so env(safe-area-inset-*) padding (see globals.css) can resolve to real
+// values on notched devices instead of always being 0.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

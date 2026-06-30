@@ -60,10 +60,3 @@ export const EXISTING_HS_LOCATIONS = [
   { lat: 32.7997, lng: -96.8022, name: 'HS Dallas Uptown' },
   { lat: 33.7734, lng: -84.2963, name: 'HS Decatur' },
 ]
-
-export async function getSellerLocations(userId: string): Promise<LocationSelection[]> {
-  // In Phase 4, this will call internal API
-  // For now, return mock data for any seller
-  void userId
-  return MOCK_SELLER_LOCATIONS
-}

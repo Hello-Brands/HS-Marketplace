@@ -151,6 +151,30 @@ body.drawer-open {
   overflow: hidden;
 }
 
+/* ====================================
+   SAFE-AREA INSETS (notched devices)
+   ==================================== */
+
+/* Bottom padding for fixed bars / drawer footers: a normal base plus the
+   device home-indicator inset (env() resolves to 0 on non-notched devices,
+   and only resolves to a real value because layout.tsx sets viewport-fit=cover).
+   Written unlayered so they override Tailwind's layered bottom-padding
+   utilities. */
+.pb-safe {
+  /* base ≈ py-3 (0.75rem) — used by the fixed mobile contact bar */
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.pb-safe-lg {
+  /* base ≈ py-4 (1rem) — used by drawer footers / scroll content */
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Spacer that reserves room for the fixed mobile contact bar (≈5rem) plus inset. */
+.h-cta-spacer {
+  height: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Display headings use Outfit */
 h1, h2, h3, .font-display {
   font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
