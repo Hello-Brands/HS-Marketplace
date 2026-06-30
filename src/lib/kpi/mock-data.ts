@@ -62,36 +62,4 @@ export const mockLocationKpiSmall: KpiData = {
   membershipConversion: createMetric(28.5, 4.3, 0.12),
 }
 
-/**
- * Mock data for a bundle of locations (3 salons).
- */
-export const mockBundleKpi: Record<string, KpiData> = {
-  "loc-atlanta-buckhead": {
-    revenue: createMetric(52100, 14.2),
-    newClients: createMetric(142, 9.8),
-    bookings: createMetric(978, 6.3),
-    membershipConversion: createMetric(38.4, 1.2),
-  },
-  "loc-atlanta-midtown": {
-    revenue: createMetric(41800, 8.7),
-    newClients: createMetric(98, 5.4),
-    bookings: createMetric(756, 4.1),
-    membershipConversion: createMetric(31.2, -1.8),
-  },
-  "loc-atlanta-decatur": {
-    revenue: createMetric(38200, 22.1),
-    newClients: createMetric(112, 18.9),
-    bookings: createMetric(682, 12.4),
-    membershipConversion: createMetric(29.8, 6.7),
-  },
-}
-
-/**
- * Location name mapping for bundle display.
- */
-export const mockLocationNames: Record<string, string> = {
-  "loc-atlanta-buckhead": "Hello Sugar Buckhead",
-  "loc-atlanta-midtown": "Hello Sugar Midtown",
-  "loc-atlanta-decatur": "Hello Sugar Decatur",
-}
 

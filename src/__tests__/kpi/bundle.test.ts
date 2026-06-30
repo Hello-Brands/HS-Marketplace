@@ -54,4 +54,23 @@ describe("aggregateBundleLocationKpis", () => {
     expect(agg.netSales).toBeNull()
     expect(agg.membership).toBeNull()
   })
+
+  it("cross-location trend merge keeps chronological order and sums overlapping months", () => {
+    // Location A: Nov, Dec — Location B: Dec, Jan
+    // Naive alphabetical sort would reorder to Dec, Jan, Nov — must NOT happen.
+    const locs: BundleLocationKpi[] = [
+      { id: "a", name: "A", netSales: metric(200, [["Nov", 100], ["Dec", 200]]), membership: null },
+      { id: "b", name: "B", netSales: metric(25,  [["Dec", 50],  ["Jan", 25]]),  membership: null },
+    ]
+    const agg = aggregateBundleLocationKpis(locs)
+    // Nov from A only; Dec = 200+50 = 250; Jan from B only; order must be Nov→Dec→Jan
+    expect(agg.netSales?.trend).toEqual([
+      { month: "Nov", value: 100 },
+      { month: "Dec", value: 250 },
+      { month: "Jan", value: 25 },
+    ])
+    // Last two trend points: Dec=250 → Jan=25; momChange = (25-250)/250 = -0.9
+    expect(agg.netSales?.momChange).toBeCloseTo((25 - 250) / 250)
+    expect(agg.membership).toBeNull()
+  })
 })
