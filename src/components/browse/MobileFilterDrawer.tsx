@@ -6,9 +6,10 @@ import { FilterBar } from './FilterBar'
 interface MobileFilterDrawerProps {
   isOpen: boolean
   onClose: () => void
+  onLocationSelect: (location: { lng: number; lat: number; name: string }) => void
 }
 
-export function MobileFilterDrawer({ isOpen, onClose }: MobileFilterDrawerProps) {
+export function MobileFilterDrawer({ isOpen, onClose, onLocationSelect }: MobileFilterDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function MobileFilterDrawer({ isOpen, onClose }: MobileFilterDrawerProps)
         </div>
 
         <div className="p-4">
-          <FilterBar />
+          <FilterBar onLocationSelect={onLocationSelect} />
         </div>
       </div>
     </div>

@@ -112,6 +112,7 @@ export async function approveListing(listingId: string) {
     city: primary?.city ?? null,
     state: primary?.state ?? null,
     askingPrice: listing.askingPrice,
+    inventoryIncluded: listing.inventoryIncluded,
     locationName: primary?.name ?? listing.title ?? null,
     locations: locations.map((l) => ({
       state: l.state,
@@ -195,6 +196,10 @@ export async function adminUpdateListing(listingId: string, data: Partial<Listin
       inventoryIncluded: data.inventoryIncluded ?? listing.inventoryIncluded,
       laserIncluded: data.laserIncluded ?? listing.laserIncluded,
       otherAssets: data.otherAssets,
+      inventoryCostEstimate:
+        (data.inventoryIncluded ?? listing.inventoryIncluded) && data.inventoryCostEstimate
+          ? Math.round(data.inventoryCostEstimate * 100)
+          : null,
       updatedAt: new Date(),
     })
     .where(eq(listings.id, listingId))

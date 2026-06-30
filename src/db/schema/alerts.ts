@@ -15,6 +15,7 @@ export const alerts = pgTable("alerts", {
   minPrice: integer("min_price"),
   maxPrice: integer("max_price"),
   minYearsOpen: integer("min_years_open"),
+  inventoryIncluded: boolean("inventory_included").default(false).notNull(),
   sort: text("sort"), // saved for re-apply, NOT matched
   // Location / radius
   centerLat: doublePrecision("center_lat"),

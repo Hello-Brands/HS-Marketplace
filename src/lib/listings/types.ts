@@ -42,6 +42,8 @@ export interface ListingFormData {
   photos: Photo[]
   inventoryIncluded: boolean
   laserIncluded: boolean
+  // Whole dollars in the form; persisted as cents. Only meaningful when inventoryIncluded.
+  inventoryCostEstimate?: number
   otherAssets?: string
   notes?: string
 }

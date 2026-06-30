@@ -3,7 +3,7 @@ import type { Alert } from "@/db/schema/alerts"
 export type SavedSearchFields = Pick<
   Alert,
   | "query" | "states" | "listingTypes" | "minPrice" | "maxPrice"
-  | "minYearsOpen" | "sort" | "centerLat" | "centerLng" | "radiusMiles" | "centerLabel"
+  | "minYearsOpen" | "inventoryIncluded" | "sort" | "centerLat" | "centerLng" | "radiusMiles" | "centerLabel"
 >
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,6 +37,7 @@ export function describeSavedSearch(a: SavedSearchFields): string {
   const price = priceLabel(a.minPrice ?? null, a.maxPrice ?? null)
   if (price) parts.push(price)
   if (a.minYearsOpen && a.minYearsOpen > 0) parts.push(`${a.minYearsOpen}+ yrs open`)
+  if (a.inventoryIncluded) parts.push("inventory included")
   if (a.centerLat != null && a.centerLng != null && a.radiusMiles != null) {
     parts.push(`within ${a.radiusMiles} mi of ${a.centerLabel || "selected location"}`)
   }
@@ -54,6 +55,7 @@ export function savedSearchToBrowseParams(a: SavedSearchFields): string {
   if (a.minPrice != null) p.set("minPrice", String(a.minPrice))
   if (a.maxPrice != null) p.set("maxPrice", String(a.maxPrice))
   if (a.minYearsOpen != null) p.set("minYearsOpen", String(a.minYearsOpen))
+  if (a.inventoryIncluded) p.set("inventoryIncluded", "true")
   if (a.sort) p.set("sort", a.sort)
   if (a.centerLat != null) p.set("centerLat", String(a.centerLat))
   if (a.centerLng != null) p.set("centerLng", String(a.centerLng))

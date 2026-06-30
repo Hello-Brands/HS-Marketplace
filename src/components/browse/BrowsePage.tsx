@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
+import { FilterBar, LayerToggles, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { ListingGrid } from "./ListingGrid"
 import { CompetitorList } from "./CompetitorList"
@@ -82,6 +82,7 @@ export function BrowsePage({
     maxPrice: rawFilters.maxPrice ?? undefined,
     sort: rawFilters.sort as "newest" | "price-asc" | "price-desc" | "distance",
     minYearsOpen: rawFilters.minYearsOpen ?? undefined,
+    inventoryIncluded: rawFilters.inventoryIncluded || undefined,
     centerLat: rawFilters.centerLat ?? undefined,
     centerLng: rawFilters.centerLng ?? undefined,
     radiusMiles: rawFilters.radiusMiles ?? undefined,
@@ -169,7 +170,7 @@ export function BrowsePage({
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Filter bar — desktop only, sticky at top */}
       <div className="hidden md:block">
-        <FilterBar />
+        <FilterBar onLocationSelect={handleLocationSelect} />
       </div>
 
       {/* View controls + mobile filter button */}
@@ -230,6 +231,11 @@ export function BrowsePage({
             </button>
           </div>
 
+          {/* Map-layer visibility (moved off the top bar) */}
+          <div className="hidden md:flex">
+            <LayerToggles />
+          </div>
+
           {/* List dataset switch — only meaningful when the scraper has pushed
               at least one closure. Controls the LEFT LIST only; the map always
               shows both layers. */}
@@ -258,7 +264,7 @@ export function BrowsePage({
 
           {/* Location search + radius + Save search */}
           <div className="flex w-full sm:w-auto sm:flex-1 items-center gap-3 justify-end order-last sm:order-none">
-            <div className="max-w-sm flex-1">
+            <div className="max-w-sm flex-1 md:hidden">
               <LocationSearch onSelect={handleLocationSelect} />
             </div>
 
@@ -316,6 +322,7 @@ export function BrowsePage({
                 minPrice: rawFilters.minPrice,
                 maxPrice: rawFilters.maxPrice,
                 minYearsOpen: rawFilters.minYearsOpen,
+                inventoryIncluded: rawFilters.inventoryIncluded,
                 sort: rawFilters.sort,
                 centerLat: rawFilters.centerLat,
                 centerLng: rawFilters.centerLng,
@@ -404,7 +411,11 @@ export function BrowsePage({
       </div>
 
       {/* Mobile filter drawer */}
-      <MobileFilterDrawer isOpen={mobileFiltersOpen} onClose={() => setMobileFiltersOpen(false)} />
+      <MobileFilterDrawer
+        isOpen={mobileFiltersOpen}
+        onClose={() => setMobileFiltersOpen(false)}
+        onLocationSelect={handleLocationSelect}
+      />
     </div>
   )
 }

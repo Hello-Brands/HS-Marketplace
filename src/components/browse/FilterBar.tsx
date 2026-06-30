@@ -4,24 +4,24 @@ import { useState } from "react"
 import { parseAsArrayOf, parseAsBoolean, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
 import { US_STATES } from "@/lib/us-states"
 import { FilterPopover } from "./FilterPopover"
+import { LocationSearch } from "./LocationSearch"
 
 // Radius range (miles) for the location search slider.
 export const RADIUS_MIN_MILES = 1
 export const RADIUS_MAX_MILES = 100
 export const DEFAULT_RADIUS_MILES = 25
 
+// Bundle is intentionally absent from the filter UI (still valid in the DB).
 const LISTING_TYPES = [
   { label: "Suite", value: "suite" },
   { label: "Flagship", value: "flagship" },
   { label: "Territory", value: "territory" },
-  { label: "Bundle", value: "bundle" },
 ]
 
 const SORT_OPTIONS = [
   { label: "Newest first", value: "newest" },
   { label: "Price: Low to high", value: "price-asc" },
   { label: "Price: High to low", value: "price-desc" },
-  // Only selectable when a search location is set (see render below).
   { label: "Nearest first", value: "distance", requiresCenter: true },
 ]
 
@@ -38,18 +38,15 @@ export function useListingFilters() {
     query: parseAsString.withDefault(""),
     types: parseAsArrayOf(parseAsString).withDefault([]),
     states: parseAsArrayOf(parseAsString).withDefault([]),
-    // Stored in cents (matches listings.asking_price); the Price control
-    // converts to/from whole dollars for entry/display.
     minPrice: parseAsInteger,
     maxPrice: parseAsInteger,
     sort: parseAsString.withDefault("newest"),
     minYearsOpen: parseAsInteger,
-    // Radius search (set together when a location is picked)
+    inventoryIncluded: parseAsBoolean.withDefault(false),
     centerLat: parseAsFloat,
     centerLng: parseAsFloat,
     radiusMiles: parseAsInteger,
     centerLabel: parseAsString.withDefault(""),
-    // Map-layer visibility; persisted onto a saved search and gating its alerts.
     showListings: parseAsBoolean.withDefault(true),
     showCompetitors: parseAsBoolean.withDefault(true),
   })
@@ -69,7 +66,11 @@ function priceSummary(minCents: number | null, maxCents: number | null): string 
   return null
 }
 
-export function FilterBar() {
+interface FilterBarProps {
+  onLocationSelect: (location: { lng: number; lat: number; name: string }) => void
+}
+
+export function FilterBar({ onLocationSelect }: FilterBarProps) {
   const [filters, setFilters] = useListingFilters()
 
   const hasActiveFilters =
@@ -79,6 +80,7 @@ export function FilterBar() {
     filters.minPrice !== null ||
     filters.maxPrice !== null ||
     (filters.minYearsOpen !== null && filters.minYearsOpen > 0) ||
+    filters.inventoryIncluded ||
     filters.centerLat !== null
 
   function toggleType(value: string) {
@@ -107,91 +109,45 @@ export function FilterBar() {
         maxPrice: null,
         sort: "newest",
         minYearsOpen: null,
+        inventoryIncluded: false,
         centerLat: null,
         centerLng: null,
         radiusMiles: null,
         centerLabel: null,
       },
-      // Non-shallow so a cleared location also refreshes the server-rendered
-      // map pins (the map is fed the server's initial list).
       { shallow: false }
     )
   }
 
-  const yearsSummary =
-    filters.minYearsOpen && filters.minYearsOpen > 0 ? `${filters.minYearsOpen}+ yr` : null
+  // Count of active filters living inside the "Filters" dropdown.
+  const filtersCount =
+    (filters.query ? 1 : 0) +
+    (filters.states.length > 0 ? 1 : 0) +
+    (filters.minYearsOpen && filters.minYearsOpen > 0 ? 1 : 0) +
+    (filters.inventoryIncluded ? 1 : 0)
 
   return (
     <div className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Text search */}
-          <div className="relative">
-            <svg
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              aria-label="Search by city or location"
-              value={filters.query}
-              onChange={(e) => setFilters({ query: e.target.value || null })}
-              placeholder="Search by city or location…"
-              className="
-                h-11 w-56 rounded-full border border-gray-300 bg-white pl-10 pr-4 text-sm text-gray-800
-                transition-all duration-200 ease-out placeholder:text-gray-400
-                hover:border-gray-400
-                focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
-              "
-            />
+          {/* Prominent geographic search (desktop bar; mobile uses the second-row copy) */}
+          <div className="hidden md:block w-[320px] lg:w-[360px]">
+            <LocationSearch onSelect={onLocationSelect} variant="prominent" />
           </div>
 
-          <div className="hidden sm:block h-7 w-px bg-gray-200" />
+          <div className="hidden md:block h-7 w-px bg-gray-200" />
 
-          {/* Type — kept as direct-click pills */}
-          <div className="flex gap-1.5">
-            {LISTING_TYPES.map((type) => {
-              const isActive = filters.types.includes(type.value)
-              return (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => toggleType(type.value)}
-                  aria-pressed={isActive}
-                  className={`
-                    h-11 px-4 rounded-full text-sm font-medium border
-                    transition-all duration-200 ease-out
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-1
-                    ${
-                      isActive
-                        ? "bg-hs-red-600 border-hs-red-600 text-white shadow-sm"
-                        : "bg-white border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50"
-                    }
-                  `}
-                >
-                  {type.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* State — multi-select dropdown */}
+          {/* Listing Type — multi-select dropdown */}
           <FilterPopover
-            label="State"
-            active={filters.states.length > 0}
-            summary={filters.states.length > 0 ? String(filters.states.length) : null}
+            label="Listing Type"
+            active={filters.types.length > 0}
+            summary={filters.types.length > 0 ? String(filters.types.length) : null}
           >
             {() => (
-              <StatePanel
-                selected={filters.states}
-                onToggle={toggleState}
-                onClear={() => setFilters({ states: [] })}
+              <ListingTypePanel
+                selected={filters.types}
+                onToggle={toggleType}
+                onClear={() => setFilters({ types: [] })}
               />
             )}
           </FilterPopover>
@@ -212,48 +168,36 @@ export function FilterBar() {
             )}
           </FilterPopover>
 
-          {/* Years open */}
+          {/* Filters — keyword + state + years open + inventory */}
           <FilterPopover
-            label="Years Open"
-            active={!!yearsSummary}
-            summary={yearsSummary}
+            label="Filters"
+            active={filtersCount > 0}
+            summary={filtersCount > 0 ? String(filtersCount) : null}
+            panelClassName="w-[300px]"
           >
             {(close) => (
-              <div className="min-w-[200px]">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
-                  Minimum years open
-                </h4>
-                {TIME_OPEN_OPTIONS.map((o) => {
-                  const checked = (filters.minYearsOpen ?? 0) === o.value
-                  return (
-                    <label
-                      key={o.value}
-                      className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      <input
-                        type="radio"
-                        name="years-open"
-                        checked={checked}
-                        onChange={() => {
-                          setFilters({ minYearsOpen: o.value || null })
-                          close()
-                        }}
-                        className="w-4 h-4 accent-hs-red-600"
-                      />
-                      {o.label}
-                    </label>
-                  )
-                })}
-              </div>
+              <FiltersPanel
+                query={filters.query}
+                states={filters.states}
+                minYearsOpen={filters.minYearsOpen}
+                inventoryIncluded={filters.inventoryIncluded}
+                onQueryChange={(v) => setFilters({ query: v || null })}
+                onToggleState={toggleState}
+                onClearStates={() => setFilters({ states: [] })}
+                onYearsChange={(v) => setFilters({ minYearsOpen: v || null })}
+                onInventoryChange={(v) => setFilters({ inventoryIncluded: v })}
+                onClearAll={() =>
+                  setFilters({ query: null, states: [], minYearsOpen: null, inventoryIncluded: false })
+                }
+                close={close}
+              />
             )}
           </FilterPopover>
 
-          <LayerToggles />
-
-          {/* Spacer */}
+          {/* Spacer pushes Sort to the right */}
           <div className="flex-1" />
 
-          {/* Sort — labelled so it reads as sorting, not filtering */}
+          {/* Sort */}
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-700">Sort</span>
             <div className="relative">
@@ -275,11 +219,7 @@ export function FilterBar() {
               </select>
               <svg
                 className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden="true"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
               </svg>
@@ -306,11 +246,129 @@ export function FilterBar() {
   )
 }
 
-// ---- State dropdown panel --------------------------------------------------
+// ---- Listing Type multi-select panel --------------------------------------
+function ListingTypePanel({
+  selected, onToggle, onClear,
+}: {
+  selected: string[]
+  onToggle: (value: string) => void
+  onClear: () => void
+}) {
+  return (
+    <div className="min-w-[200px]">
+      <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Listing type</h4>
+      {LISTING_TYPES.map((t) => {
+        const checked = selected.includes(t.value)
+        return (
+          <label
+            key={t.value}
+            className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+          >
+            <input type="checkbox" checked={checked} onChange={() => onToggle(t.value)} className="w-4 h-4 accent-hs-red-600" />
+            {t.label}
+          </label>
+        )
+      })}
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+        <button type="button" onClick={onClear} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
+          Clear
+        </button>
+        <span className="text-xs text-gray-400 tabular-nums">{selected.length} selected</span>
+      </div>
+    </div>
+  )
+}
+
+// ---- Filters dropdown panel (keyword + state + years + inventory) ----------
+function FiltersPanel({
+  query, states, minYearsOpen, inventoryIncluded,
+  onQueryChange, onToggleState, onClearStates, onYearsChange, onInventoryChange, onClearAll, close,
+}: {
+  query: string
+  states: string[]
+  minYearsOpen: number | null
+  inventoryIncluded: boolean
+  onQueryChange: (v: string) => void
+  onToggleState: (value: string) => void
+  onClearStates: () => void
+  onYearsChange: (v: number) => void
+  onInventoryChange: (v: boolean) => void
+  onClearAll: () => void
+  close: () => void
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Keyword */}
+      <div>
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Keyword</h4>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          placeholder="Salon name, city, notes…"
+          className="w-full h-9 rounded-lg border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
+        />
+      </div>
+
+      {/* State */}
+      <div>
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">State</h4>
+        <StatePanel selected={states} onToggle={onToggleState} onClear={onClearStates} />
+      </div>
+
+      {/* Years open */}
+      <div>
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Minimum years open</h4>
+        {TIME_OPEN_OPTIONS.map((o) => {
+          const checked = (minYearsOpen ?? 0) === o.value
+          return (
+            <label key={o.value} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+              <input
+                type="radio"
+                name="years-open"
+                checked={checked}
+                onChange={() => onYearsChange(o.value)}
+                className="w-4 h-4 accent-hs-red-600"
+              />
+              {o.label}
+            </label>
+          )
+        })}
+      </div>
+
+      {/* Inventory */}
+      <div>
+        <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Inventory</h4>
+        <label className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={inventoryIncluded}
+            onChange={(e) => onInventoryChange(e.target.checked)}
+            className="w-4 h-4 accent-hs-red-600"
+          />
+          Inventory included only
+        </label>
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+        <button type="button" onClick={onClearAll} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
+          Clear
+        </button>
+        <button
+          type="button"
+          onClick={close}
+          className="px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---- State dropdown panel (unchanged) -------------------------------------
 function StatePanel({
-  selected,
-  onToggle,
-  onClear,
+  selected, onToggle, onClear,
 }: {
   selected: string[]
   onToggle: (value: string) => void
@@ -320,31 +378,20 @@ function StatePanel({
   const filtered = US_STATES.filter((s) => s.label.toLowerCase().includes(q.trim().toLowerCase()))
 
   return (
-    <div className="w-[300px]">
+    <div className="w-full">
       <input
         type="text"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search states…"
-        className="
-          w-full h-9 rounded-lg border border-gray-300 px-3 text-sm mb-2
-          focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
-        "
+        className="w-full h-9 rounded-lg border border-gray-300 px-3 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
       />
-      <div className="max-h-[240px] overflow-y-auto grid grid-cols-2 gap-0.5 pr-0.5">
+      <div className="max-h-[200px] overflow-y-auto grid grid-cols-2 gap-0.5 pr-0.5">
         {filtered.map((s) => {
           const checked = selected.includes(s.value)
           return (
-            <label
-              key={s.value}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => onToggle(s.value)}
-                className="w-4 h-4 accent-hs-red-600 shrink-0"
-              />
+            <label key={s.value} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer text-sm">
+              <input type="checkbox" checked={checked} onChange={() => onToggle(s.value)} className="w-4 h-4 accent-hs-red-600 shrink-0" />
               <span className="truncate">{s.label}</span>
             </label>
           )
@@ -353,12 +400,8 @@ function StatePanel({
           <p className="col-span-2 text-sm text-gray-400 px-2 py-3 text-center">No matches</p>
         )}
       </div>
-      <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700"
-        >
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+        <button type="button" onClick={onClear} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
           Clear
         </button>
         <span className="text-xs text-gray-400 tabular-nums">{selected.length} selected</span>
@@ -367,19 +410,15 @@ function StatePanel({
   )
 }
 
-// ---- Price entry panel -----------------------------------------------------
+// ---- Price entry panel (unchanged) ----------------------------------------
 function PricePanel({
-  minCents,
-  maxCents,
-  onApply,
-  close,
+  minCents, maxCents, onApply, close,
 }: {
   minCents: number | null
   maxCents: number | null
   onApply: (minCents: number | null, maxCents: number | null) => void
   close: () => void
 }) {
-  // Drafts hold whole-dollar digit strings; committed to cents on Apply.
   const [min, setMin] = useState(minCents != null ? String(Math.round(minCents / 100)) : "")
   const [max, setMax] = useState(maxCents != null ? String(Math.round(maxCents / 100)) : "")
 
@@ -407,18 +446,10 @@ function PricePanel({
         <PriceInput value={max} onChange={setMax} placeholder="Max" onEnter={apply} />
       </div>
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={clear}
-          className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700"
-        >
+        <button type="button" onClick={clear} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
           Clear
         </button>
-        <button
-          type="button"
-          onClick={apply}
-          className="px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700"
-        >
+        <button type="button" onClick={apply} className="px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700">
           Apply
         </button>
       </div>
@@ -427,17 +458,13 @@ function PricePanel({
 }
 
 function PriceInput({
-  value,
-  onChange,
-  placeholder,
-  onEnter,
+  value, onChange, placeholder, onEnter,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder: string
   onEnter: () => void
 }) {
-  // Show grouped thousands while keeping the stored value as raw digits.
   const display = value ? Number(value).toLocaleString("en-US") : ""
   return (
     <div className="relative flex-1">
@@ -447,20 +474,15 @@ function PriceInput({
         inputMode="numeric"
         value={display}
         onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onEnter()
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") onEnter() }}
         placeholder={placeholder}
-        className="
-          w-full h-10 rounded-lg border border-gray-300 pl-6 pr-2 text-sm text-gray-800 tabular-nums
-          focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
-        "
+        className="w-full h-10 rounded-lg border border-gray-300 pl-6 pr-2 text-sm text-gray-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
       />
     </div>
   )
 }
 
-// ---- Map-layer toggles (Hello Sugar / Competitors) -------------------------
+// ---- Map-layer toggles (Hello Sugar / Competitors) — now rendered by BrowsePage
 export function LayerToggles() {
   const [filters, setFilters] = useListingFilters()
   return (

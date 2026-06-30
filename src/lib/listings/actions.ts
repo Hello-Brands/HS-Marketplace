@@ -42,6 +42,11 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
         inventoryIncluded: data.inventoryIncluded ?? false,
         laserIncluded: data.laserIncluded ?? false,
         otherAssets: data.otherAssets,
+        // Clear the cost when inventory isn't included so we never persist a stale value.
+        inventoryCostEstimate:
+          data.inventoryIncluded && data.inventoryCostEstimate
+            ? Math.round(data.inventoryCostEstimate * 100)
+            : null,
         updatedAt: new Date(),
       })
       .where(eq(listings.id, listingId))
@@ -75,6 +80,10 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
       inventoryIncluded: data.inventoryIncluded ?? false,
       laserIncluded: data.laserIncluded ?? false,
       otherAssets: data.otherAssets,
+      inventoryCostEstimate:
+        data.inventoryIncluded && data.inventoryCostEstimate
+          ? Math.round(data.inventoryCostEstimate * 100)
+          : null,
     })
     .returning({ id: listings.id })
 
