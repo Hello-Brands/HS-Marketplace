@@ -556,7 +556,10 @@ input[type="number"] {
 /* MapTiler geocoding control — Hello Sugar overrides (browse search) */
 .hs-geocoder {
   position: relative;
-  z-index: 50; /* keep the suggestions dropdown above the map below it */
+  /* Below the sticky site header (z-40) so the search box slides UNDER it on
+     scroll instead of floating over it. The container still creates a stacking
+     context, so the suggestions dropdown (.options, z-60) stays above the map. */
+  z-index: 30;
   width: 100%;
 }
 .hs-geocoder .maptiler-ctrl,
@@ -583,13 +586,36 @@ input[type="number"] {
   outline-offset: 1px;
 }
 
-/* Prominent variant used in the top filter bar */
+/* Prominent variant used in the top filter bar — long pink-trimmed oval.
+   The visible box is the control's <form>/<.input-group>, not the <input>
+   (which is transparent + borderless). MapTiler's scoped .svelte-* classes
+   out-specify ours, so the pill shape and pink trim need !important. */
+.hs-geocoder--lg form {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 9999px !important;
+  border: 2px solid #db2777 !important;
+  box-shadow: 0 1px 3px rgba(219, 39, 119, 0.12) !important;
+}
+.hs-geocoder--lg form:focus-within {
+  box-shadow: 0 0 0 3px rgba(219, 39, 119, 0.2) !important;
+}
+.hs-geocoder--lg .input-group {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  padding-inline: 18px !important;
+  min-height: 48px !important;
+}
+.hs-geocoder--lg .input-group:focus-within {
+  outline: none !important;
+}
 .hs-geocoder--lg input {
-  height: 52px;
-  border-radius: 9999px;
+  height: 48px;
   font-size: 0.95rem;
-  border: 2px solid #db2777;
-  box-shadow: 0 1px 3px rgba(219, 39, 119, 0.12);
+}
+/* The pill itself carries the focus ring; suppress the inner input outline. */
+.hs-geocoder--lg input:focus {
+  outline: none !important;
 }
 
 /* Filter popover panel entrance */
