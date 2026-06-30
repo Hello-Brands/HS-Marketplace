@@ -220,6 +220,17 @@ describe("getListings", () => {
     // The left join should have been called twice (locations + photos)
     expect(chain.leftJoin).toHaveBeenCalledTimes(2)
   })
+
+  it("applies the inventory filter when inventoryIncluded is true", async () => {
+    const rows = [makeRow(0)]
+    const chain = makeQueryChain(rows)
+    mockSelect.mockReturnValue(chain)
+
+    const result = await getListings({ inventoryIncluded: true })
+
+    expect(result.items).toHaveLength(1)
+    expect(chain.where).toHaveBeenCalled()
+  })
 })
 
 // ── Fixture helpers ──────────────────────────────────────────────────────────

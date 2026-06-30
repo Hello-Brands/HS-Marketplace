@@ -20,6 +20,7 @@ export interface ListingFilters {
   sort?: ListingSort
   query?: string // text search: location name, city, or notes
   minYearsOpen?: number // minimum years a location has been open
+  inventoryIncluded?: boolean // only listings that include inventory
   // Radius search (all three required together)
   centerLat?: number
   centerLng?: number
@@ -54,7 +55,7 @@ const radiusParamsSchema = z.object({
 })
 
 export async function getListings(filters: ListingFilters): Promise<ListingsResult> {
-  const { types, states, minPrice, maxPrice, cursor, query, minYearsOpen } = filters
+  const { types, states, minPrice, maxPrice, cursor, query, minYearsOpen, inventoryIncluded } = filters
 
   // --- Resolve the optional radius search ---------------------------------
   const radius = radiusParamsSchema.safeParse({
@@ -97,6 +98,7 @@ export async function getListings(filters: ListingFilters): Promise<ListingsResu
     minYearsOpen && minYearsOpen > 0
       ? lte(listingLocations.openingDate, new Date(Date.now() - minYearsOpen * 365.25 * 24 * 60 * 60 * 1000))
       : undefined,
+    inventoryIncluded ? eq(listings.inventoryIncluded, true) : undefined,
     // Radius gate: only listings whose nearest location is within the radius.
     // (The subquery's bounding box is a square; this trims the corners.)
     distanceSub ? lte(distanceSub.distance, center!.radiusMiles) : undefined,
