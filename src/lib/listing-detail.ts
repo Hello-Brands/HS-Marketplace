@@ -37,6 +37,7 @@ export interface ListingDetail {
   inventoryIncluded: boolean
   laserIncluded: boolean
   otherAssets: string | null
+  inventoryCostEstimate: number | null
   notes: string | null
   createdAt: Date
   listedAt: Date | null
@@ -87,6 +88,7 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
     inventoryIncluded: listing.inventoryIncluded,
     laserIncluded: listing.laserIncluded,
     otherAssets: listing.otherAssets ?? null,
+    inventoryCostEstimate: listing.inventoryCostEstimate ?? null,
     notes: listing.notes ?? null,
     createdAt: listing.createdAt,
     listedAt: listing.listedAt ?? null,
