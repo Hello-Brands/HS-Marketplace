@@ -1,128 +1,139 @@
 'use client'
 
-import { useState } from 'react'
-import type { KpiData } from '@/lib/kpi/schema'
-import { BundleKpiTable } from './BundleKpiTable'
-import { BundleOverlayChart } from './BundleOverlayChart'
-
-interface Location {
-  id: string
-  name: string
-}
+import { useState, useMemo } from 'react'
+import type { BundleLocationKpi } from '@/lib/kpi/bundle'
+import { KpiTrendChart } from './KpiTrendChart'
 
 interface BundleKpiSectionProps {
-  locations: Location[]
-  perLocationKpis: Record<string, KpiData>
-  territories: Location[]
+  locations: BundleLocationKpi[]
+  territories: { id: string; name: string }[]
 }
 
-type MetricKey = 'revenue' | 'newClients' | 'bookings' | 'membershipConversion'
+type SortKey = 'name' | 'netSales' | 'membership'
+type SortDirection = 'asc' | 'desc'
 
-const METRIC_LABELS: Record<MetricKey, string> = {
-  revenue: 'Revenue',
-  newClients: 'New Clients',
-  bookings: 'Bookings',
-  membershipConversion: 'Membership Conversion',
-}
+const formatDollars = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+const formatPct = (v: number) => `${v.toFixed(1)}%`
 
-const METRIC_FORMATTERS: Record<MetricKey, (v: number) => string> = {
-  revenue: (v) => `$${v.toLocaleString()}`,
-  newClients: (v) => v.toLocaleString(),
-  bookings: (v) => v.toLocaleString(),
-  membershipConversion: (v) => `${(v * 100).toFixed(1)}%`,
-}
+export function BundleKpiSection({ locations, territories }: BundleKpiSectionProps) {
+  const [sortKey, setSortKey] = useState<SortKey>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-export function BundleKpiSection({
-  locations,
-  perLocationKpis,
-  territories,
-}: BundleKpiSectionProps) {
-  const [overlayModalOpen, setOverlayModalOpen] = useState(false)
-  const [overlayMetric, setOverlayMetric] = useState<MetricKey>('revenue')
-
-  const openOverlayModal = (metric: MetricKey) => {
-    setOverlayMetric(metric)
-    setOverlayModalOpen(true)
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDirection('asc')
+    }
   }
+
+  const sorted = useMemo(() => {
+    return [...locations].sort((a, b) => {
+      let cmp: number
+      if (sortKey === 'name') {
+        cmp = a.name.localeCompare(b.name)
+      } else {
+        const av = a[sortKey]?.lastMonth ?? -1
+        const bv = b[sortKey]?.lastMonth ?? -1
+        cmp = av - bv
+      }
+      return sortDirection === 'asc' ? cmp : -cmp
+    })
+  }, [locations, sortKey, sortDirection])
+
+  const selected = selectedId ? locations.find((l) => l.id === selectedId) ?? null : null
+
+  const SortArrow = ({ columnKey }: { columnKey: SortKey }) =>
+    sortKey !== columnKey ? null : (
+      <span className="ml-1 text-hs-red-600">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+    )
 
   return (
     <div className="mt-8 space-y-6">
-      {/* View all locations button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => openOverlayModal('revenue')}
-          className="text-sm text-hs-red-600 hover:text-hs-red-700 font-medium focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
-        >
-          View all locations
-        </button>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>
+                Location<SortArrow columnKey="name" />
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('netSales')}>
+                Net Sales (TTM)<SortArrow columnKey="netSales" />
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleSort('membership')}>
+                MCR<SortArrow columnKey="membership" />
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {sorted.map((loc) => (
+              <tr
+                key={loc.id}
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => setSelectedId(loc.id)}
+              >
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-hs-red-700">{loc.name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {loc.netSales ? formatDollars(loc.netSales.lastMonth) : '—'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {loc.membership ? formatPct(loc.membership.lastMonth) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Per-location table */}
-      <BundleKpiTable
-        locations={locations}
-        perLocationKpis={perLocationKpis}
-      />
-
-      {/* Territories section (if any) */}
       {territories.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Unopened Territories
-          </h3>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Unopened Territories</h3>
           <ul className="list-disc list-inside text-sm text-gray-600">
-            {territories.map(t => (
+            {territories.map((t) => (
               <li key={t.id}>{t.name}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Overlay chart modal */}
-      {overlayModalOpen && (
+      {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setOverlayModalOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl mx-4 p-8">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedId(null)} aria-hidden="true" />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8" role="dialog" aria-modal="true">
             <button
-              onClick={() => setOverlayModalOpen(false)}
+              onClick={() => setSelectedId(null)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
-              aria-label="Close modal"
+              aria-label="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+            <h3 className="text-xl font-semibold text-gray-900 mb-6">{selected.name}</h3>
 
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              {METRIC_LABELS[overlayMetric]} &mdash; All Locations
-            </h3>
+            <div className="space-y-8">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Net Sales (TTM · Cash + Credit)</p>
+                <p className="text-3xl font-semibold text-gray-900 mb-3">
+                  {selected.netSales ? formatDollars(selected.netSales.lastMonth) : '—'}
+                </p>
+                {selected.netSales && selected.netSales.trend.length >= 2 && (
+                  <KpiTrendChart data={selected.netSales.trend} label="Net Sales" formatValue={formatDollars} height={200} />
+                )}
+              </div>
 
-            {/* Metric selector */}
-            <div className="flex gap-2 mb-6">
-              {(Object.keys(METRIC_LABELS) as MetricKey[]).map(key => (
-                <button
-                  key={key}
-                  onClick={() => setOverlayMetric(key)}
-                  className={`px-3 py-1 text-sm rounded-full focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 ${
-                    overlayMetric === key
-                      ? 'bg-hs-red-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {METRIC_LABELS[key]}
-                </button>
-              ))}
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Membership Conversion</p>
+                <p className="text-3xl font-semibold text-gray-900 mb-3">
+                  {selected.membership ? formatPct(selected.membership.lastMonth) : '—'}
+                </p>
+                {selected.membership && selected.membership.trend.length >= 2 && (
+                  <KpiTrendChart data={selected.membership.trend} label="MCR" formatValue={formatPct} height={200} />
+                )}
+              </div>
             </div>
-
-            <BundleOverlayChart
-              locations={locations}
-              perLocationKpis={perLocationKpis}
-              metricKey={overlayMetric}
-              formatValue={METRIC_FORMATTERS[overlayMetric]}
-            />
           </div>
         </div>
       )}
