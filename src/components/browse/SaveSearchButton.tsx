@@ -36,6 +36,7 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
     filters.minPrice != null ||
     filters.maxPrice != null ||
     (filters.minYearsOpen != null && filters.minYearsOpen > 0) ||
+    filters.inventoryIncluded === true ||
     (filters.centerLat != null && filters.centerLng != null && filters.radiusMiles != null)
 
   async function handleSaveSearch() {
@@ -52,6 +53,7 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
       minPrice: filters.minPrice ?? undefined,
       maxPrice: filters.maxPrice ?? undefined,
       minYearsOpen: filters.minYearsOpen ?? undefined,
+      inventoryIncluded: filters.inventoryIncluded || undefined,
       sort: filters.sort || undefined,
       centerLat: filters.centerLat ?? undefined,
       centerLng: filters.centerLng ?? undefined,

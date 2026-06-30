@@ -34,6 +34,7 @@ const alertSchema = z.object({
   minPrice: z.number().int().nonnegative().optional().nullable(),
   maxPrice: z.number().int().nonnegative().optional().nullable(),
   minYearsOpen: z.number().int().nonnegative().optional().nullable(),
+  inventoryIncluded: z.boolean().optional(),
   sort: z.string().max(40).optional().nullable(),
   centerLat: z.number().min(-90).max(90).optional().nullable(),
   centerLng: z.number().min(-180).max(180).optional().nullable(),
@@ -55,6 +56,7 @@ function toRow(data: AlertInput) {
     minPrice: data.minPrice ?? null,
     maxPrice: data.maxPrice ?? null,
     minYearsOpen: data.minYearsOpen ?? null,
+    inventoryIncluded: data.inventoryIncluded ?? false,
     sort: data.sort ?? null,
     centerLat: data.centerLat ?? null,
     centerLng: data.centerLng ?? null,
@@ -125,6 +127,7 @@ export async function updateAlert(id: string, data: AlertInput) {
   if ("minPrice" in d) patch.minPrice = d.minPrice ?? null
   if ("maxPrice" in d) patch.maxPrice = d.maxPrice ?? null
   if ("minYearsOpen" in d) patch.minYearsOpen = d.minYearsOpen ?? null
+  if ("inventoryIncluded" in d) patch.inventoryIncluded = d.inventoryIncluded ?? false
   if ("sort" in d) patch.sort = d.sort ?? null
   if ("centerLat" in d) patch.centerLat = d.centerLat ?? null
   if ("centerLng" in d) patch.centerLng = d.centerLng ?? null
