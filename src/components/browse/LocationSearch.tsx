@@ -7,9 +7,10 @@ import { useEffect, useState } from "react"
 
 interface LocationSearchProps {
   onSelect: (location: { lng: number; lat: number; name: string }) => void
+  variant?: "default" | "prominent"
 }
 
-export function LocationSearch({ onSelect }: LocationSearchProps) {
+export function LocationSearch({ onSelect, variant = "default" }: LocationSearchProps) {
   // The control builds requests with `new URL(apiUrl + "/" + query + ".json")`,
   // which throws on a relative apiUrl (surfacing as "Something went wrong…").
   // Resolve to an absolute origin on the client so the proxy is actually hit.
@@ -32,7 +33,7 @@ export function LocationSearch({ onSelect }: LocationSearchProps) {
   }
 
   return (
-    <div className="hs-geocoder">
+    <div className={`hs-geocoder${variant === "prominent" ? " hs-geocoder--lg" : ""}`}>
       <GeocodingControl
         apiKey={process.env.NEXT_PUBLIC_MAPTILER_API_KEY!}
         apiUrl={apiUrl}

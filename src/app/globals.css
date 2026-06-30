@@ -583,6 +583,13 @@ input[type="number"] {
   outline-offset: 1px;
 }
 
+/* Prominent variant used in the top filter bar */
+.hs-geocoder--lg input {
+  height: 52px;
+  border-radius: 9999px;
+  font-size: 0.95rem;
+}
+
 /* Filter popover panel entrance */
 @keyframes filterpop {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
