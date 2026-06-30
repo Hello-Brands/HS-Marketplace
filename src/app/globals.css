@@ -22,6 +22,12 @@
   --hs-red-800: #991b1b;
   --hs-red-900: #7f1d1d;
 
+  /* Hello Sugar Caramel (warm accent — used for the Asking Price highlight) */
+  --hs-caramel-50: #f6ede6;   /* card background */
+  --hs-caramel-200: #e2ccb9;  /* border (brand accent-soft) */
+  --hs-caramel-600: #9c6a4f;  /* label text */
+  --hs-caramel-700: #7c5238;  /* value text */
+
   /* Brand Colors - Semantic Aliases */
   --color-primary: var(--hs-red-600);
   --color-primary-hover: var(--hs-red-700);
@@ -116,6 +122,10 @@
   --color-hs-red-700: var(--hs-red-700);
   --color-hs-red-800: var(--hs-red-800);
   --color-hs-red-900: var(--hs-red-900);
+  --color-hs-caramel-50: var(--hs-caramel-50);
+  --color-hs-caramel-200: var(--hs-caramel-200);
+  --color-hs-caramel-600: var(--hs-caramel-600);
+  --color-hs-caramel-700: var(--hs-caramel-700);
 }
 
 /* ====================================

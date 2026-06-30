@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}))
 
 import {
   pickFeaturedReview,
+  rankFeaturedReviews,
   rowsToReviewSummaryByLocation,
   type FeaturedReview,
 } from "@/lib/bigquery/queries"
@@ -54,22 +55,23 @@ describe("pickFeaturedReview", () => {
   })
 })
 
+const baseRow = {
+  LOCATION_NAME: "AZ Peoria | Park West 007",
+  avg_rating: 4.84,
+  total_reviews: 1516,
+  c5: 1420,
+  c4: 34,
+  c3: 15,
+  c2: 16,
+  c1: 31,
+  REVIEWER_DISPLAY_NAME: "Jordan Brown",
+  NUMERIC_STAR_RATING: 5,
+  COMMENT: "z".repeat(200),
+  create_date: "2026-06-20",
+  REPLIED: true,
+}
+
 describe("rowsToReviewSummaryByLocation", () => {
-  const baseRow = {
-    LOCATION_NAME: "AZ Peoria | Park West 007",
-    avg_rating: 4.84,
-    total_reviews: 1516,
-    c5: 1420,
-    c4: 34,
-    c3: 15,
-    c2: 16,
-    c1: 31,
-    REVIEWER_DISPLAY_NAME: "Jordan Brown",
-    NUMERIC_STAR_RATING: 5,
-    COMMENT: "z".repeat(200),
-    create_date: "2026-06-20",
-    REPLIED: true,
-  }
 
   it("filters out rows with a null LOCATION_NAME", () => {
     const map = rowsToReviewSummaryByLocation([{ ...baseRow, LOCATION_NAME: null }])
@@ -107,5 +109,51 @@ describe("rowsToReviewSummaryByLocation", () => {
     const map = rowsToReviewSummaryByLocation([baseRow, other])
     expect(map.size).toBe(2)
     expect(map.get("TX Houston | Heights 017")!.totalReviews).toBe(1612)
+  })
+})
+
+describe("rankFeaturedReviews", () => {
+  it("returns an empty array when no candidate has a comment", () => {
+    expect(rankFeaturedReviews([])).toEqual([])
+    expect(rankFeaturedReviews([review({ comment: "   " })])).toEqual([])
+  })
+
+  it("ranks best-first using the same heuristic as pickFeaturedReview", () => {
+    const long = review({ comment: "a".repeat(1000), date: "2026-05-01" })
+    const windowed = review({ comment: "b".repeat(200), date: "2026-01-01" })
+    const ranked = rankFeaturedReviews([long, windowed])
+    expect(ranked[0].comment).toBe("b".repeat(200)) // in-window preferred
+    expect(ranked).toHaveLength(2)
+  })
+
+  it("agrees with pickFeaturedReview on the top element", () => {
+    const a = review({ rating: 4, comment: "x".repeat(200), date: "2026-01-01" })
+    const b = review({ rating: 5, comment: "y".repeat(200), date: "2026-02-01" })
+    expect(rankFeaturedReviews([a, b])[0]).toEqual(pickFeaturedReview([a, b]))
+  })
+})
+
+describe("rowsToReviewSummaryByLocation topReviews", () => {
+  it("exposes at most 5 ranked comment-bearing reviews from 8 candidates", () => {
+    const rows = Array.from({ length: 8 }, (_, i) => ({
+      ...baseRow,
+      REVIEWER_DISPLAY_NAME: `Reviewer ${i}`,
+      COMMENT: "k".repeat(200),
+    }))
+    const s = rowsToReviewSummaryByLocation(rows).get("AZ Peoria | Park West 007")!
+    expect(s.topReviews.length).toBe(5)
+    expect(s.topReviews[0]).toEqual(s.featured)
+  })
+
+  it("returns a one-element topReviews and matching featured for a single candidate", () => {
+    const s = rowsToReviewSummaryByLocation([baseRow]).get("AZ Peoria | Park West 007")!
+    expect(s.topReviews).toHaveLength(1)
+    expect(s.topReviews[0]).toEqual(s.featured)
+  })
+
+  it("returns an empty topReviews when no row has a comment", () => {
+    const s = rowsToReviewSummaryByLocation([{ ...baseRow, COMMENT: null }]).get("AZ Peoria | Park West 007")!
+    expect(s.topReviews).toEqual([])
+    expect(s.featured).toBeNull()
   })
 })

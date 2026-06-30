@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import type { LocationReviewSummary } from '@/lib/bigquery/queries'
 import { formatRating, starStates, formatReviewDate } from '@/lib/kpi/reviews-display'
 
@@ -14,10 +17,17 @@ function Stars({ avg, className = '' }: { avg: number; className?: string }) {
 }
 
 export function LocationReviewsPanel({ reviews }: { reviews: LocationReviewSummary | null }) {
+  const [index, setIndex] = useState(0)
+
   if (!reviews || reviews.totalReviews === 0) return null
 
-  const { avgRating, totalReviews, distribution, featured } = reviews
+  const { avgRating, totalReviews, distribution, topReviews } = reviews
   const maxCount = Math.max(...distribution.map((d) => d.count), 1)
+
+  // Clamp in case a re-render hands us fewer reviews than the current index.
+  const safeIndex = Math.min(index, Math.max(topReviews.length - 1, 0))
+  const current = topReviews[safeIndex] ?? null
+  const showControls = topReviews.length > 1
 
   return (
     <div className="mt-6">
@@ -50,28 +60,72 @@ export function LocationReviewsPanel({ reviews }: { reviews: LocationReviewSumma
           </div>
         </div>
 
-        {/* Featured review */}
-        {featured ? (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 mb-3">★ Top review</p>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-amber-100 text-amber-800 text-sm font-semibold">
-                {featured.reviewerName.charAt(0).toUpperCase()}
-              </span>
-              <div>
-                <div className="text-sm font-medium text-gray-900">{featured.reviewerName}</div>
-                <div className="text-xs text-gray-500">
-                  {formatReviewDate(featured.date)} · <Stars avg={featured.rating} className="text-xs align-middle" />
+        {/* Featured review carousel */}
+        {current ? (
+          <div>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">★ Top reviews</p>
+                {showControls && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIndex((i) => Math.max(i - 1, 0))}
+                      disabled={safeIndex === 0}
+                      aria-label="Previous review"
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-hs-red-300 hover:text-hs-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:text-gray-600"
+                    >
+                      ‹
+                    </button>
+                    <span className="min-w-[34px] text-center text-xs tabular-nums text-gray-500">
+                      {safeIndex + 1} / {topReviews.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIndex((i) => Math.min(i + 1, topReviews.length - 1))}
+                      disabled={safeIndex === topReviews.length - 1}
+                      aria-label="Next review"
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-hs-red-300 hover:text-hs-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:text-gray-600"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-amber-100 text-amber-800 text-sm font-semibold">
+                  {current.reviewerName.charAt(0).toUpperCase()}
+                </span>
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{current.reviewerName}</div>
+                  <div className="text-xs text-gray-500">
+                    {formatReviewDate(current.date)} · <Stars avg={current.rating} className="text-xs align-middle" />
+                  </div>
                 </div>
               </div>
+              {current.comment.trim() && (
+                <p className="text-sm text-gray-700">{current.comment}</p>
+              )}
+              {current.ownerReplied && (
+                <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                  ✓ Owner replied
+                </span>
+              )}
             </div>
-            {featured.comment.trim() && (
-              <p className="text-sm text-gray-700">{featured.comment}</p>
-            )}
-            {featured.ownerReplied && (
-              <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
-                ✓ Owner replied
-              </span>
+            {showControls && (
+              <div className="mt-3 flex justify-center gap-1.5">
+                {topReviews.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={`Go to review ${i + 1}`}
+                    className={`h-[7px] rounded-full transition-all ${
+                      i === safeIndex ? 'w-[18px] bg-hs-red-600' : 'w-[7px] bg-gray-300 hover:bg-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
             )}
           </div>
         ) : (
