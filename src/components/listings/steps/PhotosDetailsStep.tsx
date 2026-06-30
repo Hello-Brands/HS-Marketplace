@@ -16,6 +16,7 @@ interface PhotosDetailsStepProps {
 export function PhotosDetailsStep({ onSubmit, onBack, onSaveAndExit, isSubmitting, isSaving }: PhotosDetailsStepProps) {
   const { register, control, watch, formState: { errors } } = useFormContext<ListingFormData>()
   const photos = watch('photos') || []
+  const inventoryIncluded = watch('inventoryIncluded')
 
   return (
     <div className="space-y-6">
@@ -64,6 +65,27 @@ export function PhotosDetailsStep({ onSubmit, onBack, onSaveAndExit, isSubmittin
             />
             <span className="text-gray-700">Inventory (wax, supplies, retail products)</span>
           </label>
+          {inventoryIncluded && (
+            <div className="ml-8">
+              <label htmlFor="inventoryCostEstimate" className="block text-sm font-medium text-gray-700 mb-1">
+                Estimated value of inventory included (optional)
+              </label>
+              <div className="relative max-w-xs">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  id="inventoryCostEstimate"
+                  type="number"
+                  min="0"
+                  {...register('inventoryCostEstimate', {
+                    setValueAs: (v) => (v === '' || v == null ? undefined : Number(v)),
+                  })}
+                  placeholder="0"
+                  className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-hs-red-500 focus:border-hs-red-500 min-h-[44px]"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Shown to buyers on your listing.</p>
+            </div>
+          )}
           <label htmlFor="laserIncluded" className="flex items-center gap-3 cursor-pointer min-h-[44px]">
             <input
               id="laserIncluded"
