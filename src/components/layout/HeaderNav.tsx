@@ -208,7 +208,7 @@ function MobileDrawer({
           )}
           <p className="px-3 py-1 text-sm text-gray-500 truncate">{email}</p>
         </nav>
-        <div className="px-4 py-4 border-t border-gray-200">
+        <div className="px-4 pt-4 pb-safe-lg border-t border-gray-200">
           <button
             onClick={() => {
               onClose()

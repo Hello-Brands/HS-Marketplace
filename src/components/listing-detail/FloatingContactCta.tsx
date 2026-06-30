@@ -9,7 +9,7 @@ export function FloatingContactCta() {
   return (
     <>
       {/* Mobile: full-width sticky bottom bar */}
-      <div className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+      <div className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-white border-t border-gray-200 px-4 pt-3 pb-safe shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
         <button
           onClick={handleClick}
           className="
@@ -46,8 +46,8 @@ export function FloatingContactCta() {
         Contact Seller
       </button>
 
-      {/* Spacer for mobile bottom bar */}
-      <div className="h-20 md:hidden" aria-hidden="true" />
+      {/* Spacer for mobile bottom bar (matches bar height + safe-area inset) */}
+      <div className="h-cta-spacer md:hidden" aria-hidden="true" />
     </>
   )
 }

@@ -328,7 +328,7 @@ export function BrowsePage({
         ) : (
           /* Map view — map-dominant split (cards 1/3 left, map 2/3 right) on
              desktop; map-only on mobile (toggle to List for the card grid). */
-          <div className="flex h-[calc(100vh-200px)]">
+          <div className="flex h-[calc(100dvh-200px)]">
             {/* List panel — hidden on mobile when in map view */}
             <div className="hidden md:block md:w-1/3 overflow-y-auto border-r border-gray-200 bg-white">
               <div className="px-4 py-4">
