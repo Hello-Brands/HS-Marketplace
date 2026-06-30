@@ -36,7 +36,7 @@ export function AccountMenu({ email, isAdmin, isOwner }: AccountMenuProps) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-9 h-9 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center hover:opacity-90 transition"
+        className="w-9 h-9 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center hover:opacity-90 transition ring-2 ring-white/70"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"

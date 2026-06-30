@@ -47,7 +47,7 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
   }, [open])
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+    <header className="sticky top-0 z-40 bg-[#ED1845] text-white">
       {/* Top tier — global */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
@@ -58,11 +58,11 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
           </div>
           <button
             onClick={() => setOpen(true)}
-            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg hover:bg-gray-100"
+            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg hover:bg-white/15"
             aria-label="Open menu"
             aria-expanded={open}
           >
-            <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
@@ -70,16 +70,16 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
       </div>
 
       {/* Bottom tier — contextual */}
-      <div className="border-t border-gray-100 bg-gray-50/60">
+      <div className="border-t border-white/15">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 h-12">
             <div className="min-w-0">
               {title && (
-                <h1 className="text-base font-semibold text-gray-900 truncate leading-tight">
+                <h1 className="text-base font-semibold text-white truncate leading-tight">
                   {title}
                 </h1>
               )}
-              {subtitle && <p className="text-xs text-gray-500 truncate">{subtitle}</p>}
+              {subtitle && <p className="text-xs text-white/80 truncate">{subtitle}</p>}
             </div>
             <nav className="hidden md:flex items-center gap-1">
               {items.map((item) => {
@@ -89,10 +89,10 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`text-sm px-3 py-1.5 rounded-full transition-colors ${
                       active
-                        ? "bg-gray-200/70 text-gray-900 font-semibold"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        ? "bg-white text-[#ED1845] font-semibold shadow-sm"
+                        : "text-white/90 hover:bg-white/15"
                     }`}
                   >
                     {item.label}
@@ -102,7 +102,7 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
               {action && (
                 <Link
                   href={action.href}
-                  className="ml-1 text-sm font-semibold text-white bg-hs-red-600 hover:bg-hs-red-700 px-3.5 py-1.5 rounded-lg transition-colors"
+                  className="ml-1 text-sm font-bold text-[#ED1845] bg-white hover:bg-white/90 px-3.5 py-1.5 rounded-full shadow-md transition-colors"
                 >
                   {action.label}
                 </Link>
