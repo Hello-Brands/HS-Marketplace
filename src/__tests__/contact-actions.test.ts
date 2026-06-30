@@ -72,12 +72,12 @@ describe("submitContactForm", () => {
     expect(result).toEqual({ error: "Listing not found" })
   })
 
-  // Test 3: returns error if already contacted (duplicate check)
-  it("returns error if already contacted", async () => {
+  // Test 3: allows contacting again — prior contact no longer blocks a resend
+  it("allows a repeat submission (does not block on prior contact)", async () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", name: "Alice", email: "alice@example.com" },
     })
-    // listings.findFirst returns a listing (first call)
+    // Only the listing is queried now — there is no duplicate-contact lookup
     mockQueryFn.mockResolvedValueOnce({
       id: VALID_LISTING_ID,
       status: "active",
@@ -86,13 +86,16 @@ describe("submitContactForm", () => {
       state: "TX",
       seller: { id: "seller-1", name: "Bob", email: "bob@hellosugar.salon" },
     })
-    // contacts.findFirst returns existing contact (second call)
-    mockQueryFn.mockResolvedValueOnce({ id: "contact-1" })
+
+    const insertValues = vi.fn().mockResolvedValue(undefined)
+    mockInsert.mockReturnValue({ values: insertValues })
 
     const fd = makeFormData({ listingId: VALID_LISTING_ID })
     const result = await submitContactForm(null, fd)
 
-    expect(result).toEqual({ error: "Already contacted" })
+    // A second contact still records and succeeds
+    expect(insertValues).toHaveBeenCalled()
+    expect(result).toEqual({ success: true })
   })
 
   // Test 4: creates contact record on success
@@ -109,8 +112,6 @@ describe("submitContactForm", () => {
       state: "TX",
       seller: { id: "seller-1", name: "Bob", email: "bob@hellosugar.salon" },
     })
-    // contacts.findFirst returns null — no duplicate (second call)
-    mockQueryFn.mockResolvedValueOnce(null)
 
     const insertValues = vi.fn().mockResolvedValue(undefined)
     mockInsert.mockReturnValue({ values: insertValues })
@@ -148,7 +149,6 @@ describe("submitContactForm", () => {
       state: "TX",
       seller: { id: "seller-1", name: "Bob", email: "bob@hellosugar.salon" },
     })
-    mockQueryFn.mockResolvedValueOnce(null)
 
     const fd = makeFormData({
       listingId: VALID_LISTING_ID,
@@ -181,7 +181,64 @@ describe("submitContactForm", () => {
       state: "TX",
       seller: { id: "seller-1", name: "Bob", email: "bob@hellosugar.salon" },
     })
-    mockQueryFn.mockResolvedValueOnce(null)
+
+    const fd = makeFormData({ listingId: VALID_LISTING_ID })
+    const result = await submitContactForm(null, fd)
+
+    expect(result).toEqual({ success: true })
+  })
+
+  // Test 7: surfaces an error to the buyer when the seller notification fails
+  it("returns an error when the seller notification fails", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-1", name: "Alice", email: "alice@example.com" },
+    })
+    mockQueryFn.mockResolvedValueOnce({
+      id: VALID_LISTING_ID,
+      status: "active",
+      locationName: "Test Location",
+      city: "Austin",
+      state: "TX",
+      seller: { id: "seller-1", name: "Bob", email: "bob@hellosugar.salon" },
+    })
+
+    const insertValues = vi.fn().mockResolvedValue(undefined)
+    mockInsert.mockReturnValue({ values: insertValues })
+
+    // Resend rejected the send (e.g. invalid API key)
+    vi.mocked(sendContactNotification).mockResolvedValueOnce({
+      success: false,
+      error: { statusCode: 401, name: "validation_error", message: "API key is invalid" },
+    } as never)
+
+    const fd = makeFormData({ listingId: VALID_LISTING_ID })
+    const result = await submitContactForm(null, fd)
+
+    // Inquiry is still recorded for the team, but the buyer is told to retry
+    expect(insertValues).toHaveBeenCalled()
+    expect(result).toEqual({
+      error: "We couldn't notify the seller right now. Please try again in a moment.",
+    })
+  })
+
+  // Test 8: a skipped send (no API key / non-production) still reports success
+  it("returns success when the notification is skipped (dev / no key)", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-1", name: "Alice", email: "alice@example.com" },
+    })
+    mockQueryFn.mockResolvedValueOnce({
+      id: VALID_LISTING_ID,
+      status: "active",
+      locationName: "Test Location",
+      city: "Austin",
+      state: "TX",
+      seller: { id: "seller-1", name: "Bob", email: "bob@hellosugar.salon" },
+    })
+
+    vi.mocked(sendContactNotification).mockResolvedValueOnce({
+      success: false,
+      skipped: true,
+    } as never)
 
     const fd = makeFormData({ listingId: VALID_LISTING_ID })
     const result = await submitContactForm(null, fd)

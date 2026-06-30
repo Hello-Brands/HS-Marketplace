@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { submitContactForm } from '@/lib/contact-actions'
 
@@ -13,9 +13,11 @@ interface ContactFormProps {
 
 export function ContactForm({ listingId, buyerName, buyerEmail, hasContacted }: ContactFormProps) {
   const [state, formAction, pending] = useActionState(submitContactForm, null)
+  const [showForm, setShowForm] = useState(false)
 
-  // Already contacted (from server-side check before render)
-  if (hasContacted) {
+  // Already contacted previously (server-side check) — acknowledge it, but let the
+  // buyer reach out again. Hidden once they opt to send another or a new send lands.
+  if (hasContacted && !showForm && !state?.success) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -25,6 +27,16 @@ export function ContactForm({ listingId, buyerName, buyerEmail, hasContacted }: 
         </div>
         <p className="text-green-800 font-semibold text-lg">You&apos;ve already reached out</p>
         <p className="text-green-600 text-sm mt-1">The seller has your contact information and will reach out if interested.</p>
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-800 hover:underline underline-offset-2 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h8m-8 4h8m-8-8h8M4 6h.01M4 12h.01M4 18h.01" />
+          </svg>
+          Send another message
+        </button>
       </div>
     )
   }
