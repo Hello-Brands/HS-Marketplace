@@ -34,6 +34,8 @@ export const listings = pgTable("listings", {
   // Assets included
   inventoryIncluded: boolean("inventory_included").default(false).notNull(),
   laserIncluded: boolean("laser_included").default(false).notNull(),
+  // Seller's estimated value of included inventory (cents). Null when no inventory.
+  inventoryCostEstimate: integer("inventory_cost_estimate"),
   otherAssets: text("other_assets"),
 
   // Admin fields

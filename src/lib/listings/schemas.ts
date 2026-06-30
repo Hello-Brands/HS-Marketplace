@@ -80,6 +80,7 @@ export const photosDetailsSchema = z.object({
     .max(10, 'Maximum 10 photos'),
   inventoryIncluded: z.boolean(),
   laserIncluded: z.boolean(),
+  inventoryCostEstimate: z.number().nonnegative('Enter a valid amount').optional(),
   otherAssets: z.string().max(500, 'Maximum 500 characters').optional(),
   notes: z.string().max(2000, 'Maximum 2000 characters').optional(),
 })
@@ -95,7 +96,7 @@ export function getFieldsForStep(step: number): (keyof ListingFormData)[] {
     case 2:
       return ['askingPrice', 'ttmProfit', 'reasonForSelling']
     case 3:
-      return ['photos', 'inventoryIncluded', 'laserIncluded', 'otherAssets', 'notes']
+      return ['photos', 'inventoryIncluded', 'laserIncluded', 'inventoryCostEstimate', 'otherAssets', 'notes']
     default:
       return []
   }
