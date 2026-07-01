@@ -42,6 +42,10 @@ export function BrowsePage({
 }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  // Competitor selected by clicking a list card. `seq` bumps per click so the
+  // map re-flies even when the same card is clicked again.
+  const [selectedCompetitor, setSelectedCompetitor] = useState<{ id: string; seq: number } | null>(null)
+  const selectSeq = useRef(0)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
   // Saved competitor place ids, hydrated from the server and updated
@@ -126,6 +130,14 @@ export function BrowsePage({
     },
     [router]
   )
+
+  // Clicking a competitor card selects it on the map (fly-to + popup). Switch to
+  // the map view first if we're in the full-width list so the map is visible.
+  const handleSelectCompetitor = useCallback((c: CompetitorClosure) => {
+    selectSeq.current += 1
+    setSelectedCompetitor({ id: c.googlePlaceId, seq: selectSeq.current })
+    setViewMode((v) => (v === "list" ? "map" : v))
+  }, [])
 
   // Tracks competitor saves currently awaiting the server, keyed by placeId, so
   // a rapid re-click on the SAME competitor can't fire an out-of-order toggle
@@ -321,6 +333,7 @@ export function BrowsePage({
               competitorClosures={competitorClosures}
               savedSet={savedSet}
               onToggleSaveCompetitor={handleToggleSaveCompetitor}
+              onSelectCompetitor={handleSelectCompetitor}
               hoveredId={hoveredId}
               onHover={setHoveredId}
             />
@@ -341,6 +354,7 @@ export function BrowsePage({
                   competitorClosures={competitorClosures}
                   savedSet={savedSet}
                   onToggleSaveCompetitor={handleToggleSaveCompetitor}
+                  onSelectCompetitor={handleSelectCompetitor}
                   hoveredId={hoveredId}
                   onHover={setHoveredId}
                   singleColumn
@@ -360,6 +374,7 @@ export function BrowsePage({
                 hoveredId={hoveredId}
                 onHover={setHoveredId}
                 onListingClick={handleListingClick}
+                selectedCompetitor={selectedCompetitor}
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />

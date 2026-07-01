@@ -15,6 +15,7 @@ interface BrowseListContentProps {
   competitorClosures: CompetitorClosure[]
   savedSet: Set<string>
   onToggleSaveCompetitor: (c: CompetitorClosure) => void
+  onSelectCompetitor: (c: CompetitorClosure) => void
   hoveredId: string | null
   onHover: (id: string | null) => void
   singleColumn?: boolean
@@ -31,6 +32,7 @@ export function BrowseListContent({
   competitorClosures,
   savedSet,
   onToggleSaveCompetitor,
+  onSelectCompetitor,
   hoveredId,
   onHover,
   singleColumn = false,
@@ -69,6 +71,7 @@ export function BrowseListContent({
             competitors={competitorClosures}
             savedSet={savedSet}
             onToggleSave={onToggleSaveCompetitor}
+            onSelect={onSelectCompetitor}
             hoveredId={hoveredId}
             onHover={onHover}
           />

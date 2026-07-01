@@ -13,14 +13,11 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16">
           {/* Logo */}
           <div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-hs-red-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">HS</span>
-              </div>
-              <span className="text-white font-semibold text-xl tracking-tight">
-                Hello Sugar
-              </span>
-            </div>
+            <img
+              src="/logo-hello-sugar-white.png"
+              alt="Hello Sugar"
+              className="h-10 w-auto"
+            />
           </div>
 
           {/* Hero text */}
@@ -63,10 +60,12 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8 lg:p-12">
         <div className="w-full max-w-md space-y-10">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-hs-red-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">HS</span>
-            </div>
+          <div className="lg:hidden flex items-center justify-center mb-8">
+            <img
+              src="/logo-hello-sugar-color.png"
+              alt="Hello Sugar"
+              className="h-10 w-auto"
+            />
           </div>
 
           {/* Header */}

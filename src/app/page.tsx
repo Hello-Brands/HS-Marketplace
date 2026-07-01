@@ -10,10 +10,12 @@ export default function HomePage() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-hs-red-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">HS</span>
-              </div>
-              <span className="font-semibold text-gray-900 tracking-tight">
+              <img
+                src="/logo-hello-sugar-color.png"
+                alt="Hello Sugar"
+                className="h-8 w-auto"
+              />
+              <span className="hidden sm:inline-block pl-3 border-l border-gray-200 font-semibold text-gray-900 tracking-tight">
                 Marketplace
               </span>
             </div>

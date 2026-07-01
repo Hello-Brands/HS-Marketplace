@@ -20,6 +20,9 @@ interface MapViewProps {
   showListings?: boolean
   savedPlaceIds?: string[]
   onToggleSaveCompetitor?: (c: CompetitorClosure) => void
+  // A competitor chosen from the list. `seq` bumps on every click so re-selecting
+  // the same competitor still re-triggers the fly-to. null = nothing selected.
+  selectedCompetitor?: { id: string; seq: number } | null
 }
 
 function formatPrice(cents: number): string {
@@ -172,6 +175,7 @@ export function MapView({
   showListings = true,
   savedPlaceIds = [],
   onToggleSaveCompetitor,
+  selectedCompetitor,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maptilersdk.Map | null>(null)
@@ -485,6 +489,26 @@ export function MapView({
     if (mapReady.current) apply()
     else m.once("load", apply)
   }, [competitors, showCompetitors, savedPlaceIds.join(","), onHover])
+
+  // Fly to a competitor selected from the list and open its detail popup. The
+  // competitor markers already exist (built by the effect above); we just locate
+  // the matching one, recenter, and pop it open.
+  useEffect(() => {
+    const m = map.current
+    if (!m || !selectedCompetitor) return
+    const c = competitors.find((x) => x.googlePlaceId === selectedCompetitor.id)
+    if (!c || !Number.isFinite(c.longitude) || !Number.isFinite(c.latitude)) return
+
+    const focus = () => {
+      m.flyTo({ center: [c.longitude, c.latitude], zoom: 15, speed: 1.2, essential: true })
+      const entry = competitorMarkers.current.find((e) => e.id === selectedCompetitor.id)
+      const popup = entry?.marker.getPopup()
+      if (entry && popup && !popup.isOpen()) entry.marker.togglePopup()
+    }
+
+    if (mapReady.current) focus()
+    else m.once("load", focus)
+  }, [selectedCompetitor, competitors])
 
   return (
     <div ref={mapContainer} className="h-full w-full" />
