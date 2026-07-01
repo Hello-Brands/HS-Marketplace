@@ -7,6 +7,7 @@ interface CompetitorListProps {
   competitors: CompetitorClosure[]
   savedSet: Set<string>
   onToggleSave: (c: CompetitorClosure) => void
+  onSelect: (c: CompetitorClosure) => void
   hoveredId: string | null
   onHover: (id: string | null) => void
 }
@@ -21,6 +22,7 @@ export function CompetitorList({
   competitors,
   savedSet,
   onToggleSave,
+  onSelect,
   hoveredId,
   onHover,
 }: CompetitorListProps) {
@@ -44,9 +46,19 @@ export function CompetitorList({
           return (
             <div
               key={c.googlePlaceId}
+              role="button"
+              tabIndex={0}
+              aria-label={`Show ${c.brandName} on map`}
               onMouseEnter={() => onHover(c.googlePlaceId)}
               onMouseLeave={() => onHover(null)}
-              className={`flex gap-3 p-4 bg-white rounded-xl border transition-all duration-200 ${
+              onClick={() => onSelect(c)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onSelect(c)
+                }
+              }}
+              className={`flex gap-3 p-4 bg-white rounded-xl border cursor-pointer transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 ${
                 isHovered ? "border-gray-300 shadow-md" : "border-gray-200"
               }`}
             >
@@ -75,7 +87,7 @@ export function CompetitorList({
                   </p>
                 )}
               </div>
-              <div className="flex items-start">
+              <div className="flex items-start" onClick={(e) => e.stopPropagation()}>
                 <SaveCompetitorButton
                   saved={savedSet.has(c.googlePlaceId)}
                   onToggle={() => onToggleSave(c)}
