@@ -79,7 +79,7 @@ async function KpiSectionContent({
 
     return (
       <section className="mt-12">
-        <div className="flex flex-wrap items-center gap-2 mb-1">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
           <h2 className="text-lg font-semibold text-gray-900">Performance Data</h2>
           {revenueLive && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded-lg">
@@ -90,11 +90,6 @@ async function KpiSectionContent({
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-500 mb-6">
-          {revenueLive
-            ? "Net Sales and MCR are live from BigQuery (trailing 12 months)."
-            : "Live data not connected for this location."}
-        </p>
         <LocationKpiCards netSales={netSales} membership={mem} />
         <LocationReviewsPanel reviews={reviews} />
       </section>

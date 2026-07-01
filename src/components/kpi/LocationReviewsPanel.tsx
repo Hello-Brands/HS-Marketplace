@@ -21,7 +21,11 @@ export function LocationReviewsPanel({ reviews }: { reviews: LocationReviewSumma
 
   if (!reviews || reviews.totalReviews === 0) return null
 
-  const { avgRating, totalReviews, distribution, topReviews } = reviews
+  const { avgRating, totalReviews, distribution } = reviews
+  // Default topReviews: a cached summary serialized before this field existed
+  // (see the versioned cache key in getReviewSummaryByLocation) has no topReviews.
+  // Missing/empty degrades to the "no written review" state instead of crashing.
+  const topReviews = reviews.topReviews ?? []
   const maxCount = Math.max(...distribution.map((d) => d.count), 1)
 
   // Clamp in case a re-render hands us fewer reviews than the current index.
