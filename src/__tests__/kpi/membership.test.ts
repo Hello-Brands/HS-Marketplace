@@ -28,7 +28,7 @@ describe("fetchLocationMembership", () => {
     expect(r).toBeNull()
   })
 
-  it("uses pooled TTM as the headline + monthly trend + real MoM when connected", async () => {
+  it("uses the most recent month as the headline + monthly trend + real MoM when connected", async () => {
     getMcrByLocation.mockResolvedValue(new Map([["Sugar House", 34.5]]))
     getMcrTrendByLocation.mockResolvedValue(new Map([["Sugar House", [
       { month: "Apr 2026", value: 32.6 },
@@ -36,7 +36,7 @@ describe("fetchLocationMembership", () => {
     ]]]))
     const { fetchLocationMembership } = await import("@/lib/kpi/fetch")
     const r = await fetchLocationMembership({ listingStatus: "active", mappingStatus: "confirmed", bqLocationName: "Sugar House" })
-    expect(r?.lastMonth).toBe(34.5) // pooled TTM, NOT the latest month
+    expect(r?.lastMonth).toBe(40.4) // latest month, NOT the pooled TTM
     expect(r?.source).toBe("bigquery")
     expect(r?.trend).toEqual([
       { month: "Apr 2026", value: 32.6 },

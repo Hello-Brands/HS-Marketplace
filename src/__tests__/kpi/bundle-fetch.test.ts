@@ -43,7 +43,7 @@ describe("fetchBundleLocationKpis", () => {
     const midtown = res.find(r => r.id === "2")!
     expect(buckhead.netSales?.lastMonth).toBe(1000)   // 100000 cents -> 1000 dollars
     expect(buckhead.netSales?.source).toBe("bigquery")
-    expect(buckhead.membership?.lastMonth).toBe(32)
+    expect(buckhead.membership?.lastMonth).toBe(34) // latest month, not pooled TTM (32)
     expect(midtown.netSales).toBeNull()               // absent from maps
     expect(midtown.membership).toBeNull()
   })

@@ -90,15 +90,16 @@ export async function fetchLocationMembership(args: {
   const pct = pooledMap.get(args.bqLocationName)
   if (pct === undefined) return null // headline drives connectivity
 
-  // Headline stays the pooled TTM ratio; the monthly series feeds the trend only.
+  // Headline shows the most recent month's MCR; the monthly series feeds the
+  // trend. Falls back to the pooled TTM ratio when no monthly series exists.
   const points = trendMap.get(args.bqLocationName) ?? []
   const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
-  const last = points.length > 0 ? points[points.length - 1].value : 0
+  const last = points.length > 0 ? points[points.length - 1].value : pct
   const prior = points.length > 1 ? points[points.length - 2].value : 0
   const momChange = points.length > 1 && prior !== 0 ? (last - prior) / prior : 0
 
   return {
-    lastMonth: pct,
+    lastMonth: last,
     momChange,
     trend,
     updatedAt: new Date().toISOString(),
@@ -188,10 +189,10 @@ export async function fetchBundleLocationKpis(
       if (pct !== undefined) {
         const points = mcrTrendMap.get(loc.bqLocationName) ?? []
         const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
-        const last = points.length > 0 ? points[points.length - 1].value : 0
+        const last = points.length > 0 ? points[points.length - 1].value : pct
         const prior = points.length > 1 ? points[points.length - 2].value : 0
         membership = {
-          lastMonth: pct,
+          lastMonth: last,
           momChange: points.length > 1 && prior !== 0 ? (last - prior) / prior : 0,
           trend,
           updatedAt: new Date().toISOString(),
