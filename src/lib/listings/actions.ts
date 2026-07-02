@@ -34,7 +34,18 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
   const title = data.locations?.map(l => l.name).join(' + ') || 'Untitled Listing'
 
   if (listingId) {
-    // Update existing draft
+    // Update existing draft — only by its owner (or an admin). Without this
+    // check any seller could overwrite another seller's listing via the
+    // draft API route, which passes a client-supplied listingId through.
+    const [existing] = await db.select()
+      .from(listings)
+      .where(eq(listings.id, listingId))
+
+    if (!existing) throw new Error('Listing not found')
+    if (existing.sellerId !== user.id && user.role !== 'admin') {
+      throw new Error('Not authorized')
+    }
+
     await db.update(listings)
       .set({
         type,

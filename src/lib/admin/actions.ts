@@ -189,8 +189,13 @@ export async function adminUpdateListing(listingId: string, data: Partial<Listin
   await db.update(listings)
     .set({
       title,
-      askingPrice: data.askingPrice ?? listing.askingPrice,
-      ttmProfit: data.ttmProfit,
+      // Form values are in dollars; columns store cents (mirror saveDraft).
+      askingPrice: data.askingPrice != null
+        ? Math.round(data.askingPrice * 100)
+        : listing.askingPrice,
+      ttmProfit: data.ttmProfit != null
+        ? Math.round(data.ttmProfit * 100)
+        : listing.ttmProfit,
       reasonForSelling: data.reasonForSelling,
       notes: data.notes,
       inventoryIncluded: data.inventoryIncluded ?? listing.inventoryIncluded,
