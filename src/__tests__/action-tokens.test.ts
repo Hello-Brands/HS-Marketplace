@@ -70,9 +70,14 @@ describe("createActionToken / verifyActionToken", () => {
 
   it("rejects a tampered token", async () => {
     const token = await createActionToken("markSold", "listing-123")
-    // Flip the last character of the signature segment.
-    const last = token.at(-1)
-    const tampered = token.slice(0, -1) + (last === "A" ? "B" : "A")
+    // Flip a character in the MIDDLE of the signature segment. The last char is
+    // unsafe to tamper: a 32-byte HS256 signature base64url-encodes to 43 chars
+    // with 2 unused trailing bits, so flipping the final char can decode to the
+    // identical signature on lenient decoders (Node 24 accepts it; Node 20 didn't).
+    const sigStart = token.lastIndexOf(".") + 1
+    const mid = sigStart + 10
+    const tampered =
+      token.slice(0, mid) + (token[mid] === "A" ? "B" : "A") + token.slice(mid + 1)
     const result = await verifyActionToken(tampered)
     expect(result.success).toBe(false)
     expect(result.action).toBeUndefined()
