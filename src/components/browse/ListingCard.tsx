@@ -1,5 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
+import { centsToDollars, formatUsdCents } from "@/lib/money"
 import type { ListingCard as ListingCardType } from "@/lib/listings-query"
 
 const TYPE_LABELS: Record<string, string> = {
@@ -25,15 +26,15 @@ interface ListingCardProps {
   compact?: boolean
 }
 
+// The browse grid abbreviates millions ("$1.2M") but shows full thousands
+// ("$500,000") — distinct from the map/favorites compact "$500k" form, so it
+// keeps its own million-abbreviation and defers to formatUsdCents below $1M.
 function formatPrice(cents: number): string {
-  const dollars = cents / 100
+  const dollars = centsToDollars(cents)
   if (dollars >= 1_000_000) {
     return `$${(dollars / 1_000_000).toFixed(1)}M`
   }
-  if (dollars >= 1_000) {
-    return `$${Math.round(dollars).toLocaleString()}`
-  }
-  return `$${dollars.toLocaleString()}`
+  return formatUsdCents(cents)
 }
 
 export function ListingCard({ listing, isHovered, onHover, compact }: ListingCardProps) {

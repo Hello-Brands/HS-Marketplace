@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { StatusBadge } from '@/components/listings/StatusBadge'
 import { ConfirmDialog } from './ConfirmDialog'
 import { adminMarkSold } from '@/lib/admin/actions'
+import { formatUsdCents } from '@/lib/money'
 import type { ListingStatus, ListingType } from '@/lib/listings/types'
 
 interface Listing {
@@ -73,13 +74,6 @@ export function ListingsTable({ listings }: ListingsTableProps) {
       setConfirmSoldId(null)
     }
   }
-
-  const formatPrice = (cents: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(cents / 100)
 
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat('en-US', {
@@ -173,7 +167,7 @@ export function ListingsTable({ listings }: ListingsTableProps) {
                     <StatusBadge status={listing.status} />
                   </td>
                   <td className="px-4 py-4 font-medium text-gray-900">
-                    {formatPrice(listing.askingPrice)}
+                    {formatUsdCents(listing.askingPrice)}
                   </td>
                   <td className="px-4 py-4 text-sm text-gray-500">
                     {listing.viewCount} views &bull; {listing.inquiryCount}{' '}

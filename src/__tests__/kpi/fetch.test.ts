@@ -112,4 +112,45 @@ describe("fetchLocationKpi", () => {
 
     expect(result).toEqual(mockLocationKpi)
   })
+
+  // DEBT-005: mock data is decided BEFORE the cache wrapper, so it never enters
+  // the cached (live) path — it can't be persisted and later served as if real.
+  it("does not route mock data through the cached live fetcher", async () => {
+    process.env = { ...originalEnv }
+    delete process.env.HS_INTERNAL_API_URL
+    delete process.env.HS_INTERNAL_API_TOKEN
+
+    const fetchSpy = vi.fn()
+    global.fetch = fetchSpy
+
+    const { fetchLocationKpi } = await import("@/lib/kpi/fetch")
+    await fetchLocationKpi("loc-123")
+
+    // The live path (which is the only cached path) makes the network call; the
+    // mock path must short-circuit before it.
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  // DEBT-005: a live failure throws inside unstable_cache (so it is not cached),
+  // and the wrapper catches it — a later success must return real data, proving
+  // the failure did not poison the 5-min window.
+  it("a failed live fetch does not poison a subsequent successful call", async () => {
+    const mockData = {
+      revenue: { lastMonth: 1, momChange: 0, trend: [], updatedAt: "2026-03-19T00:00:00Z" },
+    }
+    // First: network error -> null -> throw -> caught -> null.
+    global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"))
+    const { fetchLocationKpi } = await import("@/lib/kpi/fetch")
+    expect(await fetchLocationKpi("loc-123")).toBeNull()
+
+    // Then: healthy response -> data (not a cached null).
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockData) })
+    const { kpiResponseSchema } = await import("@/lib/kpi/schema")
+    vi.mocked(kpiResponseSchema.safeParse).mockReturnValue({
+      success: true,
+      data: mockData,
+    } as ReturnType<typeof kpiResponseSchema.safeParse>)
+
+    expect(await fetchLocationKpi("loc-123")).toEqual(mockData)
+  })
 })

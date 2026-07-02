@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { StatusBadge } from '@/components/listings/StatusBadge'
+import { formatUsdCents } from '@/lib/money'
 import type { ListingStatus, ListingType } from '@/lib/listings/types'
 
 interface AdminListingCardProps {
@@ -35,11 +36,7 @@ export function AdminListingCard({
   onReject,
   isProcessing,
 }: AdminListingCardProps) {
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(askingPrice / 100)
+  const formattedPrice = formatUsdCents(askingPrice)
 
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     month: 'short',

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { KpiMetric } from '@/lib/kpi/schema'
 import { KpiCard } from './KpiCard'
 import { KpiTrendModal } from './KpiTrendModal'
+import { dollarsToCents, formatUsdCents } from '@/lib/money'
 
 interface LocationKpiCardsProps {
   netSales: KpiMetric | null
@@ -13,7 +14,8 @@ interface LocationKpiCardsProps {
 
 type SlotKey = 'netSales' | 'membership'
 
-const formatDollars = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+// KPI values arrive in whole dollars; reuse the shared cents formatter.
+const formatDollars = (v: number) => formatUsdCents(dollarsToCents(v))
 const formatPct = (v: number) => `${v.toFixed(1)}%`
 
 // Card label is tight; the trend modal shows the full descriptive phrase.

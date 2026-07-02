@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import * as maptilersdk from "@maptiler/sdk"
 import "@maptiler/sdk/dist/maptiler-sdk.css"
+import { formatUsdCentsCompact } from "@/lib/money"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
 
@@ -23,13 +24,6 @@ interface MapViewProps {
   // A competitor chosen from the list. `seq` bumps on every click so re-selecting
   // the same competitor still re-triggers the fly-to. null = nothing selected.
   selectedCompetitor?: { id: string; seq: number } | null
-}
-
-function formatPrice(cents: number): string {
-  const dollars = cents / 100
-  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`
-  if (dollars >= 1_000) return `$${(dollars / 1_000).toFixed(0)}k`
-  return `$${dollars.toLocaleString()}`
 }
 
 // Approximate a ground circle as a lat/lng polygon for the search-radius overlay.
@@ -259,7 +253,7 @@ export function MapView({
         }).setHTML(`
           <div style="font-family: sans-serif; padding: 4px;">
             ${listing.primaryPhotoUrl ? `<img src="${listing.primaryPhotoUrl}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : ""}
-            <div style="font-size:16px;font-weight:600;color:#111;">${formatPrice(listing.askingPrice)}</div>
+            <div style="font-size:16px;font-weight:600;color:#111;">${formatUsdCentsCompact(listing.askingPrice)}</div>
             <div style="font-size:13px;color:#6b7280;">${[listing.city, listing.state].filter(Boolean).join(", ") || "Location not specified"}</div>
             <div style="margin-top:6px;">
               <span style="font-size:11px;font-weight:500;background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:999px;">${listing.type.charAt(0).toUpperCase() + listing.type.slice(1)}</span>
