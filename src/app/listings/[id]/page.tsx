@@ -183,10 +183,11 @@ export default async function ListingDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Sidebar - 1 col */}
-        <div className="space-y-6">
-          {/* Sticky Contact Form Card — desktop only */}
-          <div className="hidden lg:block sticky top-4">
+        {/* Sidebar - 1 col. On desktop the whole sidebar sticks as one unit, so
+            the contact form never scrolls over the cards beneath it. */}
+        <div className="space-y-6 lg:sticky lg:top-4 lg:self-start">
+          {/* Contact Form Card — desktop only */}
+          <div className="hidden lg:block">
             <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
               <h3 className="font-semibold text-gray-900 mb-4">Contact Seller</h3>
               <ContactForm

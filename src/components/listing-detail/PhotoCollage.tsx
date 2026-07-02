@@ -52,14 +52,26 @@ export function PhotoCollage({ photos, onShowAll, onPhotoClick }: PhotoCollagePr
     )
   }
 
+  // 2+ photos: hero on the left half, the remaining photos fill the right half.
+  // The right cluster's grid adapts to how many photos remain so there are never
+  // empty/placeholder tiles: 1 → single, 2 → stacked, 3 → stacked, 4+ → 2×2.
+  const rightGridClass =
+    secondary.length === 4
+      ? 'grid-cols-2 grid-rows-2'
+      : secondary.length === 3
+        ? 'grid-rows-3'
+        : secondary.length === 2
+          ? 'grid-rows-2'
+          : 'grid-rows-1'
+
   return (
     <div className="relative">
-      <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-2 h-[250px] md:h-[500px] rounded-xl overflow-hidden">
-        {/* Large left photo spans 2 columns and 2 rows — single photo on mobile */}
+      <div className="flex gap-2 h-[250px] md:h-[500px] rounded-xl overflow-hidden">
+        {/* Hero photo — left half on desktop, full width on mobile */}
         <button
           type="button"
           onClick={() => onPhotoClick?.(0)}
-          className="md:col-span-2 md:row-span-2 relative cursor-pointer group/photo focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset"
+          className="relative w-full md:w-1/2 cursor-pointer group/photo focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset"
           aria-label="View primary photo fullscreen"
         >
           <Image
@@ -72,35 +84,32 @@ export function PhotoCollage({ photos, onShowAll, onPhotoClick }: PhotoCollagePr
           />
         </button>
 
-        {/* Up to 4 smaller photos in 2x2 grid on right — hidden on mobile */}
-        {secondary.map((photo, i) => (
-          <button
-            key={photo.id}
-            type="button"
-            onClick={() => onPhotoClick?.(i + 1)}
-            className="relative cursor-pointer group/photo hidden md:block focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset"
-            aria-label={`View photo ${i + 2} fullscreen`}
-          >
-            <Image
-              src={photo.url}
-              alt={`Listing photo ${i + 2}`}
-              fill
-              className="object-cover group-hover/photo:scale-[1.03] transition-transform duration-300"
-              sizes="(max-width: 768px) 25vw, 288px"
-            />
-            {/* Dim overlay on last photo if there are more */}
-            {i === 3 && photos.length > 5 && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
-                <span className="text-white font-semibold text-lg">+{photos.length - 5}</span>
-              </div>
-            )}
-          </button>
-        ))}
-
-        {/* Fill remaining slots with gray placeholders if fewer than 5 photos */}
-        {Array.from({ length: Math.max(0, 4 - secondary.length) }).map((_, i) => (
-          <div key={`placeholder-${i}`} className="bg-gray-100 hidden md:block" />
-        ))}
+        {/* Remaining photos — right half, hidden on mobile. Grid sized to the count. */}
+        <div className={`hidden md:grid md:w-1/2 gap-2 ${rightGridClass}`}>
+          {secondary.map((photo, i) => (
+            <button
+              key={photo.id}
+              type="button"
+              onClick={() => onPhotoClick?.(i + 1)}
+              className="relative cursor-pointer group/photo focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset"
+              aria-label={`View photo ${i + 2} fullscreen`}
+            >
+              <Image
+                src={photo.url}
+                alt={`Listing photo ${i + 2}`}
+                fill
+                className="object-cover group-hover/photo:scale-[1.03] transition-transform duration-300"
+                sizes="(max-width: 768px) 25vw, 288px"
+              />
+              {/* Dim overlay on the last tile when more photos exist beyond it */}
+              {i === secondary.length - 1 && photos.length > 5 && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
+                  <span className="text-white font-semibold text-lg">+{photos.length - 5}</span>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       <button

@@ -309,7 +309,9 @@ const cachedReviewSummary = unstable_cache(
     const rows = await runQuery<ReviewSummaryRow>(REVIEW_SUMMARY_SQL)
     return Array.from(rowsToReviewSummaryByLocation(rows ?? []).entries())
   },
-  ["bq-review-summary"],
+  // v2: bumped when topReviews was added to the summary shape, so a stale entry
+  // serialized by the older (featured-only) code is not served to new consumers.
+  ["bq-review-summary-v2"],
   { revalidate: 86400, tags: ["bq-reviews"] }
 )
 
