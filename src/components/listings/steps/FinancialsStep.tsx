@@ -34,7 +34,7 @@ export function FinancialsStep({ onNext, onBack, onSaveAndExit, isSaving }: Fina
             {locations.map(loc => (
               <div key={loc.id}>
                 <span className="text-gray-500">{loc.name}:</span>
-                <span className="ml-2 text-gray-900">MCR: {((loc.mcr || 0) * 100).toFixed(0)}%</span>
+                <span className="ml-2 text-gray-900">MCR: {((loc.mcr || 0) * 100).toFixed(1)}%</span>
               </div>
             ))}
           </div>
