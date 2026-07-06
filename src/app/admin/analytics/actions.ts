@@ -1,6 +1,5 @@
 "use server"
 
-import { auth } from "@/auth"
 import { db } from "@/db"
 import { users } from "@/db/schema/auth"
 import { listings } from "@/db/schema/listings"
@@ -9,6 +8,7 @@ import { favorites } from "@/db/schema/favorites"
 import { loginEvents } from "@/db/schema/loginEvents"
 import { count, countDistinct, eq, gte, sql } from "drizzle-orm"
 import { fillTrend, type LoginTrendPoint } from "./trend"
+import { requireAdmin } from "@/lib/auth-guards"
 
 export type { LoginTrendPoint }
 
@@ -31,14 +31,6 @@ export interface UserAnalyticsRow {
   inquiriesReceived: number
   savesMade: number
   spark: number[]
-}
-
-async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== "admin") {
-    throw new Error("Unauthorized: Admin access required")
-  }
-  return session.user
 }
 
 function daysAgo(n: number): Date {

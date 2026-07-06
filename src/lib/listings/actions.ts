@@ -1,6 +1,5 @@
 'use server'
 
-import { auth } from '@/auth'
 import { db } from '@/db'
 import { listings } from '@/db/schema/listings'
 import { eq } from 'drizzle-orm'
@@ -9,21 +8,13 @@ import type { ListingFormData, ListingStatus } from './types'
 import { canTransition } from './status-machine'
 import { nextListedAt } from '@/lib/analytics/helpers'
 import { buildListingUpdate } from './build-update'
+import { requireSellerAccess } from '@/lib/auth-guards'
 import {
   insertLocations,
   insertPhotos,
   syncListingLocations,
   syncListingPhotos,
 } from './persist'
-
-async function requireSellerAccess() {
-  const session = await auth()
-  if (!session?.user) throw new Error('Not authenticated')
-  if (!session.user.sellerAccess && session.user.role !== 'admin') {
-    throw new Error('Seller access required')
-  }
-  return session.user
-}
 
 export async function saveDraft(data: Partial<ListingFormData>, listingId?: string) {
   const user = await requireSellerAccess()

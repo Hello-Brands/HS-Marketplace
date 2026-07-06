@@ -1,9 +1,9 @@
 "use server"
 
-import { auth } from "@/auth"
 import { db } from "@/db"
 import { listingDisclaimerAcknowledgments } from "@/db/schema"
 import { FDD_VERSION } from "./fdd"
+import { requireSession } from "@/lib/auth-guards"
 
 /**
  * Record that the current seller acknowledged the "Selling Your Franchise"
@@ -15,13 +15,10 @@ import { FDD_VERSION } from "./fdd"
  * the wizard until the acknowledgment is durably recorded.
  */
 export async function acknowledgeSellingDisclaimer(): Promise<{ ok: true }> {
-  const session = await auth()
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated")
-  }
+  const user = await requireSession()
 
   await db.insert(listingDisclaimerAcknowledgments).values({
-    userId: session.user.id,
+    userId: user.id!,
     fddVersion: FDD_VERSION,
   })
 

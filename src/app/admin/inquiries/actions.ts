@@ -1,19 +1,11 @@
 "use server"
 
-import { auth } from "@/auth"
 import { db } from "@/db"
 import { contacts } from "@/db/schema/contacts"
 import { listings, listingLocations } from "@/db/schema/listings"
 import { users } from "@/db/schema/auth"
 import { eq, desc } from "drizzle-orm"
-
-async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== "admin") {
-    throw new Error("Unauthorized")
-  }
-  return session
-}
+import { requireAdmin } from "@/lib/auth-guards"
 
 export async function getInquiries() {
   await requireAdmin()

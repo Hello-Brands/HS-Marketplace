@@ -1,4 +1,5 @@
 import { buildUpstreamGeocodeUrl } from "@/lib/geocode/url"
+import { requireSession } from "@/lib/auth-guards"
 
 // Proxies MapTiler geocoding using the UNRESTRICTED server key so in-browser
 // autocomplete works on any origin (the public key is referer-restricted to
@@ -7,6 +8,14 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ q: string[] }> }
 ) {
+  // Defense-in-depth: this proxy spends our unrestricted server API key, so
+  // require a session at the handler level in case the middleware is bypassed.
+  try {
+    await requireSession()
+  } catch {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const apiKey = process.env.MAPTILER_API_KEY
   if (!apiKey) {
     return Response.json({ error: "geocoding unavailable" }, { status: 503 })

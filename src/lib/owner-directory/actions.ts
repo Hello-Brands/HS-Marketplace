@@ -1,6 +1,5 @@
 "use server"
 
-import { auth } from "@/auth"
 import { revalidatePath } from "next/cache"
 import { and, eq, ne } from "drizzle-orm"
 import { db } from "@/db"
@@ -8,13 +7,7 @@ import { users } from "@/db/schema/auth"
 import { ownerLocations } from "@/db/schema"
 import { syncOwnerLocations, type SyncResult } from "./sync"
 import { UNKNOWN_OWNER } from "./query"
-
-async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user) throw new Error("Not authenticated")
-  if (session.user.role !== "admin") throw new Error("Admin access required")
-  return session.user
-}
+import { requireAdmin } from "@/lib/auth-guards"
 
 /** Admin-only "refresh now" trigger for the owner directory sync. */
 export async function refreshOwnerDirectory(): Promise<

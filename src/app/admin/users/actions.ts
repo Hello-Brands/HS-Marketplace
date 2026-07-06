@@ -1,18 +1,10 @@
 "use server"
 
-import { auth } from "@/auth"
 import { db } from "@/db"
 import { users, allowlist } from "@/db/schema/auth"
 import { eq, count } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-
-async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== "admin") {
-    throw new Error("Unauthorized: Admin access required")
-  }
-  return session.user
-}
+import { requireAdmin } from "@/lib/auth-guards"
 
 export async function getUsers() {
   await requireAdmin()
