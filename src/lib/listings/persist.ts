@@ -1,6 +1,7 @@
 import { db } from '@/db'
 import { listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import type { ListingFormData } from './types'
 import { getMyOwnerLocations } from '@/lib/owner-directory/data'
 import { normalizeName } from '@/lib/data/match'
@@ -86,16 +87,23 @@ async function resolveLocationGeo(
 }
 
 /**
- * Insert location rows for a listing. Callers pass `prior` (a snapshot of the rows
- * that existed before an edit, keyed by normalized name) so an admin's prior
- * /admin/data mapping decision and already-resolved geo survive the delete-and-reinsert.
- * On a fresh create, pass an empty map.
+ * Build (but do NOT execute) the location insert queries for a listing.
+ *
+ * All async value resolution happens up front, here: the owner-directory lookup
+ * (which decides the BigQuery mapping) and the per-row best-effort geocode. The
+ * result is an array of drizzle insert query objects suitable for `db.batch`, so
+ * the actual writes can be committed atomically alongside the parent listing (create)
+ * or the matching delete (sync) — no `await`ed DB write happens inside this function.
+ *
+ * Callers pass `prior` (a snapshot of the rows that existed before an edit, keyed by
+ * normalized name) so an admin's prior /admin/data mapping decision and already-resolved
+ * geo survive the delete-and-reinsert. On a fresh create, pass an empty map.
  */
-export async function insertLocations(
+export async function buildLocationInserts(
   listingId: string,
   locations: ListingFormData['locations'],
   prior: Map<string, PriorRow>,
-) {
+): Promise<BatchItem<'pg'>[]> {
   // The BigQuery mapping is derived server-side from the signed-in owner's own
   // directory, never from client-supplied values — a seller must not be able to
   // attach a higher-performing location's financials to their listing. We key on
@@ -107,6 +115,7 @@ export async function insertLocations(
     ownerLocs.map((o) => [normalizeName(o.blvdLocationName), o]),
   )
 
+  const queries: BatchItem<'pg'>[] = []
   for (let i = 0; i < locations.length; i++) {
     const loc = locations[i]
     const key = normalizeName(loc.name)
@@ -129,51 +138,68 @@ export async function insertLocations(
           : 'unconfirmed'
     }
     // Auto-fill address components (display) and coordinates (map) — best-effort.
+    // This is the only place external I/O (MapTiler) happens; it runs BEFORE the
+    // batch and never throws (geocodeAddress returns null on failure), so a
+    // geocode outage leaves coordinates null but never aborts the atomic write.
     const geo = await resolveLocationGeo(loc, existing)
-    await db.insert(listingLocations).values({
-      id: crypto.randomUUID(),
-      listingId,
-      locationType: loc.type,
-      externalId: loc.externalId,
-      name: loc.name,
-      address: loc.address,
-      city: geo.city,
-      state: geo.state,
-      zipCode: geo.zipCode,
-      squareFootage: loc.squareFootage,
-      openingDate: loc.openingDate,
-      ttmRevenue: loc.ttmRevenue,
-      mcr: loc.mcr,
-      bqLocationName,
-      dataMappingStatus,
-      latitude: geo.latitude,
-      longitude: geo.longitude,
-      geocodedAt: geo.geocodedAt,
-      geocodeSource: geo.geocodeSource,
-      territoryLat: loc.territoryLat,
-      territoryLng: loc.territoryLng,
-      territoryRadius: loc.territoryRadius,
-      displayOrder: i,
-    })
+    queries.push(
+      db.insert(listingLocations).values({
+        id: crypto.randomUUID(),
+        listingId,
+        locationType: loc.type,
+        externalId: loc.externalId,
+        name: loc.name,
+        address: loc.address,
+        city: geo.city,
+        state: geo.state,
+        zipCode: geo.zipCode,
+        squareFootage: loc.squareFootage,
+        openingDate: loc.openingDate,
+        ttmRevenue: loc.ttmRevenue,
+        mcr: loc.mcr,
+        bqLocationName,
+        dataMappingStatus,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+        geocodedAt: geo.geocodedAt,
+        geocodeSource: geo.geocodeSource,
+        territoryLat: loc.territoryLat,
+        territoryLng: loc.territoryLng,
+        territoryRadius: loc.territoryRadius,
+        displayOrder: i,
+      }),
+    )
   }
+  return queries
 }
 
-export async function insertPhotos(listingId: string, photos: ListingFormData['photos']) {
-  for (const photo of photos) {
-    await db.insert(listingPhotos).values({
+/**
+ * Build (but do NOT execute) the photo insert queries for a listing. Pure/sync —
+ * returns drizzle query objects for `db.batch`.
+ */
+export function buildPhotoInserts(
+  listingId: string,
+  photos: ListingFormData['photos'],
+): BatchItem<'pg'>[] {
+  return photos.map((photo) =>
+    db.insert(listingPhotos).values({
       id: photo.id,
       listingId,
       url: photo.url,
       filename: photo.filename,
       displayOrder: photo.order,
-    })
-  }
+    }),
+  )
 }
 
 /**
  * Replace a listing's locations. Snapshots the current rows first so prior BigQuery
  * mappings + geocode results carry across the delete-and-reinsert, then rewrites them
  * from the form payload. Used by both the seller and admin edit paths.
+ *
+ * Atomic: the async resolution (owner directory + geocode) runs first, then the
+ * delete + all re-inserts commit in ONE neon-http batch (a single transaction), so
+ * an edit can never drop the old rows and then fail to write the new ones.
  */
 export async function syncListingLocations(
   listingId: string,
@@ -197,12 +223,18 @@ export async function syncListingLocations(
   const prior = new Map<string, PriorRow>(
     existingRows.map((r) => [normalizeName(r.name), r]),
   )
-  await db.delete(listingLocations).where(eq(listingLocations.listingId, listingId))
-  await insertLocations(listingId, locations, prior)
+  // Resolve owner directory + geocode BEFORE opening the atomic write.
+  const inserts = await buildLocationInserts(listingId, locations, prior)
+  const del = db.delete(listingLocations).where(eq(listingLocations.listingId, listingId))
+  await db.batch([del, ...inserts])
 }
 
-/** Replace a listing's photos (delete-and-reinsert). Used by both edit paths. */
+/**
+ * Replace a listing's photos (delete-and-reinsert). Used by both edit paths.
+ * Atomic: the delete + all re-inserts commit in ONE neon-http batch.
+ */
 export async function syncListingPhotos(listingId: string, photos: ListingFormData['photos']) {
-  await db.delete(listingPhotos).where(eq(listingPhotos.listingId, listingId))
-  await insertPhotos(listingId, photos)
+  const del = db.delete(listingPhotos).where(eq(listingPhotos.listingId, listingId))
+  const inserts = buildPhotoInserts(listingId, photos)
+  await db.batch([del, ...inserts])
 }

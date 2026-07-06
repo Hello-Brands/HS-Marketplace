@@ -10,8 +10,8 @@ import { nextListedAt } from '@/lib/analytics/helpers'
 import { buildListingUpdate } from './build-update'
 import { requireSellerAccess } from '@/lib/auth-guards'
 import {
-  insertLocations,
-  insertPhotos,
+  buildLocationInserts,
+  buildPhotoInserts,
   syncListingLocations,
   syncListingPhotos,
 } from './persist'
@@ -61,26 +61,31 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
     return { success: true, listingId }
   }
 
-  // Create new draft
-  const [listing] = await db.insert(listings)
-    .values({
-      sellerId: user.id!,
-      type,
-      status: 'draft',
-      title,
-      ...buildListingUpdate(data),
-    })
-    .returning({ id: listings.id })
+  // Create new draft — all-or-nothing. The listing id is app-generated up front so
+  // the parent row and its children share it without a cross-query dependency, then
+  // the parent insert + every location/photo insert commit in ONE neon-http batch
+  // (a single transaction). A mid-sequence failure can no longer leave a parent
+  // listing with partial (or zero) locations/photos. Owner-directory resolution and
+  // best-effort geocoding happen inside buildLocationInserts, before the batch opens.
+  const newListingId = crypto.randomUUID()
 
-  if (data.locations) {
-    await insertLocations(listing.id, data.locations, new Map())
-  }
+  const locationInserts = data.locations
+    ? await buildLocationInserts(newListingId, data.locations, new Map())
+    : []
+  const photoInserts = data.photos ? buildPhotoInserts(newListingId, data.photos) : []
 
-  if (data.photos) {
-    await insertPhotos(listing.id, data.photos)
-  }
+  const listingInsert = db.insert(listings).values({
+    id: newListingId,
+    sellerId: user.id!,
+    type,
+    status: 'draft',
+    title,
+    ...buildListingUpdate(data),
+  })
 
-  return { success: true, listingId: listing.id }
+  await db.batch([listingInsert, ...locationInserts, ...photoInserts])
+
+  return { success: true, listingId: newListingId }
 }
 
 export async function submitListing(listingId: string) {
