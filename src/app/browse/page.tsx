@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { getListings, type ListingFilters, type ListingSort } from "@/lib/listings-query"
 import { getCompetitorClosures } from "@/lib/competitor-query"
+import { getUnlistedHsLocations } from "@/lib/hs-locations-query"
 import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
@@ -65,16 +66,23 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   // resilient (returns [] if the scraper table is empty/unavailable), so it
   // never blocks the page.
   const filters = parseFilters(searchParams)
-  const [{ items: initialListings }, competitorClosures, savedCompetitorIds] = await Promise.all([
-    getListings(filters),
-    getCompetitorClosures({
-      centerLat: filters.centerLat,
-      centerLng: filters.centerLng,
-      radiusMiles: filters.radiusMiles,
-      states: filters.states,
-    }),
-    getSavedCompetitorPlaceIds(),
-  ])
+  const [{ items: initialListings }, competitorClosures, savedCompetitorIds, hsLocations] =
+    await Promise.all([
+      getListings(filters),
+      getCompetitorClosures({
+        centerLat: filters.centerLat,
+        centerLng: filters.centerLng,
+        radiusMiles: filters.radiusMiles,
+        states: filters.states,
+      }),
+      getSavedCompetitorPlaceIds(),
+      getUnlistedHsLocations({
+        centerLat: filters.centerLat,
+        centerLng: filters.centerLng,
+        radiusMiles: filters.radiusMiles,
+        states: filters.states,
+      }),
+    ])
   const count = initialListings.length
 
   return (
@@ -88,6 +96,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         initialListings={initialListings}
         competitorClosures={competitorClosures}
         savedCompetitorIds={savedCompetitorIds}
+        hsLocations={hsLocations}
       />
     </>
   )

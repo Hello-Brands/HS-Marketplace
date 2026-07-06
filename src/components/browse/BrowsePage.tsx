@@ -2,14 +2,16 @@
 
 import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { FilterBar, LayerToggles, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
+import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { BrowseListContent } from "./BrowseListContent"
 import { LocationSearch } from "./LocationSearch"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
+import { MapLegend } from "./MapLegend"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
+import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { useRouter } from "next/navigation"
 import { competitorToSnapshot } from "@/lib/saved-competitors"
 import { toggleSavedCompetitor } from "@/lib/saved-competitors-actions"
@@ -32,6 +34,7 @@ interface BrowsePageProps {
   competitorClosures?: CompetitorClosure[]
   favoriteIds?: string[]
   savedCompetitorIds?: string[]
+  hsLocations?: UnlistedHsLocation[]
 }
 
 export function BrowsePage({
@@ -39,6 +42,7 @@ export function BrowsePage({
   competitorClosures = [],
   favoriteIds = [],
   savedCompetitorIds = [],
+  hsLocations = [],
 }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -63,6 +67,7 @@ export function BrowsePage({
   const [rawFilters, setFilters] = useListingFilters()
   const showListings = rawFilters.showListings
   const showCompetitors = rawFilters.showCompetitors
+  const showHsLocations = rawFilters.showHsLocations
   const router = useRouter()
 
   // Active search center (drives radius filtering, the map circle, and "X mi away").
@@ -240,11 +245,6 @@ export function BrowsePage({
             </button>
           </div>
 
-          {/* Map-layer visibility (moved off the top bar) */}
-          <div className="hidden md:flex">
-            <LayerToggles />
-          </div>
-
           {/* Location search + radius + Save search */}
           <div className="flex w-full sm:w-auto sm:flex-1 items-center gap-3 justify-end order-last sm:order-none">
             <div className="max-w-sm flex-1 md:hidden">
@@ -369,6 +369,8 @@ export function BrowsePage({
                 competitors={competitorClosures}
                 showCompetitors={showCompetitors}
                 showListings={showListings}
+                hsLocations={hsLocations}
+                showHsLocations={showHsLocations}
                 savedPlaceIds={savedCompetitorIdList}
                 onToggleSaveCompetitor={handleToggleSaveCompetitor}
                 hoveredId={hoveredId}
@@ -378,6 +380,8 @@ export function BrowsePage({
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
               />
+
+              <MapLegend />
 
               {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
                 <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />

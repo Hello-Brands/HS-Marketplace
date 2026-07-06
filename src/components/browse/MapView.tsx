@@ -6,6 +6,9 @@ import "@maptiler/sdk/dist/maptiler-sdk.css"
 import { formatUsdCentsCompact } from "@/lib/money"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
+import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
+import { hsLocationPopupHtml } from "./hs-location-popup"
+import { escapeHtml } from "@/lib/escape-html"
 
 interface MapViewProps {
   listings: ListingCard[]
@@ -19,6 +22,9 @@ interface MapViewProps {
   competitors?: CompetitorClosure[]
   showCompetitors?: boolean
   showListings?: boolean
+  // Open HS locations that are NOT for sale — map-only, hover-only, no navigation.
+  hsLocations?: UnlistedHsLocation[]
+  showHsLocations?: boolean
   savedPlaceIds?: string[]
   onToggleSaveCompetitor?: (c: CompetitorClosure) => void
   // A competitor chosen from the list. `seq` bumps on every click so re-selecting
@@ -51,16 +57,6 @@ const RADIUS_SOURCE = "search-radius"
 const COMP_OPP = "#B9772E" // brand warning (caramel)
 const COMP_OPP_HALO = "rgba(187,130,101,0.35)"
 const COMP_MUTED = "#8F7067" // brand taupe
-
-// Escape untrusted scraper text before injecting into popup HTML.
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
 
 function formatClosedDate(iso: string): string {
   const d = new Date(iso)
@@ -167,6 +163,8 @@ export function MapView({
   competitors = [],
   showCompetitors = true,
   showListings = true,
+  hsLocations = [],
+  showHsLocations = true,
   savedPlaceIds = [],
   onToggleSaveCompetitor,
   selectedCompetitor,
@@ -175,6 +173,7 @@ export function MapView({
   const map = useRef<maptilersdk.Map | null>(null)
   const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
   const competitorMarkers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
+  const hsMarkers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
   // Read inside marker listeners without making it a dependency of the marker effect.
   const onToggleSaveCompetitorRef = useRef(onToggleSaveCompetitor)
   onToggleSaveCompetitorRef.current = onToggleSaveCompetitor
@@ -483,6 +482,67 @@ export function MapView({
     if (mapReady.current) apply()
     else m.once("load", apply)
   }, [competitors, showCompetitors, savedPlaceIds.join(","), onHover])
+
+  // Unlisted Hello Sugar locations: a third marker layer of solid slate dots.
+  // Hover shows a non-PII popup; there is deliberately NO click handler (these
+  // never navigate) and no onHover coordination (they aren't in the list).
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+
+    const apply = () => {
+      hsMarkers.current.forEach(({ marker }) => marker.remove())
+      hsMarkers.current = []
+      if (!showHsLocations) return
+
+      const valid = hsLocations.filter(
+        (l) => Number.isFinite(l.latitude) && Number.isFinite(l.longitude)
+      )
+
+      for (const loc of valid) {
+        const el = document.createElement("div")
+        el.dataset.hsLocationId = loc.id
+
+        const inner = document.createElement("div")
+        inner.style.cssText = `
+          width: 16px;
+          height: 16px;
+          background-color: #64748b;
+          border: 2px solid white;
+          border-radius: 50%;
+          cursor: default;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          transition: transform 0.15s ease;
+        `
+        el.appendChild(inner)
+
+        const popup = new maptilersdk.Popup({
+          offset: 20,
+          closeButton: false,
+          maxWidth: "220px",
+        }).setHTML(hsLocationPopupHtml(loc))
+
+        const marker = new maptilersdk.Marker({ element: el })
+          .setLngLat([loc.longitude, loc.latitude])
+          .setPopup(popup)
+          .addTo(m)
+
+        el.addEventListener("mouseenter", () => {
+          inner.style.transform = "scale(1.25)"
+          popup.addTo(m)
+        })
+        el.addEventListener("mouseleave", () => {
+          inner.style.transform = "scale(1)"
+          popup.remove()
+        })
+
+        hsMarkers.current.push({ marker, id: loc.id })
+      }
+    }
+
+    if (mapReady.current) apply()
+    else m.once("load", apply)
+  }, [hsLocations, showHsLocations])
 
   // Fly to a competitor selected from the list and open its detail popup. The
   // competitor markers already exist (built by the effect above); we just locate
