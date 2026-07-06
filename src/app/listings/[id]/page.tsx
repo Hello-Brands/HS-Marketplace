@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { redirect, notFound } from 'next/navigation'
+import { after } from 'next/server'
 import type { Metadata } from 'next'
 import { getListingById } from '@/lib/listing-detail'
 import { recordListingView } from '@/lib/analytics/views'
@@ -47,7 +48,9 @@ export default async function ListingDetailPage({ params }: Props) {
     notFound()
   }
 
-  await recordListingView(listing.id)
+  // View recording is analytics-only (returns void, not used by render), so run
+  // it after the response is sent instead of blocking render on auth+select+insert.
+  after(() => recordListingView(listing.id))
 
   const [contacted, favorited] = await Promise.all([
     hasContactedListing(listing.id),

@@ -1,5 +1,4 @@
-'use server'
-
+import { cache } from 'react'
 import { db } from '@/db'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { favorites } from '@/db/schema/favorites'
@@ -57,7 +56,9 @@ export interface ListingDetail {
   }[]
 }
 
-export async function getListingById(id: string): Promise<ListingDetail | null> {
+// Wrapped in React.cache() so the two calls per request (generateMetadata +
+// page body) dedupe to a single set of DB roundtrips. Name/signature unchanged.
+export const getListingById = cache(async (id: string): Promise<ListingDetail | null> => {
   // Only return active listings — buyers should not see draft/pending/rejected
   const listing = await db.query.listings.findFirst({
     where: eq(listings.id, id),
@@ -125,4 +126,4 @@ export async function getListingById(id: string): Promise<ListingDetail | null> 
       displayOrder: p.displayOrder,
     })),
   }
-}
+})

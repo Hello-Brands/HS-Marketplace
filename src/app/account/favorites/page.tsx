@@ -28,6 +28,10 @@ async function getFavoriteListings(userId: string) {
 
   const favoriteIds = favoriteRows.map(f => f.listingId)
 
+  // NOTE (DEBT-018): This is two sequential roundtrips (favorite IDs, then
+  // listing details) where a single join would do. Left as-is to keep the
+  // change low-risk; the inArray fetch below loses the createdAt-desc order
+  // from favoriteRows, so we re-sort in memory to restore it.
   // Fetch listing details for favorites
   const favoriteListings = await db.query.listings.findMany({
     where: and(
@@ -46,17 +50,24 @@ async function getFavoriteListings(userId: string) {
     },
   })
 
-  return favoriteListings.map(listing => ({
-    id: listing.id,
-    type: listing.type,
-    askingPrice: listing.askingPrice,
-    title: listing.title,
-    createdAt: listing.createdAt,
-    locationName: listing.locations[0]?.name ?? null,
-    city: listing.locations[0]?.city ?? null,
-    state: listing.locations[0]?.state ?? null,
-    primaryPhotoUrl: listing.photos[0]?.url ?? null,
-  }))
+  // Restore the createdAt-desc order of favoriteRows: inArray does not preserve
+  // it, so index each returned listing by id and emit them in favoriteIds order.
+  const listingById = new Map(favoriteListings.map(listing => [listing.id, listing]))
+
+  return favoriteIds
+    .map(id => listingById.get(id))
+    .filter((listing): listing is (typeof favoriteListings)[number] => listing !== undefined)
+    .map(listing => ({
+      id: listing.id,
+      type: listing.type,
+      askingPrice: listing.askingPrice,
+      title: listing.title,
+      createdAt: listing.createdAt,
+      locationName: listing.locations[0]?.name ?? null,
+      city: listing.locations[0]?.city ?? null,
+      state: listing.locations[0]?.state ?? null,
+      primaryPhotoUrl: listing.photos[0]?.url ?? null,
+    }))
 }
 
 async function getSavedCompetitors(userId: string) {
@@ -85,8 +96,12 @@ export default async function FavoritesPage() {
     redirect('/login')
   }
 
-  const favoriteListings = await getFavoriteListings(session.user.id)
-  const savedComps = await getSavedCompetitors(session.user.id)
+  // These two fetches are independent (neither uses the other's result), so
+  // run them concurrently instead of sequentially.
+  const [favoriteListings, savedComps] = await Promise.all([
+    getFavoriteListings(session.user.id),
+    getSavedCompetitors(session.user.id),
+  ])
 
   return (
     <>

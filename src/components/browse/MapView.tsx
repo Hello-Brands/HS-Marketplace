@@ -251,11 +251,11 @@ export function MapView({
           maxWidth: "220px",
         }).setHTML(`
           <div style="font-family: sans-serif; padding: 4px;">
-            ${listing.primaryPhotoUrl ? `<img src="${listing.primaryPhotoUrl}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : ""}
+            ${listing.primaryPhotoUrl ? `<img src="${escapeHtml(listing.primaryPhotoUrl)}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : ""}
             <div style="font-size:16px;font-weight:600;color:#1F1917;">${formatUsdCentsCompact(listing.askingPrice)}</div>
-            <div style="font-size:13px;color:#8F7067;">${[listing.city, listing.state].filter(Boolean).join(", ") || "Location not specified"}</div>
+            <div style="font-size:13px;color:#8F7067;">${[listing.city, listing.state].filter((v): v is string => Boolean(v)).map(escapeHtml).join(", ") || "Location not specified"}</div>
             <div style="margin-top:6px;">
-              <span style="font-size:11px;font-weight:500;background:#F7DCDA;color:#C9143B;padding:2px 8px;border-radius:999px;">${listing.type.charAt(0).toUpperCase() + listing.type.slice(1)}</span>
+              <span style="font-size:11px;font-weight:500;background:#F7DCDA;color:#C9143B;padding:2px 8px;border-radius:999px;">${escapeHtml(listing.type.charAt(0).toUpperCase() + listing.type.slice(1))}</span>
             </div>
             <div style="margin-top:8px;font-size:13px;color:#ED1845;font-weight:500;">Click to view details →</div>
           </div>
