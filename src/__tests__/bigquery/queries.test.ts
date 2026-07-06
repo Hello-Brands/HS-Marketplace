@@ -1,8 +1,27 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-import { rowsToNetSalesByLocation, rowsToMcrMap, rowsToMcrTrendByLocation } from "@/lib/bigquery/queries"
+// Pass-through unstable_cache so we exercise the cached callback + wrapper
+// directly. Because it does NOT persist results, calling a wrapper twice re-runs
+// the callback each time — which is exactly what we need to prove a prior
+// failure does not poison a subsequent call.
+vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }))
+
+// Mock the BigQuery client so we control runQuery's null (failure) vs [] (empty).
+// vi.hoisted so the fn exists when the hoisted vi.mock factory runs.
+const { runQuery } = vi.hoisted(() => ({ runQuery: vi.fn() }))
+vi.mock("@/lib/bigquery/client", () => ({ runQuery }))
+
+import {
+  rowsToNetSalesByLocation,
+  rowsToMcrMap,
+  rowsToMcrTrendByLocation,
+  getNetSalesByLocation,
+  getMcrByLocation,
+  getMcrTrendByLocation,
+  getReviewSummaryByLocation,
+} from "@/lib/bigquery/queries"
 
 describe("rowsToNetSalesByLocation", () => {
   it("sums monthly dollars into cents and keeps a sorted dollar trend", () => {
@@ -84,5 +103,71 @@ describe("rowsToMcrTrendByLocation", () => {
       { LOCATION_NAME: "SH", mcr_month: null, mcr_pct: 30 },
     ])
     expect(map.size).toBe(0)
+  })
+})
+
+// DEBT-005: a query FAILURE (runQuery -> null) must not be cached, so it can't
+// poison the KPI/review cards for the full 24h revalidate window. Distinguished
+// from a legitimately EMPTY result set (runQuery -> []), which may be cached.
+describe("cached BQ fetchers: failure vs empty (DEBT-005)", () => {
+  beforeEach(() => {
+    runQuery.mockReset()
+  })
+
+  it("getNetSalesByLocation: a failed query does not poison the next call", async () => {
+    // First call: creds/query failure -> null. Returns the empty-map sentinel...
+    runQuery.mockResolvedValueOnce(null)
+    const failed = await getNetSalesByLocation()
+    expect(failed).toBeInstanceOf(Map)
+    expect(failed.size).toBe(0)
+
+    // ...and because the failure threw (uncached), the very next call re-queries
+    // and returns real data rather than a poisoned empty map.
+    runQuery.mockResolvedValueOnce([
+      { LOCATION_NAME: "Sugar House", sales_month: "2025-07", cash_plus_credit: 100 },
+    ])
+    const ok = await getNetSalesByLocation()
+    expect(ok.get("Sugar House")?.totalCents).toBe(10000)
+  })
+
+  it("getNetSalesByLocation: a successful empty result still returns an empty map", async () => {
+    runQuery.mockResolvedValueOnce([])
+    const map = await getNetSalesByLocation()
+    expect(map).toBeInstanceOf(Map)
+    expect(map.size).toBe(0)
+  })
+
+  it("getMcrByLocation: failure -> empty-map sentinel, then recovers", async () => {
+    runQuery.mockResolvedValueOnce(null)
+    expect((await getMcrByLocation()).size).toBe(0)
+    runQuery.mockResolvedValueOnce([{ LOCATION_NAME: "SH", mcr_pct: 38 }])
+    expect((await getMcrByLocation()).get("SH")).toBe(38)
+  })
+
+  it("getMcrByLocation: successful empty result returns empty map", async () => {
+    runQuery.mockResolvedValueOnce([])
+    expect((await getMcrByLocation()).size).toBe(0)
+  })
+
+  it("getMcrTrendByLocation: failure -> empty-map sentinel, then recovers", async () => {
+    runQuery.mockResolvedValueOnce(null)
+    expect((await getMcrTrendByLocation()).size).toBe(0)
+    runQuery.mockResolvedValueOnce([{ LOCATION_NAME: "SH", mcr_month: "2025-07", mcr_pct: 40 }])
+    expect((await getMcrTrendByLocation()).get("SH")).toEqual([{ month: "Jul 2025", value: 40 }])
+  })
+
+  it("getReviewSummaryByLocation: failure -> empty-map sentinel; empty result -> empty map", async () => {
+    runQuery.mockResolvedValueOnce(null)
+    expect((await getReviewSummaryByLocation()).size).toBe(0)
+    runQuery.mockResolvedValueOnce([])
+    expect((await getReviewSummaryByLocation()).size).toBe(0)
+  })
+
+  it("public contract unchanged: wrappers always resolve to a Map", async () => {
+    runQuery.mockResolvedValue([])
+    expect(await getNetSalesByLocation()).toBeInstanceOf(Map)
+    expect(await getMcrByLocation()).toBeInstanceOf(Map)
+    expect(await getMcrTrendByLocation()).toBeInstanceOf(Map)
+    expect(await getReviewSummaryByLocation()).toBeInstanceOf(Map)
   })
 })

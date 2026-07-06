@@ -118,10 +118,19 @@ export function rowsToMcrTrendByLocation(
   return map
 }
 
+// A failed runQuery (missing creds / query error) returns null. We THROW inside
+// the cached callback so unstable_cache does NOT persist the failure (see
+// unstable-cache.js: the entry is only written after the callback resolves), and
+// the wrapper below catches it and returns the same empty-map sentinel callers
+// already handle. A legitimately empty result set ([]) from a successful query
+// still resolves and is cached normally.
+const QUERY_FAILED = "[bigquery] query failed (creds/query error) — not caching"
+
 const cachedNetSales = unstable_cache(
   async () => {
     const rows = await runQuery<NetSalesRow>(NET_SALES_SQL)
-    return Array.from(rowsToNetSalesByLocation(rows ?? []).entries())
+    if (rows === null) throw new Error(QUERY_FAILED)
+    return Array.from(rowsToNetSalesByLocation(rows).entries())
   },
   ["bq-net-sales-ttm"],
   { revalidate: 86400, tags: ["bq-net-sales"] }
@@ -130,31 +139,45 @@ const cachedNetSales = unstable_cache(
 const cachedMcr = unstable_cache(
   async () => {
     const rows = await runQuery<McrRow>(MCR_SQL)
-    return Array.from(rowsToMcrMap(rows ?? []).entries())
+    if (rows === null) throw new Error(QUERY_FAILED)
+    return Array.from(rowsToMcrMap(rows).entries())
   },
   ["bq-mcr-ttm"],
   { revalidate: 86400, tags: ["bq-mcr"] }
 )
 
 export async function getNetSalesByLocation(): Promise<Map<string, LocationNetSales>> {
-  return new Map(await cachedNetSales())
+  try {
+    return new Map(await cachedNetSales())
+  } catch {
+    return new Map() // failure sentinel: same empty map callers see today, but uncached
+  }
 }
 
 export async function getMcrByLocation(): Promise<Map<string, number>> {
-  return new Map(await cachedMcr())
+  try {
+    return new Map(await cachedMcr())
+  } catch {
+    return new Map()
+  }
 }
 
 const cachedMcrTrend = unstable_cache(
   async () => {
     const rows = await runQuery<McrTrendRow>(MCR_TREND_SQL)
-    return Array.from(rowsToMcrTrendByLocation(rows ?? []).entries())
+    if (rows === null) throw new Error(QUERY_FAILED)
+    return Array.from(rowsToMcrTrendByLocation(rows).entries())
   },
   ["bq-mcr-trend-ttm"],
   { revalidate: 86400, tags: ["bq-mcr-trend"] }
 )
 
 export async function getMcrTrendByLocation(): Promise<Map<string, { month: string; value: number }[]>> {
-  return new Map(await cachedMcrTrend())
+  try {
+    return new Map(await cachedMcrTrend())
+  } catch {
+    return new Map()
+  }
 }
 
 export async function listLocationNames(): Promise<string[] | null> {
@@ -307,7 +330,8 @@ export function rowsToReviewSummaryByLocation(
 const cachedReviewSummary = unstable_cache(
   async () => {
     const rows = await runQuery<ReviewSummaryRow>(REVIEW_SUMMARY_SQL)
-    return Array.from(rowsToReviewSummaryByLocation(rows ?? []).entries())
+    if (rows === null) throw new Error(QUERY_FAILED)
+    return Array.from(rowsToReviewSummaryByLocation(rows).entries())
   },
   // v2: bumped when topReviews was added to the summary shape, so a stale entry
   // serialized by the older (featured-only) code is not served to new consumers.
@@ -316,5 +340,9 @@ const cachedReviewSummary = unstable_cache(
 )
 
 export async function getReviewSummaryByLocation(): Promise<Map<string, LocationReviewSummary>> {
-  return new Map(await cachedReviewSummary())
+  try {
+    return new Map(await cachedReviewSummary())
+  } catch {
+    return new Map()
+  }
 }

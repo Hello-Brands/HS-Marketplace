@@ -8,6 +8,7 @@ import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq, and, inArray } from 'drizzle-orm'
 import { EmptyStateIllustrated } from '@/components/ui/EmptyState'
 import { SiteHeader } from '@/components/layout/SiteHeader'
+import { formatUsdCentsCompact } from '@/lib/money'
 
 export const metadata = {
   title: 'Saved Listings - Hello Sugar Marketplace',
@@ -69,17 +70,6 @@ function competitorStatusLabel(status: string): string {
   if (status === 'CLOSED_PERMANENTLY') return 'Permanently Closed'
   if (status === 'CLOSED_TEMPORARILY') return 'Temporarily Closed'
   return status
-}
-
-function formatPrice(cents: number): string {
-  const dollars = cents / 100
-  if (dollars >= 1_000_000) {
-    return `$${(dollars / 1_000_000).toFixed(1)}M`
-  }
-  if (dollars >= 1_000) {
-    return `$${(dollars / 1_000).toFixed(0)}k`
-  }
-  return `$${dollars.toLocaleString()}`
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -150,7 +140,7 @@ export default async function FavoritesPage() {
                     {TYPE_LABELS[listing.type] ?? listing.type}
                   </span>
                 </div>
-                <p className="text-lg font-bold text-hs-red-600">{formatPrice(listing.askingPrice)}</p>
+                <p className="text-lg font-bold text-hs-red-600">{formatUsdCentsCompact(listing.askingPrice)}</p>
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {[listing.city, listing.state].filter(Boolean).join(', ') || 'Location TBD'}
                 </p>

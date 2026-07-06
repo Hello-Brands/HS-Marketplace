@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import type { BundleLocationKpi } from '@/lib/kpi/bundle'
 import { KpiTrendChart } from './KpiTrendChart'
+import { dollarsToCents, formatUsdCents } from '@/lib/money'
 
 interface BundleKpiSectionProps {
   locations: BundleLocationKpi[]
@@ -12,7 +13,8 @@ interface BundleKpiSectionProps {
 type SortKey = 'name' | 'netSales' | 'membership'
 type SortDirection = 'asc' | 'desc'
 
-const formatDollars = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+// KPI values arrive in whole dollars; reuse the shared cents formatter.
+const formatDollars = (v: number) => formatUsdCents(dollarsToCents(v))
 const formatPct = (v: number) => `${v.toFixed(1)}%`
 
 function SortArrow({ active, direction }: { active: boolean; direction: SortDirection }) {

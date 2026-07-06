@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { StatusBadge } from './StatusBadge'
 import { ImagePlaceholder } from '@/components/ui/ImagePlaceholder'
+import { formatUsdCents } from '@/lib/money'
 import type { ListingStatus, ListingType } from '@/lib/listings/types'
 
 interface ListingCardProps {
@@ -44,11 +45,7 @@ export function ListingCard({
   rejectionReason,
   createdAt,
 }: ListingCardProps) {
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(askingPrice / 100)
+  const formattedPrice = formatUsdCents(askingPrice)
 
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -163,11 +160,7 @@ export function ListingCardCompact({
   coverPhotoUrl,
   createdAt,
 }: Omit<ListingCardProps, 'viewCount' | 'inquiryCount' | 'rejectionReason'>) {
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(askingPrice / 100)
+  const formattedPrice = formatUsdCents(askingPrice)
 
   return (
     <Link

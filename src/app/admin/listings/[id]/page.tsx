@@ -5,6 +5,7 @@ import { db } from '@/db'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq } from 'drizzle-orm'
 import { StatusBadge } from '@/components/listings/StatusBadge'
+import { formatUsdCents } from '@/lib/money'
 
 export default async function AdminListingDetailPage({
   params,
@@ -31,11 +32,7 @@ export default async function AdminListingDetailPage({
     notFound()
   }
 
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(listing.askingPrice / 100)
+  const formattedPrice = formatUsdCents(listing.askingPrice)
 
   return (
     <div>

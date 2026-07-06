@@ -10,6 +10,8 @@ import { canTransition } from '@/lib/listings/status-machine'
 import { nextListedAt } from '@/lib/analytics/helpers'
 import { unresolvedSalonLocations } from '@/lib/data/mapping'
 import { triggerAlertMatching } from '@/lib/alert-actions'
+import { buildListingUpdate } from '@/lib/listings/build-update'
+import { syncListingLocations, syncListingPhotos } from '@/lib/listings/persist'
 import type { ListingStatus, ListingFormData } from '@/lib/listings/types'
 
 async function requireAdmin() {
@@ -183,31 +185,27 @@ export async function adminUpdateListing(listingId: string, data: Partial<Listin
 
   if (!listing) throw new Error('Listing not found')
 
-  // Generate title from locations if provided
+  // Generate title from locations if provided; admin keeps the existing title otherwise.
   const title = data.locations?.map(l => l.name).join(' + ') || listing.title
 
+  // Money/asset normalization comes from the single shared helper (DEBT-003/004):
+  // dollars→cents, with partial edits falling back to the stored row (fixes DEBT-001).
   await db.update(listings)
     .set({
       title,
-      // Form values are in dollars; columns store cents (mirror saveDraft).
-      askingPrice: data.askingPrice != null
-        ? Math.round(data.askingPrice * 100)
-        : listing.askingPrice,
-      ttmProfit: data.ttmProfit != null
-        ? Math.round(data.ttmProfit * 100)
-        : listing.ttmProfit,
-      reasonForSelling: data.reasonForSelling,
-      notes: data.notes,
-      inventoryIncluded: data.inventoryIncluded ?? listing.inventoryIncluded,
-      laserIncluded: data.laserIncluded ?? listing.laserIncluded,
-      otherAssets: data.otherAssets,
-      inventoryCostEstimate:
-        (data.inventoryIncluded ?? listing.inventoryIncluded) && data.inventoryCostEstimate
-          ? Math.round(data.inventoryCostEstimate * 100)
-          : null,
+      ...buildListingUpdate(data, listing),
       updatedAt: new Date(),
     })
     .where(eq(listings.id, listingId))
+
+  // Admin edits get full parity with the seller path: persist location + photo edits
+  // too (delete-and-reinsert, preserving prior BQ mapping/geocode snapshots).
+  if (data.locations) {
+    await syncListingLocations(listingId, data.locations)
+  }
+  if (data.photos) {
+    await syncListingPhotos(listingId, data.photos)
+  }
 
   revalidatePath('/admin/queue')
   revalidatePath('/admin/listings')

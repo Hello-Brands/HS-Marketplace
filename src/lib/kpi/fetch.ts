@@ -22,15 +22,11 @@ function shouldUseMockData(): boolean {
 }
 
 /**
- * Internal fetch function (uncached).
+ * Live fetch against the internal API (uncached). Returns null on any failure
+ * (network, non-200, validation). The mock-data path is handled by the public
+ * wrapper BEFORE the cache, so mock responses can never be cached as if real.
  */
-async function fetchLocationKpiInternal(locationId: string): Promise<KpiData | null> {
-  // Return mock data when API credentials aren't configured
-  if (shouldUseMockData()) {
-    console.info("[KPI] Using mock data (API credentials not configured)")
-    return mockLocationKpi
-  }
-
+async function fetchLocationKpiLive(locationId: string): Promise<KpiData | null> {
   try {
     const baseUrl = process.env.HS_INTERNAL_API_URL
     const token = process.env.HS_INTERNAL_API_TOKEN
@@ -67,16 +63,36 @@ async function fetchLocationKpiInternal(locationId: string): Promise<KpiData | n
   }
 }
 
-/**
- * Fetch KPI data for a single location with 5-minute server cache.
- * Returns mock data in development when API credentials aren't configured.
- * Returns null on any error (network, non-200, validation) for graceful degradation.
- */
-export const fetchLocationKpi = unstable_cache(
-  fetchLocationKpiInternal,
+// Only the live path is cached. Throwing on failure means unstable_cache does
+// NOT persist the null — a transient API outage can't blank the KPI for 5 min;
+// the next request retries.
+const cachedFetchLocationKpiLive = unstable_cache(
+  async (locationId: string): Promise<KpiData> => {
+    const data = await fetchLocationKpiLive(locationId)
+    if (data === null) throw new Error("[KPI] live fetch failed — not caching")
+    return data
+  },
   ["kpi-location"],
   { revalidate: 300 } // 5 min cache
 )
+
+/**
+ * Fetch KPI data for a single location with 5-minute server cache.
+ * Returns mock data in development when API credentials aren't configured (never
+ * cached — decided before the cache wrapper so mock data can't be served as real).
+ * Returns null on any error (network, non-200, validation) for graceful degradation.
+ */
+export async function fetchLocationKpi(locationId: string): Promise<KpiData | null> {
+  if (shouldUseMockData()) {
+    console.info("[KPI] Using mock data (API credentials not configured)")
+    return mockLocationKpi
+  }
+  try {
+    return await cachedFetchLocationKpiLive(locationId)
+  } catch {
+    return null // failure sentinel: same null callers see today, but uncached
+  }
+}
 
 export async function fetchLocationMembership(args: {
   listingStatus: string

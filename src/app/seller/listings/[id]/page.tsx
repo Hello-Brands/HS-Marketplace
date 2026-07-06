@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import { StatusBadge } from '@/components/listings/StatusBadge'
 import { getAvailableActions } from '@/lib/listings/status-machine'
 import { ListingActions } from '@/components/listings/ListingActions'
+import { formatUsdCents } from '@/lib/money'
 import type { ListingStatus } from '@/lib/listings/types'
 
 // In Next.js 15+, params is a Promise
@@ -39,11 +40,7 @@ export default async function SellerListingDetailPage({
   }
 
   const availableActions = getAvailableActions(listing.status as ListingStatus, 'seller')
-  const formattedPrice = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(listing.askingPrice / 100)
+  const formattedPrice = formatUsdCents(listing.askingPrice)
 
   return (
     <div>

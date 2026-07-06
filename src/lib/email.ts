@@ -1,4 +1,5 @@
 import { Resend } from "resend"
+import { formatUsdCents } from "@/lib/money"
 
 // Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -206,7 +207,7 @@ export async function sendContactNotification(data: ContactNotificationData) {
 export async function sendAlertMatchEmail(data: AlertMatchData) {
   const { buyerEmail, buyerName, listingTitle, listingId, listingType, city, state, askingPrice } = data
   const listingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
-  const formattedPrice = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(askingPrice / 100)
+  const formattedPrice = formatUsdCents(askingPrice)
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">

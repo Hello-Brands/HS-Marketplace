@@ -1,3 +1,4 @@
+import { formatUsdCents } from '@/lib/money'
 import type { ListingDetail } from '@/lib/listing-detail'
 
 interface FinancialsGridProps {
@@ -6,11 +7,7 @@ interface FinancialsGridProps {
 
 function formatPrice(cents: number | null | undefined): string {
   if (cents === null || cents === undefined) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(cents / 100)
+  return formatUsdCents(cents)
 }
 
 interface MetricCardProps {
