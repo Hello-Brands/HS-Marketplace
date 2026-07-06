@@ -30,7 +30,7 @@ export function ListingDisclaimerGate({ userId }: ListingDisclaimerGateProps) {
     } catch {
       // Record-to-proceed: hold the seller on the gate so we always capture the
       // acknowledgment before the form opens. The box stays checked for retry.
-      setError("Something went wrong recording your acknowledgment. Please try again.")
+      setError("We couldn't record your acknowledgment. Check your connection and try again.")
       setSubmitting(false)
     }
   }

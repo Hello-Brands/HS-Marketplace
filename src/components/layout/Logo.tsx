@@ -7,7 +7,7 @@ import Link from "next/link"
 export function Logo({ href }: { href: string }) {
   return (
     <Link href={href} className="flex items-center" aria-label="Hello Sugar Marketplace">
-      <img src="/logo-horizontal-white.png" alt="Hello Sugar" className="h-8 w-auto" />
+      <img src="/hs-logo-horizontal-white.png" alt="Hello Sugar" className="h-8 w-auto" />
     </Link>
   )
 }

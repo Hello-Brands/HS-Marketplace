@@ -98,7 +98,7 @@ export function AnalyticsDashboard({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name, email, or role…"
-          className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-300"
+          className="w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-300"
         />
         <span className="text-xs text-gray-400">{rows.length} user{rows.length !== 1 ? "s" : ""}</span>
       </div>
@@ -106,7 +106,7 @@ export function AnalyticsDashboard({
       <div className="mt-3 overflow-x-auto bg-white border border-gray-200 rounded-xl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-left text-[10.5px] uppercase tracking-wide text-gray-500">
+            <tr className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <th className="px-3 py-2.5 font-bold">User</th>
               <th className="px-3 py-2.5 font-bold">Role</th>
               {COLUMNS.map((c) => (
@@ -129,7 +129,7 @@ export function AnalyticsDashboard({
                   </Link>
                 </td>
                 <td className="px-3 py-2.5">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${u.role === "admin" ? "bg-hs-red-100 text-hs-red-800" : "bg-gray-100 text-gray-600"}`}>{u.role}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${u.role === "admin" ? "bg-hs-red-100 text-hs-red-800" : "bg-gray-100 text-gray-600"}`}>{u.role}</span>
                 </td>
                 <td className="px-3 py-2.5 text-center font-semibold text-gray-900">{u.loginCount}</td>
                 <td className="px-3 py-2.5 text-center text-gray-500">{timeAgo(u.lastLoginAt)}</td>

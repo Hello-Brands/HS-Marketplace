@@ -4,54 +4,34 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex">
       {/* Left Panel - Hero */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 bg-gray-950 relative overflow-hidden">
-        {/* Gradient orb effect */}
-        <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-hs-red-600/30 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-0 w-[400px] h-[400px] bg-hs-red-500/20 rounded-full blur-[100px]" />
-
+      <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 bg-hs-red-600">
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16">
+        <div className="flex flex-col justify-between p-12 xl:p-16">
           {/* Logo */}
           <div>
             <img
-              src="/logo-hello-sugar-white.png"
+              src="/hs-logo-stacked-white.png"
               alt="Hello Sugar"
-              className="h-10 w-auto"
+              className="h-24 w-auto"
             />
           </div>
 
           {/* Hero text */}
-          <div className="space-y-8 max-w-xl">
+          <div className="space-y-6 max-w-xl">
             <h1 className="text-display-2xl text-white">
-              The Franchise
+              The marketplace for
               <br />
-              <span className="text-hs-red-500">Marketplace</span>
+              Hello Sugar locations
             </h1>
-            <p className="text-xl text-gray-400 leading-relaxed">
-              Buy and sell Hello Sugar locations with verified financial data,
-              transparent metrics, and direct connections to franchise owners.
+            <p className="text-xl text-white leading-relaxed">
+              Franchise owners list locations for sale, and approved buyers review
+              financials pulled from each location&apos;s own reporting.
             </p>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-8 pt-8 border-t border-white/10">
-              <div>
-                <div className="text-3xl font-bold text-white">200+</div>
-                <div className="text-sm text-gray-500 mt-1">Active Locations</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">$2.1M</div>
-                <div className="text-sm text-gray-500 mt-1">Avg. Revenue</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-white">98%</div>
-                <div className="text-sm text-gray-500 mt-1">Success Rate</div>
-              </div>
-            </div>
           </div>
 
           {/* Footer */}
-          <div className="text-sm text-gray-600">
-            Trusted by franchise owners since 2015
+          <div className="text-sm font-semibold text-hs-red-100">
+            For Hello Sugar franchise owners and approved partners
           </div>
         </div>
       </div>
@@ -62,9 +42,9 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center mb-8">
             <img
-              src="/logo-hello-sugar-color.png"
+              src="/hs-logo-stacked-color.png"
               alt="Hello Sugar"
-              className="h-10 w-auto"
+              className="h-20 w-auto"
             />
           </div>
 
@@ -72,7 +52,7 @@ export default function LoginPage() {
           <div className="text-center lg:text-left">
             <h2 className="text-display-lg text-gray-900">Welcome back</h2>
             <p className="mt-3 text-gray-500">
-              Sign in to access listings, financials, and connect with franchise owners.
+              Sign in with your Hello Sugar Google account to view listings and financials.
             </p>
           </div>
 

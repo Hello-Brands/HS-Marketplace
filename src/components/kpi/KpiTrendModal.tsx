@@ -55,7 +55,7 @@ export function KpiTrendModal({
 
       {/* Modal panel */}
       <div
-        className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8 transition-all duration-150 ease-out"
+        className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8 max-h-[90dvh] overflow-y-auto transition-all duration-150 ease-out"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
@@ -63,7 +63,7 @@ export function KpiTrendModal({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
+          className="absolute top-4 right-4 h-11 w-11 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
           aria-label="Close modal"
         >
           <svg

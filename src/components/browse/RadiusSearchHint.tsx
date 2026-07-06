@@ -16,7 +16,10 @@ export function shouldShowRadiusHint(
 export function RadiusSearchHint({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="hidden sm:flex absolute top-3 left-1/2 -translate-x-1/2 z-10 items-center gap-2 rounded-full border border-hs-red-200 bg-white/95 px-4 py-2 text-sm text-hs-red-700 shadow-md backdrop-blur">
-      <span aria-hidden="true">📍</span>
+      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
       <span className="whitespace-nowrap">Search a location above to filter by distance</span>
       <button
         type="button"

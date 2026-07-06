@@ -24,11 +24,11 @@ export function EmptyState({
         <div
           className={`
             flex items-center justify-center
-            rounded-2xl bg-gray-100
+            rounded-2xl bg-hs-red-50
             ${compact ? 'w-12 h-12 mb-4' : 'w-16 h-16 mb-6'}
           `}
         >
-          <span className={`text-gray-400 ${compact ? 'scale-75' : ''}`}>{icon}</span>
+          <span className={`text-hs-red-600 ${compact ? 'scale-75' : ''}`}>{icon}</span>
         </div>
       )}
       <h3
@@ -63,12 +63,13 @@ export function EmptyStateIllustrated({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-      {/* Abstract illustration */}
-      <div className="relative mb-8">
-        <div className="w-24 h-24 bg-gray-100 rounded-2xl" />
-        <div className="absolute -top-2 -right-2 w-12 h-12 bg-hs-red-100 rounded-xl" />
-        <div className="absolute -bottom-3 -left-3 w-8 h-8 bg-gray-200 rounded-lg" />
-      </div>
+      {/* Brand drop mark */}
+      <img
+        src="/hs-logo-drop.png"
+        alt=""
+        aria-hidden="true"
+        className="h-16 w-auto opacity-90 mb-8"
+      />
 
       <h2 className="text-xl font-semibold text-gray-900 mb-2">{title}</h2>
       <p className="text-gray-500 max-w-md mb-6">{description}</p>

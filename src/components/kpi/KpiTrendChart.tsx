@@ -27,17 +27,17 @@ export function KpiTrendChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#E8DED7" />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 12, fill: '#6b7280' }}
-          tickLine={{ stroke: '#e5e7eb' }}
-          axisLine={{ stroke: '#e5e7eb' }}
+          tick={{ fontSize: 12, fill: '#8F7067' }}
+          tickLine={{ stroke: '#E8DED7' }}
+          axisLine={{ stroke: '#E8DED7' }}
         />
         <YAxis
-          tick={{ fontSize: 12, fill: '#6b7280' }}
-          tickLine={{ stroke: '#e5e7eb' }}
-          axisLine={{ stroke: '#e5e7eb' }}
+          tick={{ fontSize: 12, fill: '#8F7067' }}
+          tickLine={{ stroke: '#E8DED7' }}
+          axisLine={{ stroke: '#E8DED7' }}
           tickFormatter={(value) => formatValue(value)}
         />
         <Tooltip
@@ -58,10 +58,10 @@ export function KpiTrendChart({
         <Line
           type="monotone"
           dataKey="value"
-          stroke="#db2777"
+          stroke="#ED1845"
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, fill: '#db2777' }}
+          activeDot={{ r: 4, fill: '#ED1845' }}
         />
       </LineChart>
     </ResponsiveContainer>

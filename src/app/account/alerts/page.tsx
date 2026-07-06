@@ -11,7 +11,7 @@ export default async function AlertsPage() {
   const alerts = await getMyAlerts()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <SiteHeader
         world="marketplace"
         title="My Alerts"

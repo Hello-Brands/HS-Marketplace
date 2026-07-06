@@ -88,13 +88,13 @@ export function MapLegend() {
             label="For sale"
             active={filters.showListings}
             onClick={() => setFilters({ showListings: !filters.showListings })}
-            swatch={<Dot color="#db2777" />}
+            swatch={<Dot color="#ED1845" />}
           />
           <ToggleRow
             label="Hello Sugar (not listed)"
             active={filters.showHsLocations}
             onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
-            swatch={<Dot color="#64748b" />}
+            swatch={<Dot color="#8F7067" />}
           />
 
           <div className="mt-1.5 border-t border-gray-100 pt-1.5">

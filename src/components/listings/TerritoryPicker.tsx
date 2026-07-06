@@ -120,7 +120,7 @@ export function TerritoryPicker({
             <Circle
               center={[center.lat, center.lng]}
               radius={radius}
-              pathOptions={{ color: '#db2777', fillOpacity: 0.2 }}
+              pathOptions={{ color: '#ED1845', fillOpacity: 0.2 }}
             />
           </MapContainer>
         </div>

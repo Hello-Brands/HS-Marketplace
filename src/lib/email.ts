@@ -144,17 +144,17 @@ export async function sendStatusChangeEmail(data: StatusChangeEmailData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #dc2626;">${msg.heading}</h1>
+      <h1 style="color: #ED1845;">${msg.heading}</h1>
       <p>Hi ${recipientName},</p>
       <p>${msg.body}</p>
       <p><strong>Listing:</strong> ${listingTitle}</p>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View Listing
         </a>
       </p>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-      <p style="color: #6b7280; font-size: 14px;">
+      <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />
+      <p style="color: #8F7067; font-size: 14px;">
         Hello Sugar Marketplace
       </p>
     </div>
@@ -176,19 +176,19 @@ export async function sendContactNotification(data: ContactNotificationData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #dc2626;">Someone is Interested!</h1>
+      <h1 style="color: #ED1845;">Someone is Interested!</h1>
       <p>Hi ${sellerName},</p>
       <p><strong>${buyerName}</strong> has expressed interest in your listing:</p>
       <p><strong>Listing:</strong> ${listingTitle}</p>
       ${message ? `<div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;"><p style="margin: 0;"><strong>Their message:</strong></p><p style="margin: 8px 0 0 0;">${message}</p></div>` : ""}
       <p><strong>Contact them at:</strong> <a href="mailto:${buyerEmail}">${buyerEmail}</a></p>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View Your Listing
         </a>
       </p>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-      <p style="color: #6b7280; font-size: 14px;">
+      <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />
+      <p style="color: #8F7067; font-size: 14px;">
         Hello Sugar Marketplace
       </p>
     </div>
@@ -211,7 +211,7 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #dc2626;">New Listing Matches Your Alert</h1>
+      <h1 style="color: #ED1845;">New Listing Matches Your Alert</h1>
       <p>Hi ${buyerName},</p>
       <p>A new listing has been posted that matches your saved alert criteria:</p>
       <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
@@ -221,14 +221,14 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
         <p style="margin: 0;">Asking Price: ${formattedPrice}</p>
       </div>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View Listing
         </a>
       </p>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-      <p style="color: #6b7280; font-size: 14px;">
+      <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />
+      <p style="color: #8F7067; font-size: 14px;">
         Hello Sugar Marketplace<br />
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/account/alerts" style="color: #6b7280;">Manage your alerts</a>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/account/alerts" style="color: #8F7067;">Manage your alerts</a>
       </p>
     </div>
   `
@@ -249,7 +249,7 @@ export async function sendReminderEmail(data: ReminderEmailData) {
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #dc2626;">Is Your Listing Still Active?</h1>
+      <h1 style="color: #ED1845;">Is Your Listing Still Active?</h1>
       <p>Hi ${sellerName},</p>
       <p>Your listing <strong>${listingTitle}</strong> has been active for ${daysSinceUpdate} days without an update.</p>
       <p>Has this location sold? If so, you can mark it sold with one click — no login required:</p>
@@ -268,12 +268,12 @@ export async function sendReminderEmail(data: ReminderEmailData) {
         <li>Any changes to included assets</li>
       </ul>
       <p>
-        <a href="${listingUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${listingUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           Update Listing
         </a>
       </p>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-      <p style="color: #6b7280; font-size: 14px;">
+      <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />
+      <p style="color: #8F7067; font-size: 14px;">
         Hello Sugar Marketplace
       </p>
     </div>
@@ -300,10 +300,10 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
       const loc = [c.city, c.state].filter(Boolean).join(", ")
       const nearest =
         c.nearestHsName != null && c.nearestHsMiles != null
-          ? `<p style="margin: 0 0 4px 0; color: #6b7280;">Nearest Hello Sugar: ${c.nearestHsName} (${c.nearestHsMiles} mi)</p>`
+          ? `<p style="margin: 0 0 4px 0; color: #8F7067;">Nearest Hello Sugar: ${c.nearestHsName} (${c.nearestHsMiles} mi)</p>`
           : ""
       const maps = c.mapsUrl
-        ? `<p style="margin: 0;"><a href="${c.mapsUrl}" style="color: #dc2626;">View on Google Maps</a></p>`
+        ? `<p style="margin: 0;"><a href="${c.mapsUrl}" style="color: #ED1845;">View on Google Maps</a></p>`
         : ""
       return `
         <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 0 0 12px 0;">
@@ -317,19 +317,19 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #dc2626;">New Competitor Closures Near Your Search</h1>
+      <h1 style="color: #ED1845;">New Competitor Closures Near Your Search</h1>
       <p>Hi ${buyerName},</p>
       <p>${n} new competitor closure${n !== 1 ? "s" : ""} appeared in the area of your saved search <strong>${searchName}</strong>:</p>
       ${cards}
       <p>
-        <a href="${searchUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+        <a href="${searchUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
           View your saved search
         </a>
       </p>
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-      <p style="color: #6b7280; font-size: 14px;">
+      <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />
+      <p style="color: #8F7067; font-size: 14px;">
         Hello Sugar Marketplace<br />
-        <a href="${appUrl}/account/alerts" style="color: #6b7280;">Manage your alerts</a>
+        <a href="${appUrl}/account/alerts" style="color: #8F7067;">Manage your alerts</a>
       </p>
     </div>
   `

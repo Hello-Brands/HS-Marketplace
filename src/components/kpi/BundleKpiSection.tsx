@@ -120,10 +120,10 @@ export function BundleKpiSection({ locations, territories }: BundleKpiSectionPro
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedId(null)} aria-hidden="true" />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8" role="dialog" aria-modal="true" aria-labelledby="bundle-location-modal-title">
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-8 max-h-[90dvh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="bundle-location-modal-title">
             <button
               onClick={() => setSelectedId(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
+              className="absolute top-3 right-3 h-11 w-11 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2"
               aria-label="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

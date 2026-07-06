@@ -119,7 +119,7 @@ export function ListingWizard({ userId }: ListingWizardProps) {
       router.push(`/seller/listings/${finalListingId}/submitted`)
     } catch (error) {
       console.error('Submit failed:', error)
-      setSubmitError('Something went wrong. Please try again.')
+      setSubmitError("We couldn't submit your listing. Check your connection and try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -168,7 +168,7 @@ export function ListingWizard({ userId }: ListingWizardProps) {
           <button
             type="button"
             onClick={handleSaveAndExit}
-            className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 rounded"
+            className="inline-flex items-center min-h-[44px] p-2 -m-2 text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 rounded"
           >
             Save &amp; Exit
           </button>

@@ -11,8 +11,8 @@ export default async function ActionCompletePage({
   const message = resolvedParams.message || (success ? 'Action completed' : 'Action failed')
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 text-center">
         <div className={`
           inline-flex items-center justify-center w-16 h-16 rounded-full mb-6
           ${success ? 'bg-green-100' : 'bg-hs-red-100'}
@@ -29,13 +29,13 @@ export default async function ActionCompletePage({
         </div>
 
         <h1 className={`text-xl font-bold mb-2 ${success ? 'text-gray-900' : 'text-hs-red-900'}`}>
-          {success ? 'Success!' : 'Action Failed'}
+          {success ? 'Success' : 'Action Failed'}
         </h1>
         <p className="text-gray-600 mb-6">{message}</p>
 
         <Link
           href="/seller/listings"
-          className="inline-flex px-6 py-2 bg-hs-red-600 text-white rounded-lg font-medium hover:bg-hs-red-700"
+          className="inline-flex min-h-[44px] items-center justify-center px-6 py-3 bg-hs-red-600 text-white rounded-full text-base font-semibold hover:bg-hs-red-700 transition-colors"
         >
           Go to My Listings
         </Link>

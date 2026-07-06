@@ -246,14 +246,14 @@ export function BrowsePage({
           </div>
 
           {/* Location search + radius + Save search */}
-          <div className="flex w-full sm:w-auto sm:flex-1 items-center gap-3 justify-end order-last sm:order-none">
+          <div className="flex w-full sm:w-auto sm:flex-1 flex-wrap items-center gap-3 justify-end order-last sm:order-none">
             <div className="max-w-sm flex-1 md:hidden">
               <LocationSearch onSelect={handleLocationSelect} />
             </div>
 
             {/* Radius control + active-location chip (only when a center is set) */}
             {searchCenter && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <label htmlFor="radius-slider" className="text-sm font-medium text-gray-700 whitespace-nowrap">
                   Within
                 </label>
@@ -283,7 +283,7 @@ export function BrowsePage({
                   onClick={handleClearLocation}
                   title={`Clear location: ${rawFilters.centerLabel}`}
                   className="
-                    inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] max-w-[220px]
+                    inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] min-w-0 max-w-[220px]
                     text-sm font-medium text-hs-red-700 bg-hs-red-50 hover:bg-hs-red-100
                     rounded-lg transition-colors
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2

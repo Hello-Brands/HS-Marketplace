@@ -254,7 +254,7 @@ function ListingTypePanel({
   onClear: () => void
 }) {
   return (
-    <div className="min-w-[200px]">
+    <div className="min-w-[200px] max-w-[calc(100vw-2rem)]">
       <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Listing type</h4>
       {LISTING_TYPES.map((t) => {
         const checked = selected.includes(t.value)
@@ -269,7 +269,7 @@ function ListingTypePanel({
         )
       })}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-        <button type="button" onClick={onClear} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
+        <button type="button" onClick={onClear} className="inline-flex items-center min-h-[36px] px-3 -ml-3 text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
           Clear
         </button>
         <span className="text-xs text-gray-400 tabular-nums">{selected.length} selected</span>
@@ -305,7 +305,7 @@ function FiltersPanel({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="Salon name, city, notes…"
-          className="w-full h-9 rounded-lg border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
+          className="w-full h-9 rounded-lg border border-gray-300 px-3 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
         />
       </div>
 
@@ -350,13 +350,13 @@ function FiltersPanel({
       </div>
 
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <button type="button" onClick={onClearAll} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
+        <button type="button" onClick={onClearAll} className="inline-flex items-center min-h-[36px] px-3 -ml-3 text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
           Clear
         </button>
         <button
           type="button"
           onClick={close}
-          className="px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700"
+          className="inline-flex items-center justify-center min-h-[36px] px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700"
         >
           Done
         </button>
@@ -383,7 +383,7 @@ function StatePanel({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search states…"
-        className="w-full h-9 rounded-lg border border-gray-300 px-3 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
+        className="w-full h-9 rounded-lg border border-gray-300 px-3 text-base sm:text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
       />
       <div className="max-h-[200px] overflow-y-auto grid grid-cols-2 gap-0.5 pr-0.5">
         {filtered.map((s) => {
@@ -400,7 +400,7 @@ function StatePanel({
         )}
       </div>
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-        <button type="button" onClick={onClear} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
+        <button type="button" onClick={onClear} className="inline-flex items-center min-h-[36px] px-3 -ml-3 text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
           Clear
         </button>
         <span className="text-xs text-gray-400 tabular-nums">{selected.length} selected</span>
@@ -437,7 +437,7 @@ function PricePanel({
   }
 
   return (
-    <div className="min-w-[260px]">
+    <div className="min-w-[260px] max-w-[calc(100vw-2rem)]">
       <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">Price range</h4>
       <div className="flex items-center gap-2">
         <PriceInput value={min} onChange={setMin} placeholder="Min" onEnter={apply} />
@@ -445,10 +445,10 @@ function PricePanel({
         <PriceInput value={max} onChange={setMax} placeholder="Max" onEnter={apply} />
       </div>
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        <button type="button" onClick={clear} className="text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
+        <button type="button" onClick={clear} className="inline-flex items-center min-h-[36px] px-3 -ml-3 text-xs font-semibold text-hs-red-600 hover:text-hs-red-700">
           Clear
         </button>
-        <button type="button" onClick={apply} className="px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700">
+        <button type="button" onClick={apply} className="inline-flex items-center justify-center min-h-[36px] px-3.5 py-1.5 rounded-lg bg-hs-red-600 text-white text-xs font-semibold hover:bg-hs-red-700">
           Apply
         </button>
       </div>
@@ -475,7 +475,7 @@ function PriceInput({
         onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
         onKeyDown={(e) => { if (e.key === "Enter") onEnter() }}
         placeholder={placeholder}
-        className="w-full h-10 rounded-lg border border-gray-300 pl-6 pr-2 text-sm text-gray-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
+        className="w-full h-10 rounded-lg border border-gray-300 pl-6 pr-2 text-base sm:text-sm text-gray-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
       />
     </div>
   )

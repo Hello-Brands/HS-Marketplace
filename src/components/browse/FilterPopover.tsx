@@ -87,7 +87,7 @@ export function FilterPopover({
           role="dialog"
           className={`
             absolute z-30 mt-2 ${align === "right" ? "right-0" : "left-0"}
-            rounded-2xl border border-gray-200 bg-white shadow-xl p-3 min-w-[240px]
+            rounded-2xl border border-gray-200 bg-white shadow-xl p-3 min-w-[240px] max-w-[calc(100vw-2rem)]
             origin-top animate-[filterpop_140ms_ease-out]
             ${panelClassName}
           `}

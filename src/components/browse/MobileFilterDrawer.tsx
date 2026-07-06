@@ -31,7 +31,7 @@ export function MobileFilterDrawer({ isOpen, onClose, onLocationSelect }: Mobile
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 lg:hidden">
+    <div className="fixed inset-0 z-50 md:hidden">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -51,7 +51,7 @@ export function MobileFilterDrawer({ isOpen, onClose, onLocationSelect }: Mobile
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
+            className="h-11 w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
             aria-label="Close filters"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">

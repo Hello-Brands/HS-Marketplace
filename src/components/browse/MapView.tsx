@@ -78,7 +78,7 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
   const place = [c.city, c.state].filter(Boolean).map(escapeHtml).join(", ")
 
   const oppChip = c.isOpportunity
-    ? `<div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#F3E4D0;color:#B9772E;padding:2px 8px;border-radius:999px;margin-bottom:6px;">★ Opportunity</div>`
+    ? `<div style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#F3E4D0;color:#B9772E;padding:2px 8px;border-radius:999px;margin-bottom:6px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.26 6.6.7-4.95 4.5 1.4 6.54L12 16.77 6.05 20l1.4-6.54L2.5 8.96l6.6-.7L12 2z"/></svg>Opportunity</div>`
     : ""
 
   const detected = c.closedAt
@@ -97,7 +97,7 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
   const saveBtn = `
     <button type="button" data-save-place-id="${escapeHtml(c.googlePlaceId)}" aria-pressed="${saved}"
       style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:600;cursor:pointer;background:none;border:none;padding:0;color:${saved ? "#ED1845" : "#8F7067"};">
-      <span style="font-size:14px;line-height:1;">${saved ? "♥" : "♡"}</span>${saved ? "Saved" : "Save competitor"}
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="${saved ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${saved ? "Saved" : "Save competitor"}
     </button>`
 
   return `
@@ -236,7 +236,7 @@ export function MapView({
         inner.style.cssText = `
           width: 16px;
           height: 16px;
-          background-color: #db2777;
+          background-color: #ED1845;
           border: 2px solid white;
           border-radius: 50%;
           cursor: pointer;
@@ -252,12 +252,12 @@ export function MapView({
         }).setHTML(`
           <div style="font-family: sans-serif; padding: 4px;">
             ${listing.primaryPhotoUrl ? `<img src="${listing.primaryPhotoUrl}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" />` : ""}
-            <div style="font-size:16px;font-weight:600;color:#111;">${formatUsdCentsCompact(listing.askingPrice)}</div>
-            <div style="font-size:13px;color:#6b7280;">${[listing.city, listing.state].filter(Boolean).join(", ") || "Location not specified"}</div>
+            <div style="font-size:16px;font-weight:600;color:#1F1917;">${formatUsdCentsCompact(listing.askingPrice)}</div>
+            <div style="font-size:13px;color:#8F7067;">${[listing.city, listing.state].filter(Boolean).join(", ") || "Location not specified"}</div>
             <div style="margin-top:6px;">
-              <span style="font-size:11px;font-weight:500;background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:999px;">${listing.type.charAt(0).toUpperCase() + listing.type.slice(1)}</span>
+              <span style="font-size:11px;font-weight:500;background:#F7DCDA;color:#C9143B;padding:2px 8px;border-radius:999px;">${listing.type.charAt(0).toUpperCase() + listing.type.slice(1)}</span>
             </div>
-            <div style="margin-top:8px;font-size:13px;color:#db2777;font-weight:500;">Click to view details →</div>
+            <div style="margin-top:8px;font-size:13px;color:#ED1845;font-weight:500;">Click to view details →</div>
           </div>
         `)
 
@@ -310,12 +310,12 @@ export function MapView({
       if (id === hoveredId) {
         // Scale/recolor the inner element (MapTiler doesn't touch it).
         inner.style.transform = "scale(1.3)"
-        inner.style.backgroundColor = "#9d174d"
+        inner.style.backgroundColor = "#C9143B"
         // zIndex on the outer element is safe — MapTiler doesn't set it.
         el.style.zIndex = "10"
       } else {
         inner.style.transform = "scale(1)"
-        inner.style.backgroundColor = "#db2777"
+        inner.style.backgroundColor = "#ED1845"
         el.style.zIndex = ""
       }
     }
@@ -355,13 +355,13 @@ export function MapView({
             id: `${RADIUS_SOURCE}-fill`,
             type: "fill",
             source: RADIUS_SOURCE,
-            paint: { "fill-color": "#db2777", "fill-opacity": 0.1 },
+            paint: { "fill-color": "#ED1845", "fill-opacity": 0.1 },
           })
           m.addLayer({
             id: `${RADIUS_SOURCE}-line`,
             type: "line",
             source: RADIUS_SOURCE,
-            paint: { "line-color": "#db2777", "line-width": 2, "line-opacity": 0.85 },
+            paint: { "line-color": "#ED1845", "line-width": 2, "line-opacity": 0.85 },
           })
         }
         // Frame the circle's bounding box.
@@ -401,7 +401,7 @@ export function MapView({
         // hs-red-600 teardrop pin, anchored at its tip; distinct from the
         // smaller pink listing dots.
         inner.innerHTML = `
-          <svg width="30" height="38" viewBox="0 0 24 24" fill="#db2777"
+          <svg width="30" height="38" viewBox="0 0 24 24" fill="#ED1845"
                stroke="white" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
             <circle cx="12" cy="9" r="2.5" fill="white" stroke="none"/>
@@ -507,7 +507,7 @@ export function MapView({
         inner.style.cssText = `
           width: 16px;
           height: 16px;
-          background-color: #64748b;
+          background-color: #8F7067;
           border: 2px solid white;
           border-radius: 50%;
           cursor: default;

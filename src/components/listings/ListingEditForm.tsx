@@ -47,7 +47,7 @@ export function ListingEditForm({ listingId, initialData, isRejected, isAdmin = 
       }
       router.refresh()
     } catch (error) {
-      setFormError((error as Error).message || 'Something went wrong. Please try again.')
+      setFormError((error as Error).message || "We couldn't save your changes. Check your connection and try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -68,7 +68,7 @@ export function ListingEditForm({ listingId, initialData, isRejected, isAdmin = 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-medium mb-4">Financials</h3>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="askingPrice" className="block text-sm font-medium text-gray-700 mb-1">
                 Asking Price
