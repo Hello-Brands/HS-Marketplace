@@ -332,17 +332,70 @@ git commit -m "feat: pure predicates for unlisted HS location filtering"
 
 ---
 
-### Task 3: Hover popup builder (`hs-location-popup.ts`)
+### Task 3: Shared `escapeHtml` util + hover popup builder
 
 **Files:**
+- Create: `src/lib/escape-html.ts`
 - Create: `src/components/browse/hs-location-popup.ts`
+- Test: `src/__tests__/escape-html.test.ts`
 - Test: `src/__tests__/hs-location-popup.test.ts`
 
 **Interfaces:**
 - Consumes: `UnlistedHsLocation` from `@/lib/hs-locations-filter`.
-- Produces: `hsLocationPopupHtml(loc: UnlistedHsLocation): string` — a self-contained, HTML-escaped popup fragment containing name, city/state, and "Open since {year}", with NO owner PII.
+- Produces:
+  - `escapeHtml(value: string): string` from `@/lib/escape-html` — shared HTML-entity escaper (Task 7 refactors `MapView`'s private copy to use it).
+  - `hsLocationPopupHtml(loc: UnlistedHsLocation): string` — a self-contained, HTML-escaped popup fragment containing name, city/state, and "Open since {year}", with NO owner PII.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing test for `escapeHtml`**
+
+Create `src/__tests__/escape-html.test.ts`:
+
+```ts
+import { describe, it, expect } from "vitest"
+import { escapeHtml } from "@/lib/escape-html"
+
+describe("escapeHtml", () => {
+  it("escapes the five HTML-significant characters", () => {
+    expect(escapeHtml(`<a href="x" class='y'>&</a>`)).toBe(
+      "&lt;a href=&quot;x&quot; class=&#39;y&#39;&gt;&amp;&lt;/a&gt;"
+    )
+  })
+  it("escapes ampersands first (no double-escaping)", () => {
+    expect(escapeHtml("&lt;")).toBe("&amp;lt;")
+  })
+  it("leaves plain text untouched", () => {
+    expect(escapeHtml("Austin Domain")).toBe("Austin Domain")
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npm test -- escape-html`
+Expected: FAIL — cannot resolve `@/lib/escape-html`.
+
+- [ ] **Step 3: Write the `escapeHtml` util**
+
+Create `src/lib/escape-html.ts`:
+
+```ts
+/** Escape the five HTML-significant characters for safe injection into markup. */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npm test -- escape-html`
+Expected: PASS (all cases).
+
+- [ ] **Step 5: Write the failing popup test**
 
 Create `src/__tests__/hs-location-popup.test.ts`:
 
@@ -391,28 +444,18 @@ describe("hsLocationPopupHtml", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 6: Run test to verify it fails**
 
 Run: `npm test -- hs-location-popup`
 Expected: FAIL — cannot resolve `@/components/browse/hs-location-popup`.
 
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 7: Write the implementation**
 
 Create `src/components/browse/hs-location-popup.ts`:
 
 ```ts
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
-
-// Escape untrusted text before injecting into popup HTML. (Mirrors the local
-// helper in MapView.tsx; kept here so the builder is independently testable.)
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
+import { escapeHtml } from "@/lib/escape-html"
 
 /**
  * Brand-styled hover card for an open Hello Sugar location that is not for sale.
@@ -445,16 +488,16 @@ export function hsLocationPopupHtml(loc: UnlistedHsLocation): string {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 8: Run test to verify it passes**
 
 Run: `npm test -- hs-location-popup`
 Expected: PASS (all cases).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add src/components/browse/hs-location-popup.ts src/__tests__/hs-location-popup.test.ts
-git commit -m "feat: non-PII hover popup for unlisted HS locations"
+git add src/lib/escape-html.ts src/components/browse/hs-location-popup.ts src/__tests__/escape-html.test.ts src/__tests__/hs-location-popup.test.ts
+git commit -m "feat: shared escapeHtml util + non-PII hover popup for unlisted HS locations"
 ```
 
 ---
@@ -902,7 +945,7 @@ git commit -m "feat(sync): preserve and backfill owner_locations coordinates"
 - Modify: `src/components/browse/MapView.tsx`
 
 **Interfaces:**
-- Consumes: `hsLocationPopupHtml` from `./hs-location-popup`; `UnlistedHsLocation` from `@/lib/hs-locations-filter`.
+- Consumes: `hsLocationPopupHtml` from `./hs-location-popup`; `UnlistedHsLocation` from `@/lib/hs-locations-filter`; `escapeHtml` from `@/lib/escape-html`.
 - Produces: `MapView` accepts `hsLocations?: UnlistedHsLocation[]` and `showHsLocations?: boolean` (default true) and renders slate `#64748b` dots with hover popups and NO click handler.
 
 > No unit test (MapTiler needs WebGL; repo has no DOM test env). Gate with `tsc`; behavior verified in Task 10.
@@ -914,7 +957,12 @@ At the top of `src/components/browse/MapView.tsx`, after the existing `Competito
 ```ts
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { hsLocationPopupHtml } from "./hs-location-popup"
+import { escapeHtml } from "@/lib/escape-html"
 ```
+
+- [ ] **Step 1b: Remove MapView's private `escapeHtml`, using the shared util**
+
+Delete the local `escapeHtml` function definition in `MapView.tsx` (the `function escapeHtml(value: string): string { ... }` block near the top). The existing call sites (competitor popup, etc.) now resolve to the imported `escapeHtml` from `@/lib/escape-html` — identical behavior. Verify no duplicate declaration remains.
 
 - [ ] **Step 2: Extend the props interface**
 
