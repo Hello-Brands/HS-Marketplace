@@ -19,7 +19,8 @@ const { mockAuth, mockInsert, valuesCalls, valuesImpl } = vi.hoisted(() => {
 vi.mock("@/auth", () => ({ auth: mockAuth }))
 vi.mock("@/db", () => ({ db: { insert: mockInsert } }))
 
-import { acknowledgeSellingDisclaimer, FDD_VERSION } from "@/lib/listings/disclaimer-actions"
+import { acknowledgeSellingDisclaimer } from "@/lib/listings/disclaimer-actions"
+import { FDD_VERSION } from "@/lib/listings/fdd"
 
 beforeEach(() => {
   vi.clearAllMocks()

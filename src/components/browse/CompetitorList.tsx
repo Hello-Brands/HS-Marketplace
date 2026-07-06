@@ -64,13 +64,16 @@ export function CompetitorList({
             >
               <div className="flex-1 min-w-0">
                 {c.isOpportunity && (
-                  <span className="inline-block text-[10px] font-bold uppercase tracking-wide bg-[#F3E4D0] text-[#B9772E] px-2 py-0.5 rounded-full mb-1">
-                    ★ Opportunity
+                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide bg-[#F3E4D0] text-[#B9772E] px-2 py-0.5 rounded-full mb-1">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3" aria-hidden="true">
+                      <path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z" />
+                    </svg>
+                    Opportunity
                   </span>
                 )}
                 <p className="text-sm font-bold text-gray-900 truncate">{c.brandName}</p>
                 <span
-                  className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1"
+                  className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full mt-1"
                   style={{
                     backgroundColor: permanent ? "#F7DCDA" : "#F3E4D0",
                     color: permanent ? "#C0142F" : "#B9772E",

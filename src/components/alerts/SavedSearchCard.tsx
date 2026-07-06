@@ -33,17 +33,17 @@ export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify }: S
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {renaming ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 autoFocus
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") saveName() }}
                 placeholder={summary}
-                className="h-9 rounded-lg border border-gray-300 px-3 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
+                className="h-9 w-full min-w-0 rounded-lg border border-gray-300 px-3 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
               />
-              <button onClick={saveName} disabled={busy} className="text-sm font-semibold text-hs-red-600 hover:text-hs-red-700">Save</button>
-              <button onClick={() => { setRenaming(false); setDraftName(alert.name ?? "") }} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+              <button onClick={saveName} disabled={busy} className="inline-flex items-center min-h-[40px] px-2 text-sm font-semibold text-hs-red-600 hover:text-hs-red-700">Save</button>
+              <button onClick={() => { setRenaming(false); setDraftName(alert.name ?? "") }} className="inline-flex items-center min-h-[40px] px-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
             </div>
           ) : (
             <>
@@ -73,9 +73,9 @@ export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify }: S
           Apply search →
         </Link>
         {!renaming && (
-          <button onClick={() => setRenaming(true)} className="text-sm font-medium text-gray-600 hover:text-gray-900">Rename</button>
+          <button onClick={() => setRenaming(true)} className="inline-flex items-center min-h-[40px] px-2 -mx-2 text-sm font-medium text-gray-600 hover:text-gray-900">Rename</button>
         )}
-        <button onClick={() => onDelete(alert.id)} className="text-sm font-medium text-hs-red-600 hover:text-hs-red-700 ml-auto">Delete</button>
+        <button onClick={() => onDelete(alert.id)} className="inline-flex items-center min-h-[40px] px-2 -mr-2 text-sm font-medium text-hs-red-600 hover:text-hs-red-700 ml-auto">Delete</button>
       </div>
     </div>
   )

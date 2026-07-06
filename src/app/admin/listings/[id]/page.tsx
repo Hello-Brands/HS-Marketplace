@@ -42,8 +42,8 @@ export default async function AdminListingDetailPage({
         </Link>
       </div>
 
-      <div className="flex items-start justify-between mb-6">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-y-2 mb-6">
+        <div className="min-w-0">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="font-display text-2xl font-bold text-gray-900">{listing.title}</h1>
             <StatusBadge status={listing.status} size="md" />
@@ -65,7 +65,7 @@ export default async function AdminListingDetailPage({
         <div className="lg:col-span-2 space-y-6">
           {listing.photos.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-4">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {listing.photos.map((photo, i) => (
                   <div
                     key={photo.id}

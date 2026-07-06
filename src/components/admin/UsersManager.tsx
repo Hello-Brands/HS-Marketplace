@@ -178,7 +178,7 @@ export function UsersManager({
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-hs-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-base sm:text-sm text-gray-900 placeholder:text-gray-400 focus:border-hs-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
           />
           {search.trim() && (
             <p className="mt-1.5 text-xs text-gray-500">

@@ -78,7 +78,7 @@ export function ListingCard({ listing, isHovered, onHover, compact }: ListingCar
             </p>
             <span
               className={`
-                shrink-0 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-md
+                shrink-0 inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md
                 ${TYPE_COLORS[listing.type] ?? "bg-gray-100 text-gray-700"}
               `}
             >

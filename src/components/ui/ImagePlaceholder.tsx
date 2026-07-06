@@ -8,7 +8,7 @@ export function ImagePlaceholder({ className = '', text = 'No image' }: ImagePla
     <div
       className={`
         flex flex-col items-center justify-center
-        bg-gray-100 text-gray-400
+        bg-hs-caramel-50 text-hs-caramel-600
         ${className}
       `.trim().replace(/\s+/g, ' ')}
     >

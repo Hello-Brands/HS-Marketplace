@@ -14,7 +14,7 @@ function Cell({ icon, value, label }: { icon: React.ReactNode; value: string; la
         <span className="text-hs-red-600">{icon}</span>
         {value}
       </div>
-      <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+      <div className="mt-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
         {label}
       </div>
     </div>

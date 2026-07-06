@@ -89,9 +89,9 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`text-sm px-3 py-1.5 rounded-full transition-colors ${
+                    className={`text-sm font-semibold px-3 py-1.5 rounded-full transition-colors ${
                       active
-                        ? "bg-white text-[#ED1845] font-semibold shadow-sm"
+                        ? "bg-white text-[#ED1845] shadow-sm"
                         : "text-white/90 hover:bg-white/15"
                     }`}
                   >

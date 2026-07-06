@@ -59,8 +59,8 @@ export default async function SellerListingDetailPage({
         </div>
       )}
 
-      <div className="flex items-start justify-between mb-6">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-y-2 mb-6">
+        <div className="min-w-0">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
             <StatusBadge status={listing.status as ListingStatus} size="md" />
@@ -84,7 +84,7 @@ export default async function SellerListingDetailPage({
           {/* Photos */}
           {listing.photos.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {listing.photos.map((photo, i) => (
                   <div
                     key={photo.id}

@@ -22,22 +22,22 @@ const variantStyles: Record<ButtonVariant, string> = {
     shadow-sm hover:shadow-md
   `,
   secondary: `
-    bg-gray-900 text-white
-    hover:bg-gray-800
-    active:bg-gray-950
-    disabled:bg-gray-300 disabled:text-gray-500
+    bg-white text-gray-900
+    border border-gray-300
+    hover:bg-gray-50
+    active:bg-gray-100
+    disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white
   `,
   outline: `
-    bg-white text-gray-900
-    border-2 border-gray-900
-    hover:bg-gray-900 hover:text-white
-    active:bg-gray-800
-    disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-white
+    bg-hs-red-100 text-hs-red-700
+    hover:bg-hs-red-200
+    active:bg-hs-red-200
+    disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-gray-100
   `,
   ghost: `
     bg-transparent text-gray-700
-    hover:bg-gray-100 hover:text-gray-900
-    active:bg-gray-200
+    hover:bg-hs-red-50 hover:text-gray-900
+    active:bg-hs-red-100
     disabled:text-gray-400 disabled:hover:bg-transparent
   `,
   danger: `
@@ -49,10 +49,10 @@ const variantStyles: Record<ButtonVariant, string> = {
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-sm gap-1.5',
-  md: 'px-4 py-2 text-sm gap-2',
-  lg: 'px-5 py-2.5 text-base gap-2',
-  xl: 'px-6 py-3 text-base gap-2.5',
+  sm: 'min-h-9 px-3.5 py-1.5 text-sm gap-1.5',
+  md: 'min-h-11 px-4 py-2 text-sm gap-2',
+  lg: 'min-h-12 px-5 py-2.5 text-base gap-2',
+  xl: 'min-h-14 px-6 py-3 text-base gap-2.5',
 }
 
 const iconSizeStyles: Record<ButtonSize, string> = {
@@ -88,7 +88,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         className={`
           inline-flex items-center justify-center
-          font-semibold rounded-lg
+          font-semibold rounded-full
           transition-all duration-200 ease-out
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
           disabled:cursor-not-allowed

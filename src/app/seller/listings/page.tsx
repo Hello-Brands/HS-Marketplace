@@ -47,8 +47,8 @@ export default async function SellerListingsPage() {
   // Multiple listings: show card grid
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Listings</h1>
+      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-6">
+        <h1 className="min-w-0 text-2xl font-bold text-gray-900">My Listings</h1>
         <Link
           href="/seller/listings/new"
           className="px-4 py-2 bg-hs-red-600 text-white rounded-lg text-sm font-medium hover:bg-hs-red-700"

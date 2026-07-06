@@ -1,20 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit, Source_Sans_3, Geist_Mono } from "next/font/google";
+import { Montserrat, Geist_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 
-const outfit = Outfit({
-  variable: "--font-outfit",
+// Montserrat is the Hello Sugar UI font — everything functional runs on it.
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
-const sourceSans = Source_Sans_3({
-  variable: "--font-source-sans",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -46,9 +40,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${sourceSans.variable} ${geistMono.variable} h-full`}
+      className={`${montserrat.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col bg-white text-gray-900 antialiased">
+      {/* bg/text come from globals.css tokens: cream page, warm-ink text */}
+      <body className="min-h-full flex flex-col antialiased">
         <NuqsAdapter>{children}</NuqsAdapter>
       </body>
     </html>

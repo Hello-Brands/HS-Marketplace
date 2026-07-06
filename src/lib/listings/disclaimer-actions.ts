@@ -3,10 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/db"
 import { listingDisclaimerAcknowledgments } from "@/db/schema"
-
-// Version of the disclaimer/FDD the seller is acknowledging. Bump deliberately
-// when the fee terms change so the audit log records which version applied.
-export const FDD_VERSION = "2026"
+import { FDD_VERSION } from "./fdd"
 
 /**
  * Record that the current seller acknowledged the "Selling Your Franchise"

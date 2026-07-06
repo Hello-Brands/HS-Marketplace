@@ -146,7 +146,7 @@ export function OwnerDirectory({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search owner, email, or location…"
-            className="w-full sm:w-80 rounded-lg border border-gray-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
+            className="w-full sm:w-80 rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
           />
         </div>
         <p className="text-sm text-gray-500">{filtered.length} shown</p>

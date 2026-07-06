@@ -11,7 +11,7 @@ export function hsLocationPopupHtml(loc: UnlistedHsLocation): string {
     .map(escapeHtml)
     .join(", ")
 
-  const badge = `<div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#eef2f7;color:#64748b;padding:2px 8px;border-radius:999px;margin-bottom:6px;">Hello Sugar · not for sale</div>`
+  const badge = `<div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#EEE2DA;color:#8F7067;padding:2px 8px;border-radius:999px;margin-bottom:6px;">Hello Sugar · not for sale</div>`
 
   const placeLine = place
     ? `<div style="font-size:12px;color:#8F7067;margin-top:6px;">${place}</div>`

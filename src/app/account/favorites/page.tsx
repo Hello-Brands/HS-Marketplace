@@ -179,11 +179,11 @@ export default async function FavoritesPage() {
                   >
                     <p className="text-sm font-bold text-gray-900 truncate">{c.brandName}</p>
                     <span
-                      className="inline-block w-fit text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: permanent ? '#F7DCDA' : '#F3E4D0',
-                        color: permanent ? '#C0142F' : '#B9772E',
-                      }}
+                      className={`inline-block w-fit text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        permanent
+                          ? 'bg-hs-red-100 text-hs-red-700'
+                          : 'bg-hs-caramel-50 text-hs-caramel-600'
+                      }`}
                     >
                       {competitorStatusLabel(c.businessStatus)}
                     </span>

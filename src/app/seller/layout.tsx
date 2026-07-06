@@ -18,7 +18,7 @@ export default async function SellerLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <SiteHeader world="marketplace" />
       <main className="max-w-5xl mx-auto px-4 lg:px-6 py-8">{children}</main>
     </div>
