@@ -179,19 +179,34 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
   // whose address changed). Never blocks the sync; silent when no MapTiler key.
   let geocoded = 0
   if (process.env.MAPTILER_API_KEY) {
-    const missing = await db
-      .select({ id: ownerLocations.id, locationAddress: ownerLocations.locationAddress })
-      .from(ownerLocations)
-      .where(isNull(ownerLocations.latitude))
-    for (const m of missing) {
-      if (!m.locationAddress) continue
-      const geo = await geocodeAddress(m.locationAddress)
-      if (!geo) continue
-      await db
-        .update(ownerLocations)
-        .set({ latitude: geo.lat, longitude: geo.lng, geocodedAt: new Date() })
-        .where(eq(ownerLocations.id, m.id))
-      geocoded++
+    try {
+      const missing = await db
+        .select({ id: ownerLocations.id, locationAddress: ownerLocations.locationAddress })
+        .from(ownerLocations)
+        .where(isNull(ownerLocations.latitude))
+      for (const m of missing) {
+        if (!m.locationAddress) continue
+        try {
+          const geo = await geocodeAddress(m.locationAddress)
+          if (!geo) continue
+          await db
+            .update(ownerLocations)
+            .set({ latitude: geo.lat, longitude: geo.lng, geocodedAt: new Date() })
+            .where(eq(ownerLocations.id, m.id))
+          geocoded++
+        } catch (err) {
+          console.error(
+            `owner-directory sync: geocode backfill failed for location ${m.id} (directory sync already committed)`,
+            err,
+          )
+          continue
+        }
+      }
+    } catch (err) {
+      console.error(
+        "owner-directory sync: geocode backfill step failed (directory sync already committed)",
+        err,
+      )
     }
   }
 
