@@ -49,6 +49,7 @@ export function useListingFilters() {
     centerLabel: parseAsString.withDefault(""),
     showListings: parseAsBoolean.withDefault(true),
     showCompetitors: parseAsBoolean.withDefault(true),
+    showHsLocations: parseAsBoolean.withDefault(true),
   })
 }
 
