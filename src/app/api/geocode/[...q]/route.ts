@@ -1,5 +1,6 @@
 import { buildUpstreamGeocodeUrl } from "@/lib/geocode/url"
 import { requireSession } from "@/lib/auth-guards"
+import { checkRateLimit } from "@/lib/rate-limit"
 
 // Proxies MapTiler geocoding using the UNRESTRICTED server key so in-browser
 // autocomplete works on any origin (the public key is referer-restricted to
@@ -10,10 +11,29 @@ export async function GET(
 ) {
   // Defense-in-depth: this proxy spends our unrestricted server API key, so
   // require a session at the handler level in case the middleware is bypassed.
+  let userId: string
   try {
-    await requireSession()
+    const user = await requireSession()
+    userId = user.id as string
   } catch {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // Throttle per user (DEBT-028). Interactive autocomplete fires several
+  // debounced requests as the user types, so allow a generous burst but cap
+  // sustained abuse that would burn our MapTiler quota. Best-effort (see
+  // rate-limit.ts): per-instance only, not a distributed guarantee.
+  const limit = checkRateLimit(`geocode:${userId}`, 30, 10_000)
+  if (!limit.allowed) {
+    return Response.json(
+      { error: "Rate limit exceeded" },
+      {
+        status: 429,
+        headers: {
+          "retry-after": String(Math.ceil((limit.retryAfterMs ?? 0) / 1000)),
+        },
+      },
+    )
   }
 
   const apiKey = process.env.MAPTILER_API_KEY

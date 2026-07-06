@@ -29,6 +29,7 @@ vi.mock("@/db", () => ({
 // Import after mocks
 import { submitContactForm, hasContactedListing } from "@/lib/contact-actions"
 import { sendContactNotification } from "@/lib/email"
+import { __resetRateLimits } from "@/lib/rate-limit"
 
 // Helper to build a FormData
 function makeFormData(fields: Record<string, string>): FormData {
@@ -44,6 +45,7 @@ const VALID_LISTING_ID = "550e8400-e29b-41d4-a716-446655440000"
 describe("submitContactForm", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetRateLimits()
     // Reset insert chain
     mockInsert.mockReturnValue({ values: vi.fn().mockResolvedValue(undefined) })
   })
@@ -250,6 +252,7 @@ describe("submitContactForm", () => {
 describe("hasContactedListing", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __resetRateLimits()
   })
 
   it("returns false if not authenticated", async () => {

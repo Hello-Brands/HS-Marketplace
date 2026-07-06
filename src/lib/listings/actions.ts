@@ -9,6 +9,7 @@ import { canTransition } from './status-machine'
 import { nextListedAt } from '@/lib/analytics/helpers'
 import { buildListingUpdate } from './build-update'
 import { requireSellerAccess } from '@/lib/auth-guards'
+import { hasAcknowledgedCurrentFdd } from './disclaimer'
 import {
   buildLocationInserts,
   buildPhotoInserts,
@@ -59,6 +60,15 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
     }
 
     return { success: true, listingId }
+  }
+
+  // Enforce the "Selling Your Franchise" disclaimer server-side (DEBT-022). The
+  // client gate reveals the wizard after acknowledgeSellingDisclaimer(), but a
+  // seller could POST to the create action directly without ever passing the gate.
+  // Only the create-new path is guarded; editing an existing listing (the
+  // listingId branch above) is unaffected.
+  if (!(await hasAcknowledgedCurrentFdd(user.id!))) {
+    throw new Error('You must acknowledge the seller disclaimer before creating a listing.')
   }
 
   // Create new draft — all-or-nothing. The listing id is app-generated up front so

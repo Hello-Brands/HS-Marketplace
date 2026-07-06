@@ -13,6 +13,7 @@ const {
   mockUpdate,
   setWhere,
   mockBatch,
+  mockHasAck,
   inserts,
   deletes,
   awaitedInserts,
@@ -23,6 +24,7 @@ const {
   mockUpdate: vi.fn(),
   setWhere: vi.fn(),
   mockBatch: vi.fn(),
+  mockHasAck: vi.fn(),
   // Every query object built (whether or not it ends up in a batch).
   inserts: [] as { table: unknown; values: Record<string, unknown> }[],
   deletes: [] as unknown[],
@@ -33,6 +35,9 @@ const {
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+// DEBT-022: the create path enforces the seller disclaimer server-side. Mock the
+// helper so create tests can opt in (acknowledged) or assert the guard rejects.
+vi.mock('@/lib/listings/disclaimer', () => ({ hasAcknowledgedCurrentFdd: mockHasAck }))
 vi.mock('@/lib/owner-directory/data', () => ({
   getMyOwnerLocations: vi.fn().mockResolvedValue({ locations: [] }),
 }))
@@ -90,6 +95,8 @@ beforeEach(() => {
   mockAuth.mockResolvedValue({ user: { id: 'seller-1', role: 'user', sellerAccess: true } })
   mockUpdate.mockReturnValue({ set: vi.fn(() => ({ where: setWhere })) })
   mockBatch.mockResolvedValue([])
+  // Default: the seller has acknowledged the current FDD (create is allowed).
+  mockHasAck.mockResolvedValue(true)
 })
 
 describe('saveDraft create path — atomic batch', () => {
@@ -172,6 +179,59 @@ describe('saveDraft create path — atomic batch', () => {
     expect(mockBatch).toHaveBeenCalledTimes(1)
     expect(awaitedInserts.count).toBe(0)
     expect(awaitedDeletes.count).toBe(0)
+  })
+})
+
+// DEBT-022: the "Selling Your Franchise" disclaimer is enforced server-side on the
+// create path — not just by the client gate. A seller who never acknowledged (e.g.
+// calls the create action directly) must be rejected before any write happens.
+describe('saveDraft create path — disclaimer gate', () => {
+  it('rejects creating a new listing when the seller has not acknowledged the FDD', async () => {
+    mockHasAck.mockResolvedValue(false)
+
+    await expect(
+      saveDraft({
+        askingPrice: 100_000,
+        locations: [
+          {
+            id: 'loc-1',
+            type: 'territory',
+            name: 'Austin Territory',
+            territoryLat: 30.26,
+            territoryLng: -97.74,
+            territoryRadius: 25,
+          },
+        ],
+        photos: [{ id: 'p-1', url: 'https://cdn/p1.jpg', filename: 'p1.jpg', order: 0 }],
+      }),
+    ).rejects.toThrow('acknowledge the seller disclaimer')
+
+    // The guard runs BEFORE any persistence — nothing was written.
+    expect(mockHasAck).toHaveBeenCalledWith('seller-1')
+    expect(mockBatch).not.toHaveBeenCalled()
+    expect(awaitedInserts.count).toBe(0)
+  })
+
+  it('allows creating a new listing once the seller has acknowledged the FDD', async () => {
+    mockHasAck.mockResolvedValue(true)
+
+    const result = await saveDraft({
+      askingPrice: 100_000,
+      locations: [
+        {
+          id: 'loc-1',
+          type: 'territory',
+          name: 'Austin Territory',
+          territoryLat: 30.26,
+          territoryLng: -97.74,
+          territoryRadius: 25,
+        },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockHasAck).toHaveBeenCalledWith('seller-1')
+    expect(mockBatch).toHaveBeenCalledTimes(1)
   })
 })
 
