@@ -39,7 +39,7 @@ only a **completed sale/transfer** is permanent.
 | Re-show behavior | **Every visit** to `/seller/listings/new`. Not shown on the edit flow. |
 | Record acknowledgment | **Yes** — append-only audit row per acknowledgment (userId, fddVersion, timestamp). |
 | Record-to-proceed | If recording fails, show a retry error and do NOT reveal the wizard. |
-| Schema apply | `db:push` (consistent with current push-managed state; hand-authored migration is the stricter alternative). |
+| Schema apply | **Hand-authored migration `0004` + `db:migrate`** (NOT `db:push` — see Migration safety). |
 
 ## Context (current state)
 
@@ -135,11 +135,37 @@ export const listingDisclaimerAcknowledgments = pgTable(
 ```
 
 Append-only (no updates/deletes from the app). Add `export * from
-"./schema/disclaimerAcknowledgments"` to `src/db/schema.ts`. Apply with
-`npm run db:push`.
+"./schema/disclaimerAcknowledgments"` to `src/db/schema.ts`.
 
 The acknowledgment happens before any listing exists, so it ties to the seller
 (userId), not a listing — a per-attempt audit record.
+
+### 4a. Migration safety — hand-author `0004`, do NOT `db:push`
+
+This branch is cut from `main`, whose schema does **not** yet contain the
+`owner_locations` coordinate columns (`latitude`/`longitude`/`geocoded_at`) — those
+live in the in-flight map-layer feature (PR #25, unmerged). The **live Neon DB
+already has** those columns (pushed + backfilled). Therefore `drizzle-kit push`
+from this branch would diff the full schema against the live DB and try to
+**DROP** the coordinate columns (and their data) — unacceptable.
+
+Instead, hand-author a migration that creates ONLY the new table (the documented
+"add a new table" pattern, as `0002_competitor_opportunities` was added):
+
+- `drizzle/0004_listing_disclaimer_acknowledgments.sql` — `CREATE TABLE` + the
+  index, Drizzle style (quoted idents, `--> statement-breakpoint`), with the FK to
+  `"user"`/users matching how `0003` references it.
+- Append an entry to `drizzle/meta/_journal.json` (idx 4, a tag, `when` greater
+  than the last applied — the migrator keys off `when` vs
+  `drizzle.__drizzle_migrations.created_at`).
+- Add `drizzle/meta/0004_snapshot.json` (copy `0003`'s snapshot, new `id`,
+  `prevId` = `0003`'s id, insert the new table).
+- Apply with `npm run db:migrate`, which reads journal + sql only and applies just
+  `0004` (it is a clean no-op for `0000`–`0003` on the existing DB). This touches
+  only the new table — it never diffs or drops the `owner_locations` columns.
+
+(When PR #25 merges, `main` will hold the coord columns; this branch's migration
+is independent and does not conflict.)
 
 ### 5. Page wiring — `new/page.tsx`
 
@@ -186,7 +212,7 @@ edit page and all other routes are untouched.
 
 - `src/db/schema/disclaimerAcknowledgments.ts` — new table.
 - `src/db/schema.ts` — export the new table.
-- `db:push` to apply the table.
+- `drizzle/0004_listing_disclaimer_acknowledgments.sql` + `drizzle/meta/_journal.json` + `drizzle/meta/0004_snapshot.json` — hand-authored migration (see Migration safety); applied via `npm run db:migrate`.
 - `src/lib/listings/disclaimer-actions.ts` — `FDD_VERSION` + `acknowledgeSellingDisclaimer()`.
 - `src/components/listings/SellingDisclaimer.tsx` — content.
 - `src/components/listings/ListingDisclaimerGate.tsx` — gate + acknowledgment + reveal.
