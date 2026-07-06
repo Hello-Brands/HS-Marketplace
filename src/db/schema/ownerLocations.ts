@@ -4,6 +4,7 @@ import {
   timestamp,
   index,
   uniqueIndex,
+  doublePrecision,
 } from "drizzle-orm/pg-core"
 
 /**
@@ -54,6 +55,12 @@ export const ownerLocations = pgTable(
       .notNull(),
 
     syncedAt: timestamp("synced_at").defaultNow().notNull(),
+
+    // Geocoded from locationAddress for the /browse map (unlisted HS dots).
+    // Nullable until geocoded; preserved across full-refresh syncs.
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    geocodedAt: timestamp("geocoded_at"),
   },
   (table) => [
     // Natural key: blvd_location_number is nullable in the source, so key on
@@ -66,6 +73,7 @@ export const ownerLocations = pgTable(
     index("owner_locations_email_normalized_idx").on(
       table.ownerContactEmailNormalized,
     ),
+    index("owner_locations_lat_lng_idx").on(table.latitude, table.longitude),
   ],
 )
 
