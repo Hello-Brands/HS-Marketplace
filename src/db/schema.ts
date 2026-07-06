@@ -20,3 +20,5 @@ export * from "./schema/ownerLocations"
 
 // Competitor closures — scraper-owned, app read-only (see schema file header)
 export * from "./schema/competitorOpportunities"
+
+export * from "./schema/disclaimerAcknowledgments"

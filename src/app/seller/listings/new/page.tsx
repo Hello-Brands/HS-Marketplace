@@ -1,6 +1,6 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
-import { ListingWizard } from '@/components/listings/ListingWizard'
+import { ListingDisclaimerGate } from '@/components/listings/ListingDisclaimerGate'
 
 export default async function NewListingPage() {
   const session = await auth()
@@ -16,7 +16,7 @@ export default async function NewListingPage() {
         Financial data is pulled automatically from Hello Sugar -- buyers see verified numbers, not estimates.
       </p>
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <ListingWizard userId={session.user.id} />
+        <ListingDisclaimerGate userId={session.user.id} />
       </div>
     </div>
   )

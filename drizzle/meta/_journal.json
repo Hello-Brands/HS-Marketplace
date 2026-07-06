@@ -29,6 +29,13 @@
       "when": 1782460262463,
       "tag": "0003_saved_competitors",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783600000000,
+      "tag": "0004_listing_disclaimer_acknowledgments",
+      "breakpoints": true
     }
   ]
 }
