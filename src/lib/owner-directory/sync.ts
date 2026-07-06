@@ -176,7 +176,10 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
   else if (del) await db.batch([del])
 
   // Best-effort geocode of rows still missing coords (new locations, or rows
-  // whose address changed). Never blocks the sync; silent when no MapTiler key.
+  // that failed a prior geocode). Coords are preserved across the full-refresh,
+  // so an existing row whose address later changes keeps its old coords until
+  // manually cleared (re-geocode-on-address-change is a possible follow-up).
+  // Never blocks the sync; silent when no MapTiler key.
   let geocoded = 0
   if (process.env.MAPTILER_API_KEY) {
     try {
