@@ -1,6 +1,7 @@
 import { buildUpstreamGeocodeUrl } from "@/lib/geocode/url"
 import { requireSession } from "@/lib/auth-guards"
 import { checkRateLimit } from "@/lib/rate-limit"
+import { env } from "@/lib/env"
 
 // Proxies MapTiler geocoding using the UNRESTRICTED server key so in-browser
 // autocomplete works on any origin (the public key is referer-restricted to
@@ -36,7 +37,7 @@ export async function GET(
     )
   }
 
-  const apiKey = process.env.MAPTILER_API_KEY
+  const apiKey = env.MAPTILER_API_KEY
   if (!apiKey) {
     return Response.json({ error: "geocoding unavailable" }, { status: 503 })
   }

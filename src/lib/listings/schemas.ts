@@ -85,10 +85,21 @@ export const photosDetailsSchema = z.object({
   notes: z.string().max(2000, 'Maximum 2000 characters').optional(),
 })
 
-// Combined schema for full listing
+// Combined schema for full listing (used for final submit validation only).
 export const listingSchema = typeLocationSchema.and(financialsSchema).and(photosDetailsSchema)
 
-// Helper to get field names for each step (used with react-hook-form trigger())
+// Per-step schemas for wizard step validation. Each is a standalone z.object
+// (or a superRefine over one), so safeParse validates ONLY that step's fields and
+// ignores the others. NOTE: do not field-scope `listingSchema` per step — it is a
+// `.and()` intersection, which zodResolver/react-hook-form cannot partial-validate,
+// so a still-empty later-step field (e.g. photos) silently fails an earlier step.
+export const stepSchemas: Record<number, z.ZodTypeAny> = {
+  1: typeLocationSchema,
+  2: financialsSchema,
+  3: photosDetailsSchema,
+}
+
+// Helper to get field names for each step (used to clear a step's RHF errors).
 export function getFieldsForStep(step: number): (keyof ListingFormData)[] {
   switch (step) {
     case 1:

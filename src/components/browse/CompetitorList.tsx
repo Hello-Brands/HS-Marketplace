@@ -46,25 +46,20 @@ export function CompetitorList({
           return (
             <div
               key={c.googlePlaceId}
-              role="button"
-              tabIndex={0}
-              aria-label={`Show ${c.brandName} on map`}
               onMouseEnter={() => onHover(c.googlePlaceId)}
               onMouseLeave={() => onHover(null)}
-              onClick={() => onSelect(c)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  onSelect(c)
-                }
-              }}
-              className={`flex gap-3 p-4 bg-white rounded-xl border cursor-pointer transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 ${
+              className={`flex gap-3 p-4 bg-white rounded-xl border transition-all duration-200 ${
                 isHovered ? "border-gray-300 shadow-md" : "border-gray-200"
               }`}
             >
-              <div className="flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => onSelect(c)}
+                aria-label={`Show ${c.brandName} on map`}
+                className="flex-1 min-w-0 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 rounded-lg"
+              >
                 {c.isOpportunity && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide bg-[#F3E4D0] text-[#B9772E] px-2 py-0.5 rounded-full mb-1">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full mb-1">
                     <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3" aria-hidden="true">
                       <path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z" />
                     </svg>
@@ -75,8 +70,8 @@ export function CompetitorList({
                 <span
                   className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full mt-1"
                   style={{
-                    backgroundColor: permanent ? "#F7DCDA" : "#F3E4D0",
-                    color: permanent ? "#C0142F" : "#B9772E",
+                    backgroundColor: permanent ? "var(--hs-red-100)" : "var(--color-warning-light)",
+                    color: permanent ? "var(--color-error)" : "var(--color-warning)",
                   }}
                 >
                   {statusLabel(c.businessStatus)}
@@ -85,12 +80,12 @@ export function CompetitorList({
                   {c.address}{place ? ` · ${place}` : ""}
                 </p>
                 {c.nearestHsName && c.nearestHsMiles != null && (
-                  <p className="text-xs text-[#8F7067] mt-1">
+                  <p className="text-xs text-hs-taupe mt-1">
                     {c.nearestHsMiles.toFixed(1)} mi from {c.nearestHsName}
                   </p>
                 )}
-              </div>
-              <div className="flex items-start" onClick={(e) => e.stopPropagation()}>
+              </button>
+              <div className="flex items-start">
                 <SaveCompetitorButton
                   saved={savedSet.has(c.googlePlaceId)}
                   onToggle={() => onToggleSave(c)}

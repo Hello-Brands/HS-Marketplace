@@ -1,10 +1,7 @@
 import { auth } from '@/auth'
-import { redirect, notFound } from 'next/navigation'
-import { db } from '@/db'
-import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
-import { eq } from 'drizzle-orm'
 import { ListingEditForm } from '@/components/listings/ListingEditForm'
 import { toListingFormData } from '@/lib/listings/to-form-data'
+import { loadAdminListing } from '@/lib/listings/load-listing'
 
 export default async function AdminEditListingPage({
   params,
@@ -12,23 +9,9 @@ export default async function AdminEditListingPage({
   params: Promise<{ id: string }>
 }) {
   const session = await auth()
-  if (session?.user?.role !== 'admin') {
-    redirect('/login')
-  }
-
   const { id } = await params
 
-  const listing = await db.query.listings.findFirst({
-    where: eq(listings.id, id),
-    with: {
-      locations: { orderBy: [listingLocations.displayOrder] },
-      photos: { orderBy: [listingPhotos.displayOrder] },
-    },
-  })
-
-  if (!listing) {
-    notFound()
-  }
+  const listing = await loadAdminListing(id, session)
 
   const initialData = toListingFormData(listing)
 

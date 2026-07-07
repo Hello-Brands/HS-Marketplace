@@ -1,5 +1,6 @@
 import "server-only"
 import { cleanAddress } from "./address"
+import { env } from "@/lib/env"
 
 const MAPTILER_GEOCODING_BASE = "https://api.maptiler.com/geocoding"
 // MapTiler relevance (0..1) we trust enough to write automatically. Below this we
@@ -15,7 +16,7 @@ const RELEVANCE_THRESHOLD = 0.8
 export async function geocodeAddress(
   address: string,
 ): Promise<{ lat: number; lng: number; relevance: number } | null> {
-  const apiKey = process.env.MAPTILER_API_KEY
+  const apiKey = env.MAPTILER_API_KEY
   if (!apiKey) return null
 
   const query = cleanAddress(address)

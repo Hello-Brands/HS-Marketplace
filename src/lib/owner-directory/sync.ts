@@ -7,6 +7,7 @@ import { fetchOwnerDirectory, parseBqDate, type DirectoryRow } from "./query"
 import { resolveBlvdLocationName, type BlvdMatchMethod } from "./resolve"
 import { normalizeEmail } from "./email"
 import { geocodeAddress } from "@/lib/geocode/geocode"
+import { env } from "@/lib/env"
 
 export type SyncResult = {
   fetched: number
@@ -181,7 +182,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
   // manually cleared (re-geocode-on-address-change is a possible follow-up).
   // Never blocks the sync; silent when no MapTiler key.
   let geocoded = 0
-  if (process.env.MAPTILER_API_KEY) {
+  if (env.MAPTILER_API_KEY) {
     try {
       const missing = await db
         .select({ id: ownerLocations.id, locationAddress: ownerLocations.locationAddress })

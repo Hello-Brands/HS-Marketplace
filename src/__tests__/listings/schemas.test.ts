@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { typeLocationSchema, financialsSchema, photosDetailsSchema, listingSchema } from '@/lib/listings/schemas'
+import { typeLocationSchema, financialsSchema, photosDetailsSchema, listingSchema, stepSchemas } from '@/lib/listings/schemas'
 
 describe('typeLocationSchema', () => {
   it('rejects empty locations array', () => {
@@ -138,5 +138,38 @@ describe('photosDetailsSchema', () => {
       laserIncluded: false,
     })
     expect(result.success).toBe(true)
+  })
+})
+
+// Regression for the seller-wizard Blocker (pre-launch audit 2026-07-06): advancing
+// past the Financials step re-validated the whole `.and()` intersection — including
+// Step 3's still-empty `photos` — so the wizard silently stuck at Step 2. Per-step
+// validation must use each step's OWN schema, which ignores other steps' fields.
+describe('per-step wizard validation (stepSchemas)', () => {
+  // A realistic mid-wizard form value: Steps 1 & 2 filled, Step 3 not reached yet.
+  const midWizardValues = {
+    type: 'suite',
+    locations: [{ id: '1', type: 'salon', name: 'Test Salon' }],
+    askingPrice: 250000,
+    photos: [], // still empty at Step 2 — this is the crux
+    inventoryIncluded: false,
+    laserIncluded: false,
+  }
+
+  it('Step 2 schema PASSES with a valid price even though photos is still empty', () => {
+    expect(stepSchemas[2].safeParse(midWizardValues).success).toBe(true)
+  })
+
+  it('Step 1 schema passes on the same mid-wizard values', () => {
+    expect(stepSchemas[1].safeParse(midWizardValues).success).toBe(true)
+  })
+
+  it('the combined intersection FAILS on those same values (why we must not field-scope it per step)', () => {
+    expect(listingSchema.safeParse(midWizardValues).success).toBe(false)
+  })
+
+  it('Step 3 schema still enforces at-least-one-photo', () => {
+    expect(stepSchemas[3].safeParse(midWizardValues).success).toBe(false)
+    expect(stepSchemas[3].safeParse({ ...midWizardValues, photos: [{ id: '1', url: 'https://example.com/p.jpg', filename: 'p.jpg', order: 0 }] }).success).toBe(true)
   })
 })

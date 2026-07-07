@@ -1,6 +1,16 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { auth } from "@/auth"
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Signed-in visitors get no confirmation or path forward from the logged-out
+  // marketing page, so send them to the main authed landing (/browse). Mirrors
+  // the inverse guard used across authed server components (e.g. browse/page.tsx).
+  const session = await auth()
+  if (session?.user) {
+    redirect("/browse")
+  }
+
   return (
     <main className="min-h-screen">
       {/* Navigation */}

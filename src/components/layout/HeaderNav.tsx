@@ -47,7 +47,7 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
   }, [open])
 
   return (
-    <header className="sticky top-0 z-40 bg-[#ED1845] text-white">
+    <header className="sticky top-0 z-40 bg-hs-red-600 text-white">
       {/* Top tier — global */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
@@ -58,7 +58,7 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
           </div>
           <button
             onClick={() => setOpen(true)}
-            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg hover:bg-white/15"
+            className="md:hidden flex items-center justify-center w-11 h-11 rounded-lg hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2"
             aria-label="Open menu"
             aria-expanded={open}
           >
@@ -89,9 +89,9 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`text-sm font-semibold px-3 py-1.5 rounded-full transition-colors ${
+                    className={`text-sm font-semibold px-3 py-1.5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2 ${
                       active
-                        ? "bg-white text-[#ED1845] shadow-sm"
+                        ? "bg-white text-hs-red-600 shadow-sm"
                         : "text-white/90 hover:bg-white/15"
                     }`}
                   >
@@ -102,7 +102,7 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
               {action && (
                 <Link
                   href={action.href}
-                  className="ml-1 text-sm font-bold text-[#ED1845] bg-white hover:bg-white/90 px-3.5 py-1.5 rounded-full shadow-md transition-colors"
+                  className="ml-1 text-sm font-bold text-hs-red-600 bg-white hover:bg-white/90 px-3.5 py-1.5 rounded-full shadow-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2"
                 >
                   {action.label}
                 </Link>
@@ -158,7 +158,7 @@ function MobileDrawer({
           <button
             onClick={onClose}
             aria-label="Close menu"
-            className="flex items-center justify-center w-11 h-11 rounded-lg hover:bg-gray-100"
+            className="flex items-center justify-center w-11 h-11 rounded-lg hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2"
           >
             <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -175,7 +175,7 @@ function MobileDrawer({
                 href={item.href}
                 onClick={onClose}
                 aria-current={active ? "page" : undefined}
-                className={`block px-3 py-2.5 rounded-lg text-base ${
+                className={`block px-3 py-2.5 rounded-lg text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2 ${
                   active ? "bg-hs-red-50 text-hs-red-600 font-semibold" : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
@@ -187,7 +187,7 @@ function MobileDrawer({
             <Link
               href={action.href}
               onClick={onClose}
-              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-white bg-hs-red-600 hover:bg-hs-red-700"
+              className="block px-3 py-2.5 rounded-lg text-base font-semibold text-white bg-hs-red-600 hover:bg-hs-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2"
             >
               {action.label}
             </Link>
@@ -195,14 +195,22 @@ function MobileDrawer({
           {caps.isAdmin && (
             <>
               <p className={groupLabel}>Switch</p>
-              <Link href={otherWorldHref} onClick={onClose} className={link}>
+              <Link
+                href={otherWorldHref}
+                onClick={onClose}
+                className={`${link} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2`}
+              >
                 {otherWorldLabel}
               </Link>
             </>
           )}
           <p className={groupLabel}>Account</p>
           {caps.isOwner && (
-            <Link href="/account/locations" onClick={onClose} className={link}>
+            <Link
+              href="/account/locations"
+              onClick={onClose}
+              className={`${link} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2`}
+            >
               My Locations
             </Link>
           )}
@@ -214,7 +222,7 @@ function MobileDrawer({
               onClose()
               signOut({ callbackUrl: "/login" })
             }}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium text-gray-700 hover:bg-gray-50"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 text-base font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2"
           >
             Sign out
           </button>

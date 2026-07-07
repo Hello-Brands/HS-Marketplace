@@ -17,7 +17,7 @@ export function WorldSwitcher({ world }: { world: NavWorld }) {
         href="/browse"
         aria-current={!isAdmin ? "page" : undefined}
         className={`${base} ${
-          !isAdmin ? "bg-white text-[#ED1845] shadow-sm" : "text-white hover:bg-white/10"
+          !isAdmin ? "bg-white text-hs-red-600 shadow-sm" : "text-white hover:bg-white/10"
         }`}
       >
         Marketplace
@@ -26,7 +26,7 @@ export function WorldSwitcher({ world }: { world: NavWorld }) {
         href="/admin"
         aria-current={isAdmin ? "page" : undefined}
         className={`${base} ${
-          isAdmin ? "bg-white text-[#ED1845] shadow-sm" : "text-white hover:bg-white/10"
+          isAdmin ? "bg-white text-hs-red-600 shadow-sm" : "text-white hover:bg-white/10"
         }`}
       >
         Admin

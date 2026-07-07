@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { KpiMonth } from '@/lib/kpi/schema'
+import { BRAND } from '@/lib/brand-colors'
 
 interface KpiTrendChartProps {
   data: KpiMonth[]
@@ -27,17 +28,17 @@ export function KpiTrendChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E8DED7" />
+        <CartesianGrid strokeDasharray="3 3" stroke={BRAND.border} />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 12, fill: '#8F7067' }}
-          tickLine={{ stroke: '#E8DED7' }}
-          axisLine={{ stroke: '#E8DED7' }}
+          tick={{ fontSize: 12, fill: BRAND.taupe }}
+          tickLine={{ stroke: BRAND.border }}
+          axisLine={{ stroke: BRAND.border }}
         />
         <YAxis
-          tick={{ fontSize: 12, fill: '#8F7067' }}
-          tickLine={{ stroke: '#E8DED7' }}
-          axisLine={{ stroke: '#E8DED7' }}
+          tick={{ fontSize: 12, fill: BRAND.taupe }}
+          tickLine={{ stroke: BRAND.border }}
+          axisLine={{ stroke: BRAND.border }}
           tickFormatter={(value) => formatValue(value)}
         />
         <Tooltip
@@ -58,10 +59,10 @@ export function KpiTrendChart({
         <Line
           type="monotone"
           dataKey="value"
-          stroke="#ED1845"
+          stroke={BRAND.crimson}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, fill: '#ED1845' }}
+          activeDot={{ r: 4, fill: BRAND.crimson }}
         />
       </LineChart>
     </ResponsiveContainer>

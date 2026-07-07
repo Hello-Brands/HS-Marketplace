@@ -28,7 +28,7 @@ function DiamondHollow() {
     <span
       aria-hidden="true"
       className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px] bg-white"
-      style={{ border: "1.5px solid #8F7067" }}
+      style={{ border: "1.5px solid var(--hs-taupe)" }}
     />
   )
 }
@@ -88,13 +88,13 @@ export function MapLegend() {
             label="For sale"
             active={filters.showListings}
             onClick={() => setFilters({ showListings: !filters.showListings })}
-            swatch={<Dot color="#ED1845" />}
+            swatch={<Dot color="var(--hs-red-600)" />}
           />
           <ToggleRow
             label="Hello Sugar (not listed)"
             active={filters.showHsLocations}
             onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
-            swatch={<Dot color="#8F7067" />}
+            swatch={<Dot color="var(--hs-taupe)" />}
           />
 
           <div className="mt-1.5 border-t border-gray-100 pt-1.5">
@@ -104,7 +104,7 @@ export function MapLegend() {
               onClick={() => setFilters({ showCompetitors: !filters.showCompetitors })}
             />
             <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
-              <Diamond color="#B9772E" />
+              <Diamond color="var(--color-warning)" />
               <span>Opportunity</span>
             </div>
             <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>

@@ -30,7 +30,11 @@ function StarIcon({ state }: { state: 'full' | 'half' | 'empty' }) {
 
 function Stars({ avg, className = '' }: { avg: number; className?: string }) {
   return (
-    <span className={`inline-flex gap-0.5 ${className}`} aria-label={`${formatRating(avg)} out of 5 stars`}>
+    <span
+      role="img"
+      className={`inline-flex gap-0.5 ${className}`}
+      aria-label={`${formatRating(avg)} out of 5 stars`}
+    >
       {starStates(avg).map((state, i) => (
         <StarIcon key={i} state={state} />
       ))}

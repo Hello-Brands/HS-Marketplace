@@ -6,6 +6,7 @@ import { users, accounts, sessions, verificationTokens, allowlist } from "@/db/s
 import { authConfig } from "./auth.config"
 import { linkOwnerAtLogin } from "@/lib/owner-directory/login"
 import { recordLogin } from "@/lib/analytics/logins"
+import { env } from "@/lib/env"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -22,7 +23,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!profile?.email_verified) return false
 
       const email = profile.email as string
-      const workspaceDomain = process.env.GOOGLE_WORKSPACE_DOMAIN || "hellosugar.salon"
+      const workspaceDomain = env.GOOGLE_WORKSPACE_DOMAIN || "hellosugar.salon"
       const isWorkspaceDomain = email.endsWith(`@${workspaceDomain}`)
 
       if (isWorkspaceDomain) {
@@ -67,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async createUser({ user }) {
       // Bootstrap first admin on account creation
-      const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL
+      const initialAdminEmail = env.INITIAL_ADMIN_EMAIL
       if (initialAdminEmail && user.email === initialAdminEmail) {
         await db.update(users)
           .set({ role: "admin" })
@@ -75,7 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Grant seller access to all franchisees by default
-      const workspaceDomain = process.env.GOOGLE_WORKSPACE_DOMAIN || "hellosugar.salon"
+      const workspaceDomain = env.GOOGLE_WORKSPACE_DOMAIN || "hellosugar.salon"
       if (user.id && user.email?.endsWith(`@${workspaceDomain}`)) {
         await db.update(users)
           .set({ sellerAccess: true })

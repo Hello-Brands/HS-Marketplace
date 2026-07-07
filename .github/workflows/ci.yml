@@ -23,5 +23,12 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      # Blocking: eslint errors fail the build. A backlog of 24 non-fatal
+      # warnings remains (unused vars, <img> usage) as of 2026-07-06 — warnings
+      # don't fail eslint by default. To also enforce the warning backlog to
+      # zero later, add `--max-warnings=0`.
+      - name: Lint
+        run: npx eslint .
+
       - name: Test
         run: npm test

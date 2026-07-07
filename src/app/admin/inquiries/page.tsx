@@ -59,6 +59,7 @@ export default async function AdminInquiriesPage() {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
+                          timeZone: "America/Denver",
                         })}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">

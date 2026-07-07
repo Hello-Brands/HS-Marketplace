@@ -3,6 +3,7 @@
 import { db } from '@/db'
 import { listings } from '@/db/schema/listings'
 import { eq } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { revalidatePath } from 'next/cache'
 import type { ListingFormData, ListingStatus } from './types'
 import { canTransition } from './status-machine'
@@ -13,8 +14,8 @@ import { hasAcknowledgedCurrentFdd } from './disclaimer'
 import {
   buildLocationInserts,
   buildPhotoInserts,
-  syncListingLocations,
-  syncListingPhotos,
+  buildLocationSync,
+  buildPhotoSync,
 } from './persist'
 
 export async function saveDraft(data: Partial<ListingFormData>, listingId?: string) {
@@ -41,8 +42,14 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
       throw new Error('Not authorized')
     }
 
-    // Normalized money/asset fields come from the single shared helper (DEBT-003/004).
-    await db.update(listings)
+    // Atomic edit (DEBT-027): the parent-listing update, the location delete/reinserts,
+    // and the photo delete/reinserts all commit in ONE neon-http batch (a single
+    // transaction) — mirroring the create path — so a mid-sequence failure can no
+    // longer leave the parent row updated while its locations/photos stay stale.
+    // All async resolution (location snapshot + owner directory + geocode) runs inside
+    // buildLocationSync, BEFORE the batch is composed. Normalized money/asset fields
+    // come from the single shared helper (DEBT-003/004).
+    const parentUpdate = db.update(listings)
       .set({
         type,
         title,
@@ -51,12 +58,21 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
       })
       .where(eq(listings.id, listingId))
 
-    // Replace locations (snapshotting prior BQ mapping/geocode) and photos.
+    const childWrites: BatchItem<'pg'>[] = []
     if (data.locations) {
-      await syncListingLocations(listingId, data.locations)
+      childWrites.push(...(await buildLocationSync(listingId, data.locations)))
     }
     if (data.photos) {
-      await syncListingPhotos(listingId, data.photos)
+      childWrites.push(...buildPhotoSync(listingId, data.photos))
+    }
+
+    // A single statement is already atomic; batch only when the multi-table
+    // location/photo sync also rides along. `[parentUpdate, ...childWrites]` types
+    // as a non-empty tuple, which is what db.batch requires.
+    if (childWrites.length > 0) {
+      await db.batch([parentUpdate, ...childWrites])
+    } else {
+      await parentUpdate
     }
 
     return { success: true, listingId }

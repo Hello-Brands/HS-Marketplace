@@ -51,6 +51,7 @@ export function ListingCard({
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'America/Denver',
   }).format(new Date(createdAt))
 
   return (
@@ -147,64 +148,5 @@ export function ListingCard({
         </div>
       </Link>
     </div>
-  )
-}
-
-// Compact variant for list views
-export function ListingCardCompact({
-  id,
-  title,
-  type,
-  status,
-  askingPrice,
-  coverPhotoUrl,
-  createdAt,
-}: Omit<ListingCardProps, 'viewCount' | 'inquiryCount' | 'rejectionReason'>) {
-  const formattedPrice = formatUsdCents(askingPrice)
-
-  return (
-    <Link
-      href={`/seller/listings/${id}`}
-      className="group flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 min-h-[44px]"
-    >
-      {/* Thumbnail */}
-      <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-        {coverPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={coverPhotoUrl}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <ImagePlaceholder className="w-full h-full" />
-        )}
-      </div>
-
-      {/* Details */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            {typeLabels[type]}
-          </span>
-          <StatusBadge status={status} size="sm" />
-        </div>
-        <h3 className="font-semibold text-gray-900 truncate group-hover:text-hs-red-600 transition-colors">
-          {title}
-        </h3>
-        <p className="text-lg font-bold text-hs-red-600">{formattedPrice}</p>
-      </div>
-
-      {/* Arrow */}
-      <svg
-        className="h-5 w-5 text-gray-400 group-hover:text-hs-red-600 group-hover:translate-x-1 transition-all flex-shrink-0"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
-    </Link>
   )
 }

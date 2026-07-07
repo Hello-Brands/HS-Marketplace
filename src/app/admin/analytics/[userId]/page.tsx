@@ -23,7 +23,9 @@ export default async function UserAnalyticsDetailPage({ params }: Props) {
   const u = (await getUserAnalytics()).find((r) => r.id === userId)
   if (!u) notFound()
 
-  const lastActive = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"
+  const lastActive = u.lastLoginAt
+    ? new Date(u.lastLoginAt).toLocaleString('en-US', { timeZone: 'America/Denver' })
+    : "Never"
 
   return (
     <div>

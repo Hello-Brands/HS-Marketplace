@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { db } from '@/db'
 import { favorites } from '@/db/schema/favorites'
 import { and, eq } from 'drizzle-orm'
+import { revalidatePath } from 'next/cache'
 
 export async function toggleFavorite(listingId: string): Promise<{ favorited: boolean }> {
   const session = await auth()
@@ -23,6 +24,7 @@ export async function toggleFavorite(listingId: string): Promise<{ favorited: bo
         eq(favorites.listingId, listingId),
       ),
     )
+    revalidatePath(`/listings/${listingId}`)
     return { favorited: false }
   }
 
@@ -30,6 +32,7 @@ export async function toggleFavorite(listingId: string): Promise<{ favorited: bo
     userId: session.user.id,
     listingId,
   })
+  revalidatePath(`/listings/${listingId}`)
   return { favorited: true }
 }
 

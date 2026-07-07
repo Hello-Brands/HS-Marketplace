@@ -11,6 +11,11 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/__tests__/**/*.test.ts"],
+    // Playwright e2e specs live under tests/e2e/**/*.spec.ts — already outside
+    // the include glob above (different dir, different suffix), but excluded
+    // explicitly too so vitest's `test`/`expect` globals never collide with
+    // @playwright/test's globals if the layout ever changes.
+    exclude: ["tests/e2e/**", "node_modules/**"],
     globals: true,
     env: {
       SKIP_ENV_VALIDATION: "1",

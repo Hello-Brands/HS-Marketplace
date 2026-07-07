@@ -1,0 +1,407 @@
+{
+  "app": "HS-Marketplace",
+  "target": "https://marketplace.hellosugar.salon/",
+  "auditor": "pre-launch-audit v0.2 (4 parallel auditors; security=Opus-high, ui-ux/code-quality/brand=Sonnet)",
+  "date": "2026-07-06",
+  "session_context": "Behavioral checks run with a VALID admin+seller session (Parker Fellows). Full authenticated surface exercised this run — a major coverage upgrade over the 2026-07-02 audit whose cookie was dead and whose browser tooling was unavailable.",
+  "verdict": "NO-GO",
+  "gate": {
+    "open_blockers": 2,
+    "open_high": 10,
+    "rule_1_zero_blockers": "FAILED (2 open)",
+    "rule_2_auto_escalation": "applied (schema-migrations fail escalates to Blocker; no auth/authz/secrets/prod/db-conn fails this run)",
+    "rule_3_high_items_ticketed": "not met (10 open High, untracked)"
+  },
+  "summary_table": [
+    { "pillar": "UI/UX & Functional QA", "pass": 4, "fail": 9, "na": 1, "open_blockers": 1, "open_high": 4 },
+    { "pillar": "Security & Deployment", "pass": 14, "fail": 1, "na": 3, "open_blockers": 0, "open_high": 1 },
+    { "pillar": "Code Quality & Tech Debt", "pass": 4, "fail": 12, "na": 0, "open_blockers": 1, "open_high": 3 },
+    { "pillar": "Brand Conformance", "pass": 9, "fail": 5, "na": 0, "open_blockers": 0, "open_high": 2 },
+    { "pillar": "TOTAL", "pass": 31, "fail": 27, "na": 4, "open_blockers": 2, "open_high": 10 }
+  ],
+  "findings": [
+    {
+      "pillar": "ui-ux",
+      "check": "Core flows complete end-to-end",
+      "status": "Fail",
+      "severity": "Blocker",
+      "evidence": {
+        "flow": "Seller creates a listing (/seller/listings/new -> disclaimer -> save draft -> submit)",
+        "actual": "Clicking Next on the Financials step with a valid Asking Price ($250k and $750k, 5 fresh drafts, 2 types, 2 locations) never advances to Step 3 and shows no error. Root cause: listingSchema is a Zod .and() intersection (typeLocationSchema.and(financialsSchema).and(photosDetailsSchema)); handleStepComplete calls methods.trigger(['askingPrice','ttmProfit','reasonForSelling']) but zodResolver cannot field-scope an intersection, so it re-validates the FULL schema including photos.min(1). photos is still [] at step 2, so trigger() returns isValid=false and setStep(3) never runs; FinancialsStep only renders errors.askingPrice, so the failure is silent. The seller listing flow cannot be completed through the UI.",
+        "expected": "Valid Asking Price + Next advances to Step 3 (Photos & Details)",
+        "screenshot": "audit-ui/screenshots/final-step2-after-next.png",
+        "file_hint": "src/components/listings/ListingWizard.tsx:65-76; src/lib/listings/schemas.ts:89-103"
+      },
+      "proposed_fix": "Stop validating a slice of a single Zod intersection per step. Give each step a standalone z.object() and trigger against that, or make the combined schema a plain z.object() with per-step .pick()/superRefine keyed to the current step. Also render a summary of any error on every step so a stuck validation state is never silent.",
+      "reproduce": "As parker.fellows@hellosugar.salon: /seller/listings/new -> accept disclaimer -> Suite -> pick location -> Next -> enter a positive Asking Price -> Next. UI stays on Financials with no error; network trace shows zero Server Action POSTs when photos:[]."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "Schema changes go through tracked migrations",
+      "status": "Fail",
+      "severity": "Blocker",
+      "evidence": {
+        "detail": "drizzle/ has exactly 5 migrations (0000_baseline..0004) and _journal.json matches them (no orphans). But `grep -il 'owner_locations|login_events|listing_views|competitor_alert_log' drizzle/*.sql` returns zero matches — none of these four live tables (added by commits 63de01e/13f4503/5491c6f, all with active app code) have a CREATE TABLE in migration history. Also 0001_boulevard_mapping.sql adds listing_locations.boulevard_location_id/boulevard_mapping_status, but current schema (listings.ts:97-98) defines bq_location_name/data_mapping_status — no migration captures the rename/retype. db:push is absent from vercel.json buildCommand and .github/workflows/ci.yml (confirmed by read). These tables + the rename reached the live DB only via a human running drizzle-kit push, with no migration file recording it. Prod schema drift has occurred and is unauditable.",
+        "file_hint": "src/db/schema/{ownerLocations,loginEvents,listingViews,competitorAlertLog}.ts; drizzle/0000_baseline.sql..0004; drizzle/0001_boulevard_mapping.sql vs src/db/schema/listings.ts:97-98"
+      },
+      "proposed_fix": "Run `npx drizzle-kit generate` to capture current drift (CREATE TABLE for the four tables + column diffs), diff it against the live DB before applying, commit as 0005_*.sql. Ban db:push outside local scratch (fail loudly unless NODE_ENV=development, or remove the script). Add a CI drift detector that fails if `drizzle-kit generate` produces a pending diff against HEAD.",
+      "reproduce": "grep -il 'owner_locations\\|login_events\\|listing_views\\|competitor_alert_log' drizzle/*.sql (returns nothing); compare drizzle/0001_boulevard_mapping.sql column names to src/db/schema/listings.ts:97-98."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "No dead interactions",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "actual": "/admin/listings and /admin/listings/[id] throw 'Minified React error #418 (Text content does not match server-rendered HTML)' — a hydration mismatch — on every load. Root cause: ListingsTable.formatDate() uses Intl.DateTimeFormat with no timeZone, so server (UTC) and client (local) format the same createdAt as different calendar dates. Page renders after the error, but pageerror fires every visit.",
+        "expected": "No console/page errors on authenticated routes",
+        "screenshot": "audit-ui/screenshots/crawl_admin_listings.png",
+        "file_hint": "src/components/admin/ListingsTable.tsx:78-83"
+      },
+      "proposed_fix": "Pass an explicit timeZone to Intl.DateTimeFormat (fixed org TZ or UTC), or format client-only after mount / pass a pre-formatted string from the server so server and client render identical text.",
+      "reproduce": "Log in as admin, open /admin/listings, check console — React #418 fires on every load."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "No race conditions or stale-state UI",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "actual": "6 rapid clicks on the favorite toggle fired only 1 POST (clicks silently dropped while pending, no pending indicator); button showed 'Remove from favorites' (saved=true) but a reload showed the true state was 'Add to favorites' (saved=false). On-screen state disagreed with the server, no crash but a data-trust gap.",
+        "expected": "Rapid clicks converge to the true server state, or are debounced with in-flight state clearly indicated",
+        "screenshot": "audit-ui/screenshots/race-favorite-rapid.png",
+        "file_hint": "src/app/listings/[id]/FavoriteButtonLarge.tsx"
+      },
+      "proposed_fix": "Revalidate after the action (same fix as the favorites-feedback finding) and disable/indicate the button while isPending so users see the in-flight state and cannot click through it.",
+      "reproduce": "On a listing detail page, click Save 5-6x fast, screenshot the state, reload, compare — the two disagree."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "Navigation is never a dead end",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "actual": "Visiting '/' while fully authenticated renders the logged-out marketing landing page: a bare 'Sign In' button and three body 'Sign In' CTAs, no avatar, no Browse/Saved/Admin nav. Same session renders /admin and /account/favorites as authenticated. No indicator the user is signed in and no direct link to their tools. Reproduced at 1440px and 390px.",
+        "expected": "A signed-in user on '/' sees authenticated chrome/nav",
+        "screenshot": "audit-ui/screenshots/smoke-home.png",
+        "file_hint": "src/app/page.tsx (home does not branch chrome on session state)"
+      },
+      "proposed_fix": "In app/page.tsx, read the session server-side and either redirect signed-in users to /browse (or a dashboard) or render the authenticated header/nav used elsewhere.",
+      "reproduce": "With the valid session cookie set, open https://marketplace.hellosugar.salon/ — header shows 'Sign In' and no authed nav, while /admin renders authenticated in the same context."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "Intuitive on first contact",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "actual": "Two compounding heuristic failures: (1) the home page gives a logged-in user no sign-in confirmation and no nav to their tools; (2) the core seller task (list a location) is not completable due to the Financials-step blocker. A first-time user following the obvious path gets stuck with no explanation.",
+        "expected": "A first-time staff seller can create and submit a listing unaided",
+        "file_hint": "Compound of the Core-flows and Navigation findings"
+      },
+      "proposed_fix": "Fix the two underlying defects (home nav branching + wizard validation scoping); no separate first-contact change needed.",
+      "reproduce": "Same as the Core-flows and Navigation findings."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "No obvious performance debt",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "detail": "Five indexes described in DEBT-010 (listings_status_created_at_idx, listings_seller_id_idx, favorites_listing_id_idx, listing_locations_listing_id_display_order_idx, listing_photos_listing_id_display_order_idx) exist only as TypeScript index() calls; none appear in any committed migration (same root cause as the migrations Blocker), so whether they exist in the live DB is unauditable. Separately, getUnlistedHsLocations still applies its state-scope filter in JS after an uncached, unbounded (no LIMIT) fetch on every /browse render without center+radius — fine now, won't scale.",
+        "file_hint": "src/db/schema/listings.ts:56,58,106,108,125; drizzle/*.sql (no matching CREATE INDEX); src/lib/hs-locations-query.ts:43-71"
+      },
+      "proposed_fix": "Fold the five index migrations into the same reconciliation migration as the migrations Blocker, then verify via pg_indexes against prod. Push the hs-locations state filter into the WHERE clause and add a short-TTL cache (throw-to-empty, don't cache failures).",
+      "reproduce": "grep -in 'CREATE.*INDEX' drizzle/*.sql vs grep -n 'index(' src/db/schema/listings.ts."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "Multi-step writes are safe",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "detail": "The listing EDIT path issues 3 independent sequential DB round-trips: db.update(listings) (actions.ts:45-52 / admin/actions.ts:186-192), then syncListingLocations (its own db.batch scoped to listing_locations, persist.ts:229), then syncListingPhotos (its own db.batch scoped to listing_photos, persist.ts:239). Not one atomic unit — a failure between steps leaves the parent row updated while locations/photos are stale. DEBT-027's atomic-write fix only covers the CREATE path (actions.ts:96, single db.batch), not the more common EDIT path used by saveDraft-with-id and adminUpdateListing.",
+        "file_hint": "src/lib/listings/actions.ts:45-60; src/lib/admin/actions.ts:186-201; src/lib/listings/persist.ts:204-240"
+      },
+      "proposed_fix": "Build the parent update as a query object (don't await) and combine with the location + photo delete/inserts into one db.batch([...]), mirroring the create path. Add a test forcing a mid-sequence edit failure that asserts no partial commit.",
+      "reproduce": "Read actions.ts:45-60 and admin/actions.ts:186-201 (3 awaited DB calls) vs actions.ts:96 (1 db.batch)."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "Config and env are centralized and validated",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "detail": "A solid validated module exists (src/lib/env.ts, @t3-oss/env-nextjs + zod), but ~24 raw process.env reads across ~20 files bypass it, most with non-null assertions. Worst case: NEXT_PUBLIC_APP_URL is read raw with a hardcoded fallback ('https://marketplace.hellosugar.salon') in ~6 places (email.ts x4, cron reminders + competitor-alerts) and is NOT declared in env.ts — if unset/mistyped in Vercel, transactional emails and cron links silently point at a stale domain instead of failing loudly.",
+        "file_hint": "src/lib/env.ts; src/db/index.ts:5; src/auth.ts:25,70,78,86; src/auth.config.ts:20-21; src/lib/email.ts (many); src/lib/bigquery/client.ts; the 3 cron routes; src/lib/kpi/fetch.ts; src/lib/geocode/geocode.ts; src/lib/owner-directory/sync.ts; src/lib/listings/action-tokens.ts"
+      },
+      "proposed_fix": "Add missing keys (NEXT_PUBLIC_APP_URL, GOOGLE_WORKSPACE_DOMAIN, EMAIL_FROM/OVERRIDE, BIGQUERY_PROJECT_ID, GCP_SERVICE_ACCOUNT_JSON, HS_INTERNAL_API_URL/TOKEN) to env.ts and replace raw process.env reads with env.X. Mechanical, ~20 files; dedicated PR gated on tsc + vitest.",
+      "reproduce": "grep -rn 'process\\.env\\.\\w+' src --include=*.ts --include=*.tsx | grep -v __tests__ | grep -v env.ts"
+    },
+    {
+      "pillar": "security-deployment",
+      "check": "Error monitoring is wired before launch",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "actual": "No Sentry/APM connected. src/instrumentation.ts onRequestError only does structured console.error to Vercel runtime logs — no aggregation, no alerting, so day-one failures are passive log entries, not surfaced.",
+        "expected": "Sentry (or equivalent) capturing/alerting on production errors",
+        "file_hint": "src/instrumentation.ts:6-35"
+      },
+      "proposed_fix": "Wire @sentry/nextjs in instrumentation.ts + client, set SENTRY_DSN in prod, confirm capture by triggering a test error before launch.",
+      "reproduce": "Trigger a server error in prod; confirm it appears in an error-monitoring dashboard (currently only Vercel logs)."
+    },
+    {
+      "pillar": "brand",
+      "check": "Colors come from tokens, not hardcoded hex",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "detail": "The app hand-rolled the palette in globals.css (--hs-red-600, --hs-caramel-600, ...) instead of vendoring tokens.json's generated variables.css / tailwind-preset.js, so no semantic --hs-color-primary/-focus/-danger names exist. On top of that many components inline raw hex literals directly, bypassing even the hand-rolled vars — a palette change means hunting through components. Values are correct today (#ED1845 matches) but not routed through a variable.",
+        "computed_vs_expected": "e.g. HeaderNav uses bg-[#ED1845] literal vs expected bg-hs-red-600 / --hs-color-primary",
+        "file_hint": "src/components/layout/HeaderNav.tsx:50,94,105; WorldSwitcher.tsx:20,29; TerritoryPicker.tsx:117; admin/LoginTrendChart.tsx; kpi/KpiTrendChart.tsx; browse/CompetitorList.tsx; browse/MapLegend.tsx; browse/MapView.tsx:65-85; src/lib/email.ts (email HTML — lower priority)"
+      },
+      "proposed_fix": "Route SVG/Recharts/Leaflet color props and Tailwind arbitrary-value classes through the --hs-red-*/--hs-caramel-* vars (stroke=var(--hs-red-600) or className=bg-hs-red-600). Email HTML literals can stay (email-client limitation) but should be commented as an intentional exception.",
+      "reproduce": "grep -rn '#[0-9A-Fa-f]{6}' src --include=*.tsx --include=*.ts; compare to globals.css token declarations."
+    },
+    {
+      "pillar": "brand",
+      "check": "Brand contrast limits respected",
+      "status": "Fail",
+      "severity": "High",
+      "evidence": {
+        "endpoint": "/admin/owner-directory",
+        "selector": "button:has-text('Refresh now')",
+        "computed": "14px / 600 weight, white on crimson rgb(237,24,69)",
+        "expected": "White-on-crimson (~4.4:1) needs >=16px (brand rule) or true 700 bold at >=14px; this renders 14px/600, below both thresholds — narrowly fails AA.",
+        "file_hint": "src/components/ui/Button.tsx:51-56 (sizeStyles.md = text-sm/14px, default for primary), :91-92 (font-semibold not font-bold)"
+      },
+      "proposed_fix": "Make the default/md primary (white-on-crimson) Button text-base (16px), or use font-bold at 14px, per the brand's >=16px/medium-semibold white-on-crimson rule.",
+      "reproduce": "Authed, open /admin/owner-directory, inspect the 'Refresh now' button computed font-size/weight/color/background."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "Actions give feedback",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "actual": "Clicking Save on a listing detail page fires toggleFavorite successfully (a reload shows 'Remove from favorites', DB write succeeded) but the button UI never updates — no toast, label/aria stay 'Add to favorites'. Root cause: FavoriteButtonLarge uses useOptimistic + startTransition but toggleFavorite never calls revalidatePath/revalidateTag, so after the transition settles React re-renders with the stale initialFavorited prop and discards the optimistic flip.",
+        "expected": "State-changing action gives immediate persistent confirmation",
+        "screenshot": "audit-ui/screenshots/flow-d3-immediate-after-click.png",
+        "file_hint": "src/app/listings/[id]/FavoriteButtonLarge.tsx:11-24; src/lib/favorites-actions.ts:8-27"
+      },
+      "proposed_fix": "Call revalidatePath('/listings/[id]') (or a favorites tag + revalidateTag) inside toggleFavorite, or have the client set confirmed local state from the action's return value instead of the prop.",
+      "reproduce": "Authed, open an unsaved listing, click Save, wait — button still reads Save; reload — now reads Saved."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "Baseline accessibility",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "actual": "axe-core reported violations on 6/6 pages: color-contrast (serious) on every page (crimson-on-white and muted #8F7067 land just under 4.5:1, e.g. 4.35/4.44/4.48:1); critical button-name on /browse (MapTiler geocoder icon button has no accessible name); serious nested-interactive x58 on /browse (competitor rows are div[role=button][tabindex=0] wrapping focusable children); aria-prohibited-attr (serious) on listing-detail star-rating spans (aria-label on bare span); moderate landmark/region (no <main>) on /browse and /account/favorites.",
+        "expected": "No WCAG2AA axe violations on key authenticated pages",
+        "screenshot": "audit-ui/reports/axe-results.json",
+        "file_hint": "brand color tokens; MapTiler geocoder widget; browse competitor-list item; star-rating component"
+      },
+      "proposed_fix": "Add accessible name to the geocoder button; flatten competitor rows to a single control; move star aria-label onto role=img or use visually-hidden text; wrap content in <main>; darken muted text / restrict crimson to large-bold per brand contrast rules to clear 4.5:1.",
+      "reproduce": "Inject axe-core into Playwright per route and run axe.run(document,{resultTypes:['violations']})."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "Network-blip resilience",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "actual": "With the browser offline, clicking Delete on a saved search throws an uncaught 'Failed to fetch' (visible only in console); no toast, no inline error, no retry prompt. No data lost (7 saved searches remained) but the user cannot tell success from failure.",
+        "expected": "A mid-action connection drop surfaces the failure and allows retry",
+        "screenshot": "audit-ui/screenshots/netblip-delete-offline.png",
+        "file_hint": "src/app/account/alerts (delete-saved-search action, no client try/catch + error state)"
+      },
+      "proposed_fix": "Wrap mutate calls in client try/catch and show a toast/inline error on failure, matching ListingWizard's submitError pattern.",
+      "reproduce": "On /account/alerts, set browser offline, click Delete — console logs 'Failed to fetch' with zero user feedback."
+    },
+    {
+      "pillar": "ui-ux",
+      "check": "Dates and times display correctly",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "actual": "ListingsTable.formatDate builds Intl.DateTimeFormat with no timeZone, so it formats in the runtime's TZ; the Vercel server (UTC) can disagree with the admin's local browser near a day boundary — the exact 'off-by-a-day' UTC risk, and the cause of the React #418 hydration error on /admin/listings.",
+        "expected": "Timestamps render the same calendar date regardless of server vs client TZ",
+        "file_hint": "src/components/admin/ListingsTable.tsx:78-83"
+      },
+      "proposed_fix": "Pin an explicit timeZone (org-standard or UTC) in the Intl.DateTimeFormat options so server and client agree. Same one-line fix as the hydration finding.",
+      "reproduce": "Same as the 'No dead interactions' hydration finding."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "No dead code",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "detail": "ts-prune ran clean (knip crashed with a native oxc-parser buffer error — N/A for knip, findings hand-verified by grep). Dead: src/app/preview/kpi/page.tsx (a LIVE unauthenticated /preview/kpi route whose own docblock says 'DELETE THIS FILE before production deployment', still in the tree and will ship); src/components/browse/FavoriteButton.tsx (superseded by FavoriteButtonLarge); admin/InquiryList.tsx; listing-detail/KpiPlaceholder.tsx; src/lib/email-templates.tsx (70-line never-wired scaffold); ListingCardCompact; MOCK_SELLER_LOCATIONS; mockLocationKpiSmall; kpiBadge.",
+        "file_hint": "src/app/preview/kpi/page.tsx; src/components/browse/FavoriteButton.tsx; src/components/admin/InquiryList.tsx; src/components/listing-detail/KpiPlaceholder.tsx; src/lib/email-templates.tsx; src/components/listings/ListingCard.tsx:154"
+      },
+      "proposed_fix": "Delete preview/kpi/page.tsx, FavoriteButton.tsx, InquiryList.tsx, KpiPlaceholder.tsx, email-templates.tsx; remove ListingCardCompact/MOCK_SELLER_LOCATIONS/mockLocationKpiSmall/kpiBadge or wire them in. Re-run knip in a non-sandboxed CI runner for a Next.js-aware second pass.",
+      "reproduce": "npx ts-prune; cross-check each symbol with grep for its import path; curl /preview/kpi confirms it serves without auth."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "No duplicated logic",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "detail": "jscpd: 30 clones, 1.46% overall (low; the worst prior offenders DEBT-004/012/015 are genuinely fixed). Remaining: the auth-check + db.query.listings.findFirst({locations,photos}) + ownership-guard block is copy-pasted near-verbatim across 4 page files (seller edit/detail, admin edit/detail). DEBT-013's toListingFormData mapper fixed the transform, not this surrounding fetch+auth block.",
+        "file_hint": "src/app/seller/listings/[id]/{edit/,}page.tsx; src/app/admin/listings/[id]/{edit/,}page.tsx"
+      },
+      "proposed_fix": "Extract loadListingForSellerOrAdmin(id, session) (query + ownership check + notFound/redirect) and call it from all four pages. ~1-2h, low risk.",
+      "reproduce": "npx jscpd src --min-lines 8 --min-tokens 50 --reporters json; inspect duplicates sorted by lines desc."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "Critical paths have at least smoke coverage",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "detail": "@playwright/test is a devDependency but there is no playwright.config.* and zero .spec.ts in the repo. The ~476 passing tests are all Vitest unit tests (auth callbacks, write-path guards, money math, filters) — valuable but function-level, not an end-to-end journey (browse->view->contact, or seller create->submit->admin approve).",
+        "file_hint": "package.json; repo root (no playwright.config, no *.spec.ts)"
+      },
+      "proposed_fix": "Add playwright.config.ts + 2-3 .spec.ts for the highest-value flows and a test:e2e script; wire to CI against a preview deploy or local next start.",
+      "reproduce": "find . -iname '*.spec.ts' -not -path '*/node_modules/*' (empty); ls playwright.config.* (not found)."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "Setup is documented",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "detail": "README.md is the unmodified create-next-app boilerplate — no mention of HS-Marketplace, no required env vars (all the keys in env.ts), no note of the required `npm install --legacy-peer-deps` (vercel.json's installCommand — plain npm install likely fails), no deploy/migration steps.",
+        "file_hint": "README.md (all 36 lines)"
+      },
+      "proposed_fix": "Replace README with project docs: what the app is, required env vars (link env.ts as source of truth), install command (--legacy-peer-deps), dev/build/test commands, and the db:generate -> review -> db:migrate workflow (never db:push against non-local).",
+      "reproduce": "cat README.md — compare to create-next-app default."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "No redundant/heavyweight dependencies",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "detail": "Both map stacks are in production deps: @maptiler/sdk + @maptiler/geocoding-control AND leaflet + react-leaflet (DEBT-016, open). MapView uses MapTiler, TerritoryPicker uses Leaflet; both lazy-loaded so not a first-load Blocker, but two full mapping libs for overlapping purposes.",
+        "file_hint": "package.json dependencies"
+      },
+      "proposed_fix": "Consolidate on MapTiler (primary for browse); migrate TerritoryPicker off Leaflet and drop leaflet + react-leaflet. Medium effort, not urgent.",
+      "reproduce": "node -e \"console.log(require('./package.json').dependencies)\" | grep -i 'leaflet\\|maptiler'"
+    },
+    {
+      "pillar": "brand",
+      "check": "Brand focus ring on every interactive element",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "actual": "Tab-focusing HeaderNav links (world switcher, Browse/Saved/My Alerts/My Listings tabs, hamburger) shows the browser default UA outline (outlineStyle:auto), no crimson ring — HeaderNav's Link/button elements carry no focus-visible/ring classes. Where a brand ring IS applied (Button.tsx, Input.tsx) it uses #EF3059 (--hs-red-500) rather than the canonical --hs-color-focus #ED1845 (--hs-red-600).",
+        "expected": "Visible crimson (--hs-color-focus #ED1845) ring on every interactive element",
+        "file_hint": "src/components/layout/HeaderNav.tsx:50-113; src/components/ui/Button.tsx:93, Input.tsx:72 (correct, for contrast)"
+      },
+      "proposed_fix": "Add focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2 to every Link/button in HeaderNav (both nav tiers, primary action, hamburger, mobile drawer, sign-out), and standardize the ring on --hs-red-600 (#ED1845) not -500.",
+      "reproduce": "On /browse (authed), Tab from load and inspect document.activeElement outline/box-shadow at each stop."
+    },
+    {
+      "pillar": "brand",
+      "check": "Generated token files intact and wired up",
+      "status": "Fail",
+      "severity": "Medium",
+      "evidence": {
+        "detail": "The repo does not vendor the brand skill's generated variables.css / tailwind-preset.js and does not import fonts.css. globals.css hand-rolls a parallel token system with different names (--hs-red-600 not --hs-color-primary; --color-success not --hs-color-success; no --hs-color-focus/-on-primary/-border-strong) that matches tokens.json hex today but is disconnected from generate.py — future tokens.json edits won't propagate.",
+        "file_hint": "src/app/globals.css:1-118 vs skills/hello-sugar-brand/tokens/variables.css & tailwind-preset.js (never imported)"
+      },
+      "proposed_fix": "Either vendor variables.css + tailwind-preset.js verbatim and import at root, or document globals.css as an intentional hand-port kept in sync with tokens.json; add the semantic --hs-color-* names (at least primary/focus/danger/on-primary) as the canonical convention.",
+      "reproduce": "grep -r 'hs-color-' src/ (no matches) vs grep -r 'hs-red-' src/ (many); diff globals.css token block against skills/hello-sugar-brand/tokens/variables.css."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "Lint and format are clean and enforced",
+      "status": "Fail",
+      "severity": "Low",
+      "evidence": {
+        "detail": "ESLint cannot run at all: ERR_MODULE_NOT_FOUND 'Cannot find module eslint-config-next/core-web-vitals' (missing .js against eslint-config-next@15.5.20's export map) — a hard crash, not style warnings. ci.yml runs only tsc --noEmit + npm test, no lint step, so it was never caught.",
+        "file_hint": "eslint.config.mjs:2"
+      },
+      "proposed_fix": "Fix the imports: eslint-config-next/core-web-vitals.js and eslint-config-next/typescript.js. Re-run eslint, triage findings, add an npm run lint step to ci.yml (warn-only ok) so it can't regress.",
+      "reproduce": "npx eslint . --format json (exits 1 with ERR_MODULE_NOT_FOUND before evaluating any file)."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "No launch-blocking leftovers",
+      "status": "Fail",
+      "severity": "Low",
+      "evidence": {
+        "detail": "console.log('Upload complete:', blob.url, 'for user:', userId) runs in the production upload route's onUploadCompleted (upload/route.ts:31). And src/app/preview/kpi/page.tsx literally says 'DELETE THIS FILE before production deployment' and still ships.",
+        "file_hint": "src/app/api/upload/route.ts:31; src/app/preview/kpi/page.tsx:5"
+      },
+      "proposed_fix": "Remove the console.log (or route through a structured logger); delete preview/kpi/page.tsx.",
+      "reproduce": "grep -rn 'console\\.log(' src --include=*.ts --include=*.tsx (excluding db/migrate.ts CLI script)."
+    },
+    {
+      "pillar": "code-quality",
+      "check": "No LLM artifacts in the code",
+      "status": "Fail",
+      "severity": "Low",
+      "evidence": {
+        "detail": "src/lib/email-templates.tsx is a never-wired scaffold: a '// Placeholder export to satisfy module requirements' comment on an unused TEMPLATES_VERSION, plus ~40 lines of commented-out 'Example React Email component structure (for future use)'. preview/kpi/page.tsx's docblock is a leftover self-instruction never acted on.",
+        "file_hint": "src/lib/email-templates.tsx; src/app/preview/kpi/page.tsx:4-6"
+      },
+      "proposed_fix": "Delete email-templates.tsx (nothing imports it) and preview/kpi/page.tsx.",
+      "reproduce": "cat src/lib/email-templates.tsx; cat src/app/preview/kpi/page.tsx."
+    },
+    {
+      "pillar": "brand",
+      "check": "App chrome is branded",
+      "status": "Fail",
+      "severity": "Low",
+      "evidence": {
+        "endpoint": "/favicon.ico",
+        "actual": "200, image/x-icon, 25931 bytes — the stock Next.js/Vercel starter favicon (black circle + white triangle), not the Hello Sugar drop mark. Tab title and login stacked logo are correct.",
+        "expected": "The crimson teardrop drop mark (assets/logos/internal/hello-sugar-drop.png), as already used on the 404/error pages.",
+        "file_hint": "src/app/favicon.ico (dated Jun 15, predates the Jul 6 rebrand)"
+      },
+      "proposed_fix": "Replace src/app/favicon.ico with the drop-mark favicon, or add src/app/icon.png/icon.svg from the drop mark so Next.js's metadata convention picks it up.",
+      "reproduce": "curl https://marketplace.hellosugar.salon/favicon.ico and view it."
+    }
+  ],
+  "na_checks": [
+    { "pillar": "ui-ux", "check": "No obvious performance jank", "reason": "Lighthouse could not run — audit machine C: drive hit 0 bytes free (ENOSPC); no Core Web Vitals captured. Manual crawl showed no obvious jank across ~15 routes. Free disk and re-run before treating as passed." },
+    { "pillar": "security-deployment", "check": "External webhooks verify signatures", "reason": "No inbound provider webhooks exist. Analogous trust boundaries verified: /api/actions/[token] uses jose jwtVerify HS256+expiry; /api/cron/* uses Bearer CRON_SECRET (compared with plain !== — recommend crypto.timingSafeEqual)." },
+    { "pillar": "security-deployment", "check": "Sessions end properly", "reason": "Needs a cookie captured before a browser logout then replayed after; Google-OAuth logout can't be driven headlessly and no pre/post pair was provided. Static support: Auth.js DATABASE sessions (DrizzleAdapter) delete the session row on logout, so invalidation is supported." },
+    { "pillar": "security-deployment", "check": "Service accounts are least-privilege", "reason": "Requires GCP/Boulevard console access to inspect BigQuery service-account scopes/grants; no console access this audit. Creds supplied via GCP_SERVICE_ACCOUNT_JSON." }
+  ],
+  "out_of_scope_observations": [
+    { "from": "security", "note": "getListingById returns seller.email in the public (status=active) listing payload — confirm the buyer-facing UI never renders it to unauthenticated visitors (src/lib/listing-detail.ts:101-103)." },
+    { "from": "security", "note": "Action tokens (src/lib/listings/action-tokens.ts) are not single-use — replay within the 72h JWT expiry is bounded only by state-machine idempotency, not a consumed-nonce store (DEBT-017)." },
+    { "from": "security", "note": "CRON_SECRET bearer compared with plain !== (not crypto.timingSafeEqual) in all 3 cron routes — theoretical timing side-channel." },
+    { "from": "security", "note": "API handlers return { error: (error as Error).message } — safe today but would forward a future uncaught DB error verbatim; add a response-error sanitizer." },
+    { "from": "security", "note": "Verify Vercel Deployment Protection is enabled on preview deployments (not inspectable from the repo)." },
+    { "from": "security/ops", "note": "gitleaks and semgrep could not run via npx on this Windows host; secrets/injection AUTO checks were satisfied via git-tracked scan + bundle scan + manual review — install native binaries for a proper re-run before launch." },
+    { "from": "code-quality", "note": "TECHNICAL_DEBT.md is internally inconsistent: DEBT-008 still reads 'Open — BLOCKER' though next@15.5.20 is installed and clears the CVEs; DEBT-024 (browse PII) already shows a non-PII column projection in code; DEBT-029 scope-predicate dup already fixed. The register is stale in several places." },
+    { "from": "ui-ux", "note": "Admin Analytics 'Logins — Last 30 Days' chart Y-axis ticks render out of numeric order (5,2,3,4,0) — likely LoginTrendChart tick/domain calc." },
+    { "from": "ui-ux", "note": "/browse renders two DOM nodes with the same accessible name (duplicate geocoder input, responsive desktop+mobile not removed from a11y tree) — contributes to axe noise." },
+    { "from": "ui-ux", "note": "DATA HYGIENE: reproducing the seller-flow Blocker created ~12 $0 draft test listings under parker.fellows@hellosugar.salon on the LIVE prod DB, and there is no seller-facing delete-draft action to remove them — needs a UI delete-draft affordance or a DB cleanup pass." }
+  ],
+  "prior_audit_delta": {
+    "prior_date": "2026-07-02",
+    "prior_verdict": "NO-GO (4 blockers)",
+    "resolved_blockers": [
+      "next auth-bypass CVEs — bumped to 15.5.20; RSC/prefetch and x-middleware-subrequest bypasses re-verified closed live",
+      "IDOR on /api/kpi/[locationId] — route deleted (404 unauth); ownership checks now enforced across listing/alert/favorites paths",
+      "Production deployment matches intent — prod reachable with security headers, debug KPI route gone"
+    ],
+    "still_open_from_prior": [
+      "Schema-migration discipline — STILL a Blocker (four tables + column rename never migrated; indexes only in TS schema)"
+    ],
+    "new_this_run": [
+      "Seller listing wizard Financials step is broken (Zod intersection validation) — new Blocker, only findable behaviorally with a valid session (which the prior run lacked)",
+      "Full authenticated surface tested for the first time — surfaced admin hydration error, favorites feedback/race, home-page logged-out chrome, offline handling"
+    ]
+  }
+}
