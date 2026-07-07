@@ -53,6 +53,24 @@ describe("isLocationOpen", () => {
       )
     ).toBe(true)
   })
+  // unstable_cache serializes its result, so timestamp columns reach these
+  // helpers as ISO strings rather than Date objects. The helpers must handle
+  // that form or the /browse HS-location dots silently vanish (the query's
+  // catch turns the .getTime() TypeError into an empty result set).
+  it("accepts ISO-string dates (post-cache serialization)", () => {
+    expect(
+      isLocationOpen(dates({ actualSuiteGoDate: "2019-01-01T00:00:00.000Z" }), NOW)
+    ).toBe(true)
+    expect(
+      isLocationOpen(
+        dates({
+          actualSuiteGoDate: "2019-01-01T00:00:00.000Z",
+          suiteClosedDate: "2024-01-01T00:00:00.000Z",
+        }),
+        NOW
+      )
+    ).toBe(false)
+  })
 })
 
 describe("openedSinceYear", () => {
@@ -63,6 +81,16 @@ describe("openedSinceYear", () => {
   })
   it("returns null when neither go date is set", () => {
     expect(openedSinceYear(dates({}))).toBeNull()
+  })
+  it("accepts ISO-string dates (post-cache serialization)", () => {
+    expect(
+      openedSinceYear(
+        dates({
+          actualSuiteGoDate: "2021-03-01T00:00:00.000Z",
+          actualFlagshipGoDate: "2019-08-01T00:00:00.000Z",
+        })
+      )
+    ).toBe(2019)
   })
 })
 

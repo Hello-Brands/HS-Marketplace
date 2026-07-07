@@ -1,12 +1,25 @@
 import { pointInScope } from "./competitor-filter"
 import type { CompetitorScope } from "./competitor-filter"
 
-/** owner_locations date fields needed to decide whether a location is open. */
+/**
+ * owner_locations date fields needed to decide whether a location is open.
+ *
+ * Values may arrive as Date objects (a direct Drizzle read) OR as ISO strings:
+ * getUnlistedHsLocations reads these through unstable_cache, whose serialization
+ * turns timestamp columns into strings. Both forms are accepted and coerced via
+ * `toDate` so the date math below never calls .getTime() on a string.
+ */
 export interface HsLocationOpenDates {
-  actualSuiteGoDate: Date | null
-  suiteClosedDate: Date | null
-  actualFlagshipGoDate: Date | null
-  flagshipClosedDate: Date | null
+  actualSuiteGoDate: Date | string | null
+  suiteClosedDate: Date | string | null
+  actualFlagshipGoDate: Date | string | null
+  flagshipClosedDate: Date | string | null
+}
+
+/** Coerce a possibly-serialized timestamp to a Date; null passes through. */
+function toDate(value: Date | string | null): Date | null {
+  if (value == null) return null
+  return value instanceof Date ? value : new Date(value)
 }
 
 /** A map dot for an open Hello Sugar location that is NOT listed for sale. */
@@ -21,7 +34,9 @@ export interface UnlistedHsLocation {
 }
 
 /** A track (suite or flagship) is live if it has gone and hasn't since closed. */
-function trackOpen(goDate: Date | null, closedDate: Date | null, now: Date): boolean {
+function trackOpen(goDateInput: Date | string | null, closedDateInput: Date | string | null, now: Date): boolean {
+  const goDate = toDate(goDateInput)
+  const closedDate = toDate(closedDateInput)
   if (!goDate || goDate.getTime() > now.getTime()) return false
   if (closedDate && closedDate.getTime() <= now.getTime()) return false
   return true
@@ -38,6 +53,7 @@ export function isLocationOpen(dates: HsLocationOpenDates, now: Date): boolean {
 /** Year of the earliest actual go-date (suite or flagship); null if neither set. */
 export function openedSinceYear(dates: HsLocationOpenDates): number | null {
   const times = [dates.actualSuiteGoDate, dates.actualFlagshipGoDate]
+    .map(toDate)
     .filter((x): x is Date => x != null)
     .map((x) => x.getTime())
   if (times.length === 0) return null
