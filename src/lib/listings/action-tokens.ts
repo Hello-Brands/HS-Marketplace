@@ -9,10 +9,16 @@ const getSecret = () => new TextEncoder().encode(process.env.ACTION_TOKEN_SECRET
 
 export type ActionType = 'markSold' | 'confirmActive'
 
+// DEBT-017: shortened from 7d to 72h to narrow the replay window on forwarded
+// action emails, while still giving a seller a few days to click a reminder.
+// These tokens are NOT yet single-use — true single-use needs a consumed-nonce
+// store (a schema change); replay is currently bounded by canTransition (a
+// re-played markSold is a no-op once the listing is sold) and confirmActive is
+// idempotent. Tracked as the remaining half of DEBT-017.
 export async function createActionToken(
   action: ActionType,
   listingId: string,
-  expiresIn: string = '7d'
+  expiresIn: string = '72h'
 ): Promise<string> {
   const token = await new SignJWT({ action, listingId })
     .setProtectedHeader({ alg: 'HS256' })

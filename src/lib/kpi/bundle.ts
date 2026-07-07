@@ -1,4 +1,5 @@
 import type { KpiMetric } from "./schema"
+import { buildMetricFromTrend } from "./metric"
 
 export interface BundleLocationKpi {
   id: string
@@ -38,11 +39,8 @@ function aggregateOne(metrics: KpiMetric[], mode: Mode): KpiMetric | null {
   const total = metrics.reduce((s, m) => s + m.lastMonth, 0)
   const lastMonth = mode === "sum" ? total : total / metrics.length
   const trend = mergeTrend(metrics, mode)
-  const last = trend.length > 0 ? trend[trend.length - 1].value : 0
-  const prior = trend.length > 1 ? trend[trend.length - 2].value : 0
-  const momChange = prior !== 0 ? (last - prior) / prior : 0
   const updatedAt = metrics.map((m) => m.updatedAt).sort().pop()!
-  return { lastMonth, momChange, trend, updatedAt, source: "bigquery" }
+  return buildMetricFromTrend(trend, { lastMonth, updatedAt })
 }
 
 export function aggregateBundleLocationKpis(locations: BundleLocationKpi[]): BundleAggregate {

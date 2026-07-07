@@ -41,6 +41,8 @@ vi.mock('@/db', () => ({
     // saveDraft-style select isn't used here; the location snapshot uses this chain.
     select: () => ({ from: () => ({ where: mockLocSnapshot }) }),
     update: mockUpdate,
+    // delete/insert now build query objects that are handed to db.batch rather than
+    // awaited individually; we still record what was built here for the assertions.
     delete: (table: unknown) => ({
       where: () => {
         deletes.push(table)
@@ -53,6 +55,8 @@ vi.mock('@/db', () => ({
         return Promise.resolve()
       },
     }),
+    // The sync helpers commit delete + re-inserts as one atomic neon-http batch.
+    batch: (queries: unknown[]) => Promise.all(queries),
     query: { listings: { findFirst: mockFindFirst } },
   },
 }))

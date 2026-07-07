@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import { listings } from "./listings"
 import { users } from "./auth"
@@ -13,6 +13,9 @@ export const favorites = pgTable(
   },
   (table) => [
     uniqueIndex("favorites_user_listing_idx").on(table.userId, table.listingId),
+    // Detail-page favorite counts: the unique index above leads with user_id, so
+    // listing-only lookups seq-scan without this (FK not auto-indexed by Postgres)
+    index("favorites_listing_id_idx").on(table.listingId),
   ],
 )
 

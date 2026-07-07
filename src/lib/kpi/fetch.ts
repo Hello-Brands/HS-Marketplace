@@ -10,6 +10,7 @@ import {
   type LocationReviewSummary,
 } from "@/lib/bigquery/queries"
 import { canFetchLiveData } from "./access"
+import { buildMetricFromTrend } from "./metric"
 import type { BundleLocationKpi } from "./bundle"
 
 /**
@@ -110,17 +111,8 @@ export async function fetchLocationMembership(args: {
   // trend. Falls back to the pooled TTM ratio when no monthly series exists.
   const points = trendMap.get(args.bqLocationName) ?? []
   const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
-  const last = points.length > 0 ? points[points.length - 1].value : pct
-  const prior = points.length > 1 ? points[points.length - 2].value : 0
-  const momChange = points.length > 1 && prior !== 0 ? (last - prior) / prior : 0
 
-  return {
-    lastMonth: last,
-    momChange,
-    trend,
-    updatedAt: new Date().toISOString(),
-    source: "bigquery",
-  }
+  return buildMetricFromTrend(trend)
 }
 
 export async function fetchLocationRevenue(args: {
@@ -136,20 +128,10 @@ export async function fetchLocationRevenue(args: {
   if (ns === undefined) return null
 
   // KpiCard/KpiTrendChart format values as dollars; the financials card uses cents.
-  const trend = ns.trend
-  const last = trend.length > 0 ? trend[trend.length - 1].value : 0
-  const prior = trend.length > 1 ? trend[trend.length - 2].value : 0
-  const momChange = prior !== 0 ? (last - prior) / prior : 0
-
+  // Headline is the TTM total in dollars; the trend drives the sparkline.
   return {
     totalCents: ns.totalCents,
-    metric: {
-      lastMonth: ns.totalCents / 100, // TTM total in dollars
-      momChange,
-      trend,
-      updatedAt: new Date().toISOString(),
-      source: "bigquery",
-    },
+    metric: buildMetricFromTrend(ns.trend, { lastMonth: ns.totalCents / 100 }),
   }
 }
 
@@ -189,31 +171,14 @@ export async function fetchBundleLocationKpis(
     if (connected && loc.bqLocationName) {
       const ns = netMap.get(loc.bqLocationName)
       if (ns) {
-        const trend = ns.trend
-        const last = trend.length > 0 ? trend[trend.length - 1].value : 0
-        const prior = trend.length > 1 ? trend[trend.length - 2].value : 0
-        netSales = {
-          lastMonth: ns.totalCents / 100,
-          momChange: prior !== 0 ? (last - prior) / prior : 0,
-          trend,
-          updatedAt: new Date().toISOString(),
-          source: "bigquery",
-        }
+        netSales = buildMetricFromTrend(ns.trend, { lastMonth: ns.totalCents / 100 })
       }
 
       const pct = mcrMap.get(loc.bqLocationName)
       if (pct !== undefined) {
         const points = mcrTrendMap.get(loc.bqLocationName) ?? []
         const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
-        const last = points.length > 0 ? points[points.length - 1].value : pct
-        const prior = points.length > 1 ? points[points.length - 2].value : 0
-        membership = {
-          lastMonth: last,
-          momChange: points.length > 1 && prior !== 0 ? (last - prior) / prior : 0,
-          trend,
-          updatedAt: new Date().toISOString(),
-          source: "bigquery",
-        }
+        membership = buildMetricFromTrend(trend)
       }
     }
 

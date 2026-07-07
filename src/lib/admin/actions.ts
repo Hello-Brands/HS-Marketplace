@@ -1,6 +1,5 @@
 'use server'
 
-import { auth } from '@/auth'
 import { db } from '@/db'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq, desc } from 'drizzle-orm'
@@ -13,13 +12,7 @@ import { triggerAlertMatching } from '@/lib/alert-actions'
 import { buildListingUpdate } from '@/lib/listings/build-update'
 import { syncListingLocations, syncListingPhotos } from '@/lib/listings/persist'
 import type { ListingStatus, ListingFormData } from '@/lib/listings/types'
-
-async function requireAdmin() {
-  const session = await auth()
-  if (!session?.user) throw new Error('Not authenticated')
-  if (session.user.role !== 'admin') throw new Error('Admin access required')
-  return session.user
-}
+import { requireAdmin } from '@/lib/auth-guards'
 
 export async function getPendingListings() {
   await requireAdmin()

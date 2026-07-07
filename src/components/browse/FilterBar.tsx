@@ -4,7 +4,7 @@ import { useState } from "react"
 import { parseAsArrayOf, parseAsBoolean, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs"
 import { US_STATES } from "@/lib/us-states"
 import { FilterPopover } from "./FilterPopover"
-import { LocationSearch } from "./LocationSearch"
+import { LocationSearch } from "./LocationSearchDynamic"
 
 // Radius range (miles) for the location search slider.
 export const RADIUS_MIN_MILES = 1

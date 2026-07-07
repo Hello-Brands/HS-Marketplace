@@ -15,7 +15,7 @@
 
 import { auth } from "@/auth"
 import { db } from "@/db"
-import { alerts } from "@/db/schema/alerts"
+import { alerts, type NewAlert } from "@/db/schema/alerts"
 import { users } from "@/db/schema/auth"
 import { eq, desc } from "drizzle-orm"
 import { z } from "zod"
@@ -47,25 +47,47 @@ const alertSchema = z.object({
 
 type AlertInput = z.infer<typeof alertSchema>
 
+/**
+ * Single source of truth for the alert filter columns. Both `toRow` (the insert
+ * mapping) and `updateAlert` (the patch builder) iterate this one list, so a new
+ * alert field is added in exactly one place — avoiding the two-list drift that
+ * caused the historical cents bug.
+ *
+ * - `default`: value substituted when the input value is null/undefined.
+ * - `patchRaw`: when true, `updateAlert` stores the provided value AS-IS without
+ *   applying `default`. This preserves `notifyEnabled`'s original patch semantics
+ *   (it was the only field assigned raw in the update, while `toRow` still
+ *   applies its `true` default on insert).
+ */
+const ALERT_FIELDS: ReadonlyArray<{
+  key: keyof AlertInput
+  default: unknown
+  patchRaw?: boolean
+}> = [
+  { key: "name", default: null },
+  { key: "query", default: null },
+  { key: "states", default: [] },
+  { key: "listingTypes", default: [] },
+  { key: "minPrice", default: null },
+  { key: "maxPrice", default: null },
+  { key: "minYearsOpen", default: null },
+  { key: "inventoryIncluded", default: false },
+  { key: "sort", default: null },
+  { key: "centerLat", default: null },
+  { key: "centerLng", default: null },
+  { key: "radiusMiles", default: null },
+  { key: "centerLabel", default: null },
+  { key: "notifyEnabled", default: true, patchRaw: true },
+  { key: "includeListings", default: true },
+  { key: "includeCompetitors", default: true },
+]
+
 function toRow(data: AlertInput) {
-  return {
-    name: data.name ?? null,
-    query: data.query ?? null,
-    states: data.states ?? [],
-    listingTypes: data.listingTypes ?? [],
-    minPrice: data.minPrice ?? null,
-    maxPrice: data.maxPrice ?? null,
-    minYearsOpen: data.minYearsOpen ?? null,
-    inventoryIncluded: data.inventoryIncluded ?? false,
-    sort: data.sort ?? null,
-    centerLat: data.centerLat ?? null,
-    centerLng: data.centerLng ?? null,
-    radiusMiles: data.radiusMiles ?? null,
-    centerLabel: data.centerLabel ?? null,
-    notifyEnabled: data.notifyEnabled ?? true,
-    includeListings: data.includeListings ?? true,
-    includeCompetitors: data.includeCompetitors ?? true,
+  const row: Record<string, unknown> = {}
+  for (const { key, default: fallback } of ALERT_FIELDS) {
+    row[key] = data[key] ?? fallback
   }
+  return row as unknown as Omit<NewAlert, "id" | "userId" | "createdAt" | "updatedAt">
 }
 
 /**
@@ -120,22 +142,11 @@ export async function updateAlert(id: string, data: AlertInput) {
   // Only overwrite keys present in the input; leave the rest of the saved search intact.
   const patch: Record<string, unknown> = { updatedAt: new Date() }
   const d = parsed.data
-  if ("name" in d) patch.name = d.name ?? null
-  if ("query" in d) patch.query = d.query ?? null
-  if ("states" in d) patch.states = d.states ?? []
-  if ("listingTypes" in d) patch.listingTypes = d.listingTypes ?? []
-  if ("minPrice" in d) patch.minPrice = d.minPrice ?? null
-  if ("maxPrice" in d) patch.maxPrice = d.maxPrice ?? null
-  if ("minYearsOpen" in d) patch.minYearsOpen = d.minYearsOpen ?? null
-  if ("inventoryIncluded" in d) patch.inventoryIncluded = d.inventoryIncluded ?? false
-  if ("sort" in d) patch.sort = d.sort ?? null
-  if ("centerLat" in d) patch.centerLat = d.centerLat ?? null
-  if ("centerLng" in d) patch.centerLng = d.centerLng ?? null
-  if ("radiusMiles" in d) patch.radiusMiles = d.radiusMiles ?? null
-  if ("centerLabel" in d) patch.centerLabel = d.centerLabel ?? null
-  if ("notifyEnabled" in d) patch.notifyEnabled = d.notifyEnabled
-  if ("includeListings" in d) patch.includeListings = d.includeListings ?? true
-  if ("includeCompetitors" in d) patch.includeCompetitors = d.includeCompetitors ?? true
+  for (const { key, default: fallback, patchRaw } of ALERT_FIELDS) {
+    if (key in d) {
+      patch[key] = patchRaw ? d[key] : d[key] ?? fallback
+    }
+  }
 
   await db.update(alerts).set(patch).where(eq(alerts.id, id))
 

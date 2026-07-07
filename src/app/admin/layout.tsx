@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
-import { SiteHeader } from '@/components/layout/SiteHeader'
+import { AppShell } from '@/components/layout/AppShell'
 
 export default async function AdminLayout({
   children,
@@ -18,9 +18,8 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen">
-      <SiteHeader world="admin" />
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8">{children}</main>
-    </div>
+    <AppShell world="admin" mainClassName="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+      {children}
+    </AppShell>
   )
 }

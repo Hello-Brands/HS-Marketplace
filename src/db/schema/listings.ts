@@ -51,7 +51,12 @@ export const listings = pgTable("listings", {
   // Set once, the first time status becomes 'active'. Powers "days listed".
   listedAt: timestamp("listed_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+}, (table) => [
+  // Browse filter + keyset pagination (status filter, newest-first ordering)
+  index("listings_status_created_at_idx").on(table.status, table.createdAt.desc()),
+  // Seller/admin/analytics lookups by owner (FK not auto-indexed by Postgres)
+  index("listings_seller_id_idx").on(table.sellerId),
+])
 
 export const listingLocations = pgTable("listing_locations", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -99,6 +104,8 @@ export const listingLocations = pgTable("listing_locations", {
 }, (table) => [
   // Supports the bounding-box prefilter used by radius search
   index("listing_locations_lat_lng_idx").on(table.latitude, table.longitude),
+  // Joined + ordered on every browse row (FK not auto-indexed by Postgres)
+  index("listing_locations_listing_id_display_order_idx").on(table.listingId, table.displayOrder),
 ])
 
 export const listingPhotos = pgTable("listing_photos", {
@@ -113,7 +120,10 @@ export const listingPhotos = pgTable("listing_photos", {
   displayOrder: integer("display_order").notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
-})
+}, (table) => [
+  // Joined + ordered on every browse row (FK not auto-indexed by Postgres)
+  index("listing_photos_listing_id_display_order_idx").on(table.listingId, table.displayOrder),
+])
 
 // Relations
 export const listingsRelations = relations(listings, ({ one, many }) => ({

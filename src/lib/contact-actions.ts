@@ -5,6 +5,7 @@ import { db } from '@/db'
 import { contacts } from '@/db/schema/contacts'
 import { listings } from '@/db/schema/listings'
 import { sendContactNotification } from '@/lib/email'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -17,6 +18,13 @@ const contactFormSchema = z.object({
 export async function submitContactForm(prevState: unknown, formData: FormData) {
   const session = await auth()
   if (!session?.user) return { error: 'Not authenticated' }
+
+  // Throttle per buyer (DEBT-028): each submit emails a seller, so cap bursts to
+  // prevent a signed-in buyer from spamming sellers. Best-effort per-instance.
+  const limit = checkRateLimit(`contact:${session.user.id}`, 5, 60_000)
+  if (!limit.allowed) {
+    return { error: 'You are sending messages too quickly. Please wait a moment and try again.' }
+  }
 
   const parsed = contactFormSchema.safeParse({
     listingId: formData.get('listingId'),

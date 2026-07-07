@@ -40,7 +40,26 @@ export async function getUnlistedHsLocations(
       )
     }
 
-    const rows = await db.select().from(ownerLocations).where(and(...conds))
+    // Explicit non-PII projection (DEBT-024): select ONLY the columns the
+    // filter helpers and dedupe/return path consume. Excludes owner PII
+    // (ownerName, ownerContactEmail, ownerContactEmailNormalized) and other
+    // unused columns so they are never loaded into server memory.
+    const rows = await db
+      .select({
+        id: ownerLocations.id,
+        blvdLocationName: ownerLocations.blvdLocationName,
+        blvdLocationNumber: ownerLocations.blvdLocationNumber,
+        locationAddress: ownerLocations.locationAddress,
+        resolvedBqLocationName: ownerLocations.resolvedBqLocationName,
+        latitude: ownerLocations.latitude,
+        longitude: ownerLocations.longitude,
+        actualSuiteGoDate: ownerLocations.actualSuiteGoDate,
+        suiteClosedDate: ownerLocations.suiteClosedDate,
+        actualFlagshipGoDate: ownerLocations.actualFlagshipGoDate,
+        flagshipClosedDate: ownerLocations.flagshipClosedDate,
+      })
+      .from(ownerLocations)
+      .where(and(...conds))
 
     // BigQuery names of locations that are actively listed for sale — excluded.
     const listed = await db

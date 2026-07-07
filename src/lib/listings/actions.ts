@@ -1,6 +1,5 @@
 'use server'
 
-import { auth } from '@/auth'
 import { db } from '@/db'
 import { listings } from '@/db/schema/listings'
 import { eq } from 'drizzle-orm'
@@ -9,21 +8,14 @@ import type { ListingFormData, ListingStatus } from './types'
 import { canTransition } from './status-machine'
 import { nextListedAt } from '@/lib/analytics/helpers'
 import { buildListingUpdate } from './build-update'
+import { requireSellerAccess } from '@/lib/auth-guards'
+import { hasAcknowledgedCurrentFdd } from './disclaimer'
 import {
-  insertLocations,
-  insertPhotos,
+  buildLocationInserts,
+  buildPhotoInserts,
   syncListingLocations,
   syncListingPhotos,
 } from './persist'
-
-async function requireSellerAccess() {
-  const session = await auth()
-  if (!session?.user) throw new Error('Not authenticated')
-  if (!session.user.sellerAccess && session.user.role !== 'admin') {
-    throw new Error('Seller access required')
-  }
-  return session.user
-}
 
 export async function saveDraft(data: Partial<ListingFormData>, listingId?: string) {
   const user = await requireSellerAccess()
@@ -70,26 +62,40 @@ export async function saveDraft(data: Partial<ListingFormData>, listingId?: stri
     return { success: true, listingId }
   }
 
-  // Create new draft
-  const [listing] = await db.insert(listings)
-    .values({
-      sellerId: user.id!,
-      type,
-      status: 'draft',
-      title,
-      ...buildListingUpdate(data),
-    })
-    .returning({ id: listings.id })
-
-  if (data.locations) {
-    await insertLocations(listing.id, data.locations, new Map())
+  // Enforce the "Selling Your Franchise" disclaimer server-side (DEBT-022). The
+  // client gate reveals the wizard after acknowledgeSellingDisclaimer(), but a
+  // seller could POST to the create action directly without ever passing the gate.
+  // Only the create-new path is guarded; editing an existing listing (the
+  // listingId branch above) is unaffected.
+  if (!(await hasAcknowledgedCurrentFdd(user.id!))) {
+    throw new Error('You must acknowledge the seller disclaimer before creating a listing.')
   }
 
-  if (data.photos) {
-    await insertPhotos(listing.id, data.photos)
-  }
+  // Create new draft — all-or-nothing. The listing id is app-generated up front so
+  // the parent row and its children share it without a cross-query dependency, then
+  // the parent insert + every location/photo insert commit in ONE neon-http batch
+  // (a single transaction). A mid-sequence failure can no longer leave a parent
+  // listing with partial (or zero) locations/photos. Owner-directory resolution and
+  // best-effort geocoding happen inside buildLocationInserts, before the batch opens.
+  const newListingId = crypto.randomUUID()
 
-  return { success: true, listingId: listing.id }
+  const locationInserts = data.locations
+    ? await buildLocationInserts(newListingId, data.locations, new Map())
+    : []
+  const photoInserts = data.photos ? buildPhotoInserts(newListingId, data.photos) : []
+
+  const listingInsert = db.insert(listings).values({
+    id: newListingId,
+    sellerId: user.id!,
+    type,
+    status: 'draft',
+    title,
+    ...buildListingUpdate(data),
+  })
+
+  await db.batch([listingInsert, ...locationInserts, ...photoInserts])
+
+  return { success: true, listingId: newListingId }
 }
 
 export async function submitListing(listingId: string) {
