@@ -182,7 +182,9 @@ export function MapView({
   const map = useRef<maptilersdk.Map | null>(null)
   const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
   const competitorMarkers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
-  const hsMarkers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
+  // Popup tracked alongside the marker: it isn't attached via setPopup (see the
+  // HS-location effect), so marker.remove() won't clean it up for us.
+  const hsMarkers = useRef<{ marker: maptilersdk.Marker; popup: maptilersdk.Popup; id: string }[]>([])
   // Read inside marker listeners without making it a dependency of the marker effect.
   const onToggleSaveCompetitorRef = useRef(onToggleSaveCompetitor)
   onToggleSaveCompetitorRef.current = onToggleSaveCompetitor
@@ -486,14 +488,20 @@ export function MapView({
   }, [competitors, showCompetitors, savedPlaceIds.join(","), onHover])
 
   // Unlisted Hello Sugar locations: a third marker layer of solid slate dots.
-  // Hover shows a non-PII popup; there is deliberately NO click handler (these
-  // never navigate) and no onHover coordination (they aren't in the list).
+  // Hover previews a non-PII popup; a single click pins it open (click elsewhere
+  // on the map dismisses it via closeOnClick). These never navigate and have no
+  // onHover coordination (they aren't in the list). The popup is deliberately
+  // NOT attached via setPopup — the marker's built-in click-toggle would fight
+  // the hover-open handler and demand a second click to reopen the popup.
   useEffect(() => {
     const m = map.current
     if (!m) return
 
     const apply = () => {
-      hsMarkers.current.forEach(({ marker }) => marker.remove())
+      hsMarkers.current.forEach(({ marker, popup }) => {
+        popup.remove()
+        marker.remove()
+      })
       hsMarkers.current = []
       if (!showHsLocations) return
 
@@ -512,7 +520,7 @@ export function MapView({
           background-color: ${BRAND.taupe};
           border: 2px solid white;
           border-radius: 50%;
-          cursor: default;
+          cursor: pointer;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
           transition: transform 0.15s ease;
         `
@@ -522,23 +530,35 @@ export function MapView({
           offset: 20,
           closeButton: false,
           maxWidth: "220px",
-        }).setHTML(hsLocationPopupHtml(loc))
+        })
+          .setLngLat([loc.longitude, loc.latitude])
+          .setHTML(hsLocationPopupHtml(loc))
 
         const marker = new maptilersdk.Marker({ element: el })
           .setLngLat([loc.longitude, loc.latitude])
-          .setPopup(popup)
           .addTo(m)
 
+        let pinned = false
         el.addEventListener("mouseenter", () => {
           inner.style.transform = "scale(1.25)"
           popup.addTo(m)
         })
         el.addEventListener("mouseleave", () => {
           inner.style.transform = "scale(1)"
-          popup.remove()
+          if (!pinned) popup.remove()
+        })
+        // stopPropagation keeps the map's closeOnClick from immediately
+        // dismissing the popup we just pinned.
+        el.addEventListener("click", (e) => {
+          e.stopPropagation()
+          pinned = true
+          popup.addTo(m)
+        })
+        popup.on("close", () => {
+          pinned = false
         })
 
-        hsMarkers.current.push({ marker, id: loc.id })
+        hsMarkers.current.push({ marker, popup, id: loc.id })
       }
     }
 
