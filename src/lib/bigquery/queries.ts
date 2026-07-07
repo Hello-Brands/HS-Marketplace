@@ -1,6 +1,7 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
 import { runQuery } from "./client"
+import { MONTH_ABBR } from "@/lib/month"
 
 // The BigQuery SDK can return numeric columns as JS number, string, or a Big
 // object (for NUMERIC/BIGNUMERIC), so accept the broad shape and coerce.
@@ -54,7 +55,6 @@ function toNumber(v: Numeric): number {
   return Number.isFinite(n) ? n : 0
 }
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 function formatMonthLabel(ym: string): string {
   const [y, m] = ym.split("-")
   const idx = Number(m) - 1

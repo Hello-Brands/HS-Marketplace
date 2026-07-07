@@ -1,4 +1,4 @@
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+import { MONTH_ABBR } from "@/lib/month"
 
 /** Average rating to a fixed two-decimal string, e.g. 4.84. */
 export function formatRating(avg: number): string {
