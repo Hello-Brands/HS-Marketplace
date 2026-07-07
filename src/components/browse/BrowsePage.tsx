@@ -181,7 +181,7 @@ export function BrowsePage({
   const savedCompetitorIdList = useMemo(() => Array.from(savedSet), [savedSet])
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <main className="flex flex-col min-h-screen bg-gray-50">
       {/* Filter bar — desktop only, sticky at top */}
       <div className="hidden md:block">
         <FilterBar onLocationSelect={handleLocationSelect} />
@@ -397,6 +397,6 @@ export function BrowsePage({
         onClose={() => setMobileFiltersOpen(false)}
         onLocationSelect={handleLocationSelect}
       />
-    </div>
+    </main>
   )
 }

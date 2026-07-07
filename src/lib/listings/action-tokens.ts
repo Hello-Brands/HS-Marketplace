@@ -4,8 +4,9 @@ import { listings } from '@/db/schema/listings'
 import { eq } from 'drizzle-orm'
 import { canTransition } from './status-machine'
 import type { ListingStatus } from './types'
+import { env } from '@/lib/env'
 
-const getSecret = () => new TextEncoder().encode(process.env.ACTION_TOKEN_SECRET)
+const getSecret = () => new TextEncoder().encode(env.ACTION_TOKEN_SECRET)
 
 export type ActionType = 'markSold' | 'confirmActive'
 

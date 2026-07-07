@@ -12,11 +12,12 @@ import {
 import { getLoggedCompetitorPlaceIds, recordCompetitorAlerts } from "@/lib/competitor-alert-log"
 import { sendCompetitorAlertEmail } from "@/lib/email"
 import { savedSearchToBrowseParams } from "@/lib/saved-search"
+import { env } from "@/lib/env"
 
 export async function GET(request: Request) {
   // Verify cron secret to prevent unauthorized invocations
   const authHeader = request.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
     .from(alerts)
     .innerJoin(users, eq(alerts.userId, users.id))
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
+  const appUrl = env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
   let processed = 0
   let emailed = 0
   let errors = 0

@@ -43,6 +43,7 @@ export function AdminListingCard({
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'America/Denver',
   }).format(new Date(createdAt))
 
   return (

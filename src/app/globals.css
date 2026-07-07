@@ -6,6 +6,19 @@
    Palette source: hello-sugar-brand tokens.json (crimson #ED1845, blush
    #F7DCDA, rose #AD4C52, sand #E2CCB9, caramel #BB8265, taupe #8F7067,
    mauve #CBA499, cream #EEE2DA, ink #1F1917).
+
+   INTENTIONAL HAND-PORT — this file is a deliberate hand-port of the
+   hello-sugar-brand skill's tokens/tokens.json, not the skill's generated
+   variables.css/tailwind-preset.js. It is NOT auto-generated. Tailwind v4's
+   `@theme inline` block below (and the cascade it depends on) would be
+   risky to replace wholesale with the generated files, so instead every
+   value here is copied by hand from tokens.json and re-expressed as the
+   --hs-*/--gray-*/--color-* names this app already uses, plus the
+   --hs-color-* semantic aliases added below.
+   SOURCE OF TRUTH: hello-sugar-brand skill, tokens/tokens.json.
+   SYNC RULE: whenever tokens.json changes (a brand color, a semantic
+   mapping, a status color), re-copy the new hex values into this file by
+   hand in the same pass — do not let this drift from tokens.json.
    ==================================== */
 
 :root {
@@ -39,7 +52,20 @@
   --hs-sand: #E2CCB9;
   --hs-tan: #D3AD90;
   --hs-mauve: #CBA499;
-  --hs-taupe: #8F7067;
+  /* --hs-taupe: brand swatch #8F7067 per tokens.json, but darkened for use as
+     BODY TEXT. tokens.json's own text-muted (#8F7067) measures ~4.49:1 on
+     white and only ~3.53:1 on the cream page background (#EEE2DA) — axe
+     flags this as sub-AA (WCAG AA small text needs 4.5:1), and
+     brand-guidelines.md documents the same ~3.5:1 cream ratio without
+     offering a compliant alternative. Darkened here to #755B54, which
+     measures ~4.89:1 on cream and ~6.21:1 on white — clears AA with margin
+     on the app's worst-case (lowest-luminance) background. If tokens.json
+     is later updated with an official compliant muted color, replace this
+     value and update this comment. Old value: #8F7067.
+     Used for text (text-hs-taupe, --gray-500/--color-muted below) AND as a
+     decorative swatch (MapLegend border/dot) — the darkened shade reads as
+     the same taupe, just legible as body text now. */
+  --hs-taupe: #755B54;
 
   /* Brand Colors - Semantic Aliases */
   --color-primary: var(--hs-red-600);
@@ -54,7 +80,12 @@
   --gray-200: #E8DED7;
   --gray-300: #D9C9C1;
   --gray-400: #B0988D;
-  --gray-500: #8F7067;        /* brand taupe — secondary text */
+  /* brand taupe — secondary text. Was a literal #8F7067 (same sub-AA value
+     as --hs-taupe, see the a11y note above); now points at --hs-taupe so
+     the two can't drift apart and the fix applies everywhere text-gray-500
+     is used (this is the token actually driving `text-gray-500` across the
+     app via --color-muted / --color-gray-500 below). */
+  --gray-500: var(--hs-taupe);
   --gray-600: #75594F;
   --gray-700: #5C453D;
   --gray-800: #40302B;
@@ -115,6 +146,42 @@
 
   /* Spacing Scale */
   --space-page: clamp(1rem, 5vw, 3rem);
+
+  /* ----------------------------------------------------------------
+     hello-sugar-brand SEMANTIC ALIASES (--hs-color-*)
+     The brand skill's tokens.json exposes a `color.*` semantic layer
+     (primary, focus, danger, success, ...) on top of the raw palette.
+     This app only had the raw/hand-rolled tokens above; these aliases
+     restore the semantic names without touching any existing variable,
+     so nothing that already references --hs-red-600, --color-error, etc.
+     changes behavior. Each hex below is confirmed against tokens.json's
+     `color` block before being wired to an existing token.
+     ---------------------------------------------------------------- */
+  --hs-color-primary: var(--hs-red-600);            /* #ED1845 */
+  --hs-color-primary-strong: var(--hs-red-700);     /* #C9143B */
+  --hs-color-primary-soft: var(--hs-red-100);        /* #F7DCDA */
+  --hs-color-on-primary: #FFFFFF;
+  --hs-color-accent: var(--hs-caramel-600);         /* #BB8265 */
+  --hs-color-accent-soft: var(--hs-caramel-200);    /* #E2CCB9 */
+  --hs-color-deep: var(--hs-rose);                  /* #AD4C52 */
+  --hs-color-bg: var(--background);                 /* #EEE2DA */
+  --hs-color-surface: var(--surface);                /* #FFFFFF */
+  --hs-color-surface-alt: var(--surface-alt);        /* #F7F2EE */
+  --hs-color-border: var(--gray-300);                /* #D9C9C1 */
+  --hs-color-border-strong: var(--hs-mauve);        /* #CBA499 */
+  --hs-color-text: var(--foreground);                /* #1F1917 */
+  --hs-color-text-muted: var(--hs-taupe);           /* darkened, see a11y note above */
+  --hs-color-text-subtle: var(--hs-mauve);          /* #CBA499 */
+  --hs-color-on-dark: #FFFFFF;
+  --hs-color-focus: var(--hs-red-600);              /* #ED1845 */
+  --hs-color-success: var(--color-success);          /* #3F7D5B */
+  --hs-color-success-soft: var(--color-success-light); /* #DBEBE1 */
+  --hs-color-warning: var(--color-warning);          /* #B9772E */
+  --hs-color-warning-soft: var(--color-warning-light); /* #F3E4D0 */
+  --hs-color-danger: var(--color-error);             /* #C0142F */
+  --hs-color-danger-soft: var(--color-error-light);  /* #F7DCDA */
+  --hs-color-info: var(--color-info);                /* #5B7C8F */
+  --hs-color-info-soft: var(--color-info-light);     /* #DEE8ED */
 }
 
 @theme inline {

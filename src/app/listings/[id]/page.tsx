@@ -222,7 +222,7 @@ export default async function ListingDetailPage({ params }: Props) {
                   {loc.city && <p>{loc.city}, {loc.state} {loc.zipCode}</p>}
                   {loc.squareFootage && <p>{loc.squareFootage.toLocaleString()} sq ft</p>}
                   {loc.openingDate && (
-                    <p>Opened {new Date(loc.openingDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                    <p>Opened {new Date(loc.openingDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/Denver' })}</p>
                   )}
                 </div>
               ))}

@@ -80,6 +80,7 @@ export function ListingsTable({ listings }: ListingsTableProps) {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      timeZone: 'America/Denver',
     }).format(new Date(date))
 
   const confirmListing = listings.find((l) => l.id === confirmSoldId)

@@ -69,7 +69,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               block w-full rounded-lg border
               text-gray-900 placeholder:text-gray-400
               transition-all duration-150
-              focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500
+              focus:outline-none focus:ring-2 focus:ring-hs-red-600/20 focus:border-hs-red-600
               disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
               ${sizeStyles[inputSize]}
               ${leadingIcon ? iconPaddingStyles[inputSize].leading : ''}

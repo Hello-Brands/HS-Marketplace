@@ -1,13 +1,10 @@
 import { auth } from '@/auth'
-import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { db } from '@/db'
-import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
-import { eq } from 'drizzle-orm'
 import { StatusBadge } from '@/components/listings/StatusBadge'
 import { getAvailableActions } from '@/lib/listings/status-machine'
 import { ListingActions } from '@/components/listings/ListingActions'
 import { formatUsdCents } from '@/lib/money'
+import { loadSellerListing } from '@/lib/listings/load-listing'
 import type { ListingStatus } from '@/lib/listings/types'
 
 // In Next.js 15+, params is a Promise
@@ -19,25 +16,7 @@ export default async function SellerListingDetailPage({
   const { id } = await params
 
   const session = await auth()
-  if (!session?.user?.id) {
-    redirect('/login')
-  }
-
-  const listing = await db.query.listings.findFirst({
-    where: eq(listings.id, id),
-    with: {
-      locations: { orderBy: [listingLocations.displayOrder] },
-      photos: { orderBy: [listingPhotos.displayOrder] },
-    },
-  })
-
-  if (!listing) {
-    notFound()
-  }
-
-  if (listing.sellerId !== session.user.id && session.user.role !== 'admin') {
-    redirect('/seller/listings')
-  }
+  const listing = await loadSellerListing(id, session)
 
   const availableActions = getAvailableActions(listing.status as ListingStatus, 'seller')
   const formattedPrice = formatUsdCents(listing.askingPrice)

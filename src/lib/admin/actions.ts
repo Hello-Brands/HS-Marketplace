@@ -3,6 +3,7 @@
 import { db } from '@/db'
 import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
 import { eq, desc } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { revalidatePath } from 'next/cache'
 import { sendStatusChangeEmail } from '@/lib/email'
 import { canTransition } from '@/lib/listings/status-machine'
@@ -10,7 +11,7 @@ import { nextListedAt } from '@/lib/analytics/helpers'
 import { unresolvedSalonLocations } from '@/lib/data/mapping'
 import { triggerAlertMatching } from '@/lib/alert-actions'
 import { buildListingUpdate } from '@/lib/listings/build-update'
-import { syncListingLocations, syncListingPhotos } from '@/lib/listings/persist'
+import { buildLocationSync, buildPhotoSync } from '@/lib/listings/persist'
 import type { ListingStatus, ListingFormData } from '@/lib/listings/types'
 import { requireAdmin } from '@/lib/auth-guards'
 
@@ -181,9 +182,14 @@ export async function adminUpdateListing(listingId: string, data: Partial<Listin
   // Generate title from locations if provided; admin keeps the existing title otherwise.
   const title = data.locations?.map(l => l.name).join(' + ') || listing.title
 
-  // Money/asset normalization comes from the single shared helper (DEBT-003/004):
-  // dollars→cents, with partial edits falling back to the stored row (fixes DEBT-001).
-  await db.update(listings)
+  // Atomic edit (DEBT-027) with full parity to the seller path: the parent-listing
+  // update + the location delete/reinserts + the photo delete/reinserts all commit in
+  // ONE neon-http batch (a single transaction), so a mid-sequence failure can no longer
+  // leave the parent row updated while its locations/photos stay stale. Async resolution
+  // (location snapshot + owner directory + geocode) runs inside buildLocationSync, BEFORE
+  // the batch is composed. Money/asset normalization comes from the single shared helper
+  // (DEBT-003/004): dollars→cents, partial edits falling back to the stored row (DEBT-001).
+  const parentUpdate = db.update(listings)
     .set({
       title,
       ...buildListingUpdate(data, listing),
@@ -191,13 +197,20 @@ export async function adminUpdateListing(listingId: string, data: Partial<Listin
     })
     .where(eq(listings.id, listingId))
 
-  // Admin edits get full parity with the seller path: persist location + photo edits
-  // too (delete-and-reinsert, preserving prior BQ mapping/geocode snapshots).
+  const childWrites: BatchItem<'pg'>[] = []
   if (data.locations) {
-    await syncListingLocations(listingId, data.locations)
+    childWrites.push(...(await buildLocationSync(listingId, data.locations)))
   }
   if (data.photos) {
-    await syncListingPhotos(listingId, data.photos)
+    childWrites.push(...buildPhotoSync(listingId, data.photos))
+  }
+
+  // A lone parent update is already atomic; batch only when the location/photo sync
+  // rides along. `[parentUpdate, ...childWrites]` types as a non-empty tuple for db.batch.
+  if (childWrites.length > 0) {
+    await db.batch([parentUpdate, ...childWrites])
+  } else {
+    await parentUpdate
   }
 
   revalidatePath('/admin/queue')

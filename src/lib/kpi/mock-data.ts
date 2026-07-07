@@ -52,14 +52,4 @@ export const mockLocationKpi: KpiData = {
   membershipConversion: createMetric(34.2, -2.1, 0.1),
 }
 
-/**
- * Alternative mock data representing a newer/smaller location.
- */
-export const mockLocationKpiSmall: KpiData = {
-  revenue: createMetric(28500, 18.3, 0.15),
-  newClients: createMetric(84, 15.6, 0.25),
-  bookings: createMetric(456, 9.2, 0.18),
-  membershipConversion: createMetric(28.5, 4.3, 0.12),
-}
-
 

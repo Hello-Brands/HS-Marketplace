@@ -1,23 +1,25 @@
-// Error monitoring hook (DEBT-026). Next's `onRequestError` fires for every
-// uncaught server-side error (Server Components, route handlers, server actions).
-// We emit a single structured line so production errors are captured by Vercel's
-// runtime logging/observability instead of vanishing.
+// Error monitoring (DEBT-026 → pre-launch audit 2026-07-06, Pillar 2 High).
 //
-// To upgrade to Sentry: `npm i @sentry/nextjs`, set SENTRY_DSN, and forward `err`
-// from here (and add the client/edge configs). Structured logging is the
-// dependency-free interim so the app does not launch blind.
+// `register()` initializes Sentry for the active runtime; `onRequestError` fires for
+// every uncaught server-side error (Server Components, route handlers, server actions)
+// and both (a) emits a structured log line for Vercel runtime logging and (b) forwards
+// the error to Sentry. Sentry is INERT until SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN are set
+// (provision in Vercel prod env), so nothing changes locally or in tests until ops turns
+// it on. Structured logging remains as a dependency-free floor so the app never launches
+// blind even before the DSN is provisioned.
+import type { Instrumentation } from "next"
+import * as Sentry from "@sentry/nextjs"
 
-type RequestErrorContext = {
-  routerKind: string
-  routePath: string
-  routeType: string
+export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./sentry.server.config")
+  }
+  if (process.env.NEXT_RUNTIME === "edge") {
+    await import("./sentry.edge.config")
+  }
 }
 
-export async function onRequestError(
-  err: unknown,
-  request: { path?: string; method?: string },
-  context: RequestErrorContext,
-) {
+export const onRequestError: Instrumentation.onRequestError = async (err, request, context) => {
   const e = err as { name?: string; message?: string; stack?: string } | undefined
   console.error(
     JSON.stringify({
@@ -32,4 +34,7 @@ export async function onRequestError(
       stack: e?.stack,
     }),
   )
+
+  // Forward to Sentry (no-op until a DSN is configured).
+  await Sentry.captureRequestError(err, request, context)
 }

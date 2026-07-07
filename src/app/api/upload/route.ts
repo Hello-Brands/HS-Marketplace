@@ -28,7 +28,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         const { userId } = JSON.parse(tokenPayload || '{}')
-        console.log('Upload complete:', blob.url, 'for user:', userId)
         // Photo is stored in form state until listing is saved
       },
     })

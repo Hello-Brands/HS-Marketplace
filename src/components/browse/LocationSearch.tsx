@@ -3,7 +3,7 @@
 import { GeocodingControl } from "@maptiler/geocoding-control/react"
 import "@maptiler/geocoding-control/style.css"
 import type { Feature } from "@maptiler/geocoding-control/types"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 interface LocationSearchProps {
   onSelect: (location: { lng: number; lat: number; name: string }) => void
@@ -11,12 +11,37 @@ interface LocationSearchProps {
 }
 
 export function LocationSearch({ onSelect, variant = "default" }: LocationSearchProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
   // The control builds requests with `new URL(apiUrl + "/" + query + ".json")`,
   // which throws on a relative apiUrl (surfacing as "Something went wrong…").
   // Resolve to an absolute origin on the client so the proxy is actually hit.
   const [apiUrl, setApiUrl] = useState("/api/geocode")
   useEffect(() => {
     setApiUrl(`${window.location.origin}/api/geocode`)
+  }, [])
+
+  // The geocoding-control's search button is hardcoded icon-only markup
+  // (`<button class="search-button"><SearchIcon /></button>`) with no prop to
+  // configure an accessible name, and it mounts asynchronously inside the
+  // control's shadow-free DOM. A MutationObserver (rather than a fixed delay)
+  // labels it as soon as it appears, and keeps re-labeling if the control
+  // ever re-renders its internal markup.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    function labelSearchButton(el: HTMLElement) {
+      const button = el.querySelector<HTMLButtonElement>(".search-button")
+      if (button && !button.hasAttribute("aria-label")) {
+        button.setAttribute("aria-label", "Search")
+      }
+    }
+
+    labelSearchButton(container)
+    const observer = new MutationObserver(() => labelSearchButton(container))
+    observer.observe(container, { childList: true, subtree: true })
+    return () => observer.disconnect()
   }, [])
 
   // onPick receives { feature: Feature | undefined } per the geocoding control API
@@ -33,7 +58,7 @@ export function LocationSearch({ onSelect, variant = "default" }: LocationSearch
   }
 
   return (
-    <div className={`hs-geocoder${variant === "prominent" ? " hs-geocoder--lg" : ""}`}>
+    <div ref={containerRef} className={`hs-geocoder${variant === "prominent" ? " hs-geocoder--lg" : ""}`}>
       <GeocodingControl
         apiKey={process.env.NEXT_PUBLIC_MAPTILER_API_KEY!}
         apiUrl={apiUrl}

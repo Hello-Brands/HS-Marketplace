@@ -94,6 +94,10 @@ beforeEach(() => {
   awaitedDeletes.count = 0
   mockAuth.mockResolvedValue({ user: { id: 'seller-1', role: 'user', sellerAccess: true } })
   mockUpdate.mockReturnValue({ set: vi.fn(() => ({ where: setWhere })) })
+  // The parent-listing update is a real batch item on the edit path — give it a
+  // recognizable tag so the update-path tests can assert it rides in the same batch
+  // as the location/photo delete+reinserts (rather than being a separate await).
+  setWhere.mockReturnValue({ __kind: 'update', table: listings })
   mockBatch.mockResolvedValue([])
   // Default: the seller has acknowledged the current FDD (create is allowed).
   mockHasAck.mockResolvedValue(true)
@@ -235,40 +239,69 @@ describe('saveDraft create path — disclaimer gate', () => {
   })
 })
 
-describe('saveDraft update path — atomic sync', () => {
-  it('batches the location delete + re-inserts together (delete never awaited alone)', async () => {
+describe('saveDraft update path — atomic batch', () => {
+  const editPayload = {
+    askingPrice: 100_000,
+    locations: [
+      {
+        id: 'loc-1',
+        type: 'territory' as const,
+        name: 'Austin Territory',
+        territoryLat: 30.26,
+        territoryLng: -97.74,
+        territoryRadius: 25,
+      },
+    ],
+    photos: [{ id: 'p-1', url: 'https://cdn/p1.jpg', filename: 'p1.jpg', order: 0 }],
+  }
+
+  it('commits the parent update + location delete/reinserts + photo delete/reinserts in ONE db.batch', async () => {
     // Ownership lookup (existing listing) then the location snapshot select.
     mockSelect
       .mockResolvedValueOnce([{ id: 'L1', sellerId: 'seller-1', status: 'draft' }])
       .mockResolvedValueOnce([])
 
-    await saveDraft(
-      {
-        askingPrice: 100_000,
-        locations: [
-          {
-            id: 'loc-1',
-            type: 'territory',
-            name: 'Austin Territory',
-            territoryLat: 30.26,
-            territoryLng: -97.74,
-            territoryRadius: 25,
-          },
-        ],
-      },
-      'L1',
-    )
+    await saveDraft(editPayload, 'L1')
 
-    // Scalar update still happens, plus exactly one batch for the location sync.
+    // db.update was called to BUILD the parent-update query, but it was NOT awaited on
+    // its own — it rides in the single batch with the location + photo syncs.
     expect(mockUpdate).toHaveBeenCalledTimes(1)
     expect(mockBatch).toHaveBeenCalledTimes(1)
-    // The delete was NOT run on its own — it rode in the batch with the re-insert.
+    // Nothing escaped the batch as a standalone awaited delete/insert.
     expect(awaitedDeletes.count).toBe(0)
     expect(awaitedInserts.count).toBe(0)
 
-    const batched = mockBatch.mock.calls[0][0] as { __kind: string; table?: unknown }[]
-    expect(batched[0].__kind).toBe('delete')
-    expect(batched[0].table).toBe(listingLocations)
-    expect(batched.filter((q) => q.__kind === 'insert')).toHaveLength(1)
+    const batched = mockBatch.mock.calls[0][0] as {
+      __kind?: string
+      table?: unknown
+      rec?: { table: unknown }
+    }[]
+    // Parent update first, then the location + photo delete/reinserts. One atomic write:
+    // parent update (1) + location delete (1) + location insert (1) + photo delete (1) +
+    // photo insert (1) = 5 statements.
+    expect(batched).toHaveLength(5)
+    expect(batched[0].__kind).toBe('update')
+    expect(batched[0].table).toBe(listings)
+
+    const deletesInBatch = batched.filter((q) => q.__kind === 'delete')
+    expect(deletesInBatch.map((q) => q.table)).toEqual([listingLocations, listingPhotos])
+
+    const insertsInBatch = batched.filter((q) => q.__kind === 'insert')
+    expect(insertsInBatch.map((q) => q.rec?.table)).toEqual([listingLocations, listingPhotos])
+  })
+
+  it('does not issue any partial write when the edit batch rejects', async () => {
+    mockSelect
+      .mockResolvedValueOnce([{ id: 'L1', sellerId: 'seller-1', status: 'draft' }])
+      .mockResolvedValueOnce([])
+    mockBatch.mockRejectedValueOnce(new Error('write conflict'))
+
+    await expect(saveDraft(editPayload, 'L1')).rejects.toThrow('write conflict')
+
+    // The one atomic call is where everything lives — the parent update, location, and
+    // photo statements share a single batch, so a mid-sequence failure commits nothing.
+    expect(mockBatch).toHaveBeenCalledTimes(1)
+    expect(awaitedInserts.count).toBe(0)
+    expect(awaitedDeletes.count).toBe(0)
   })
 })

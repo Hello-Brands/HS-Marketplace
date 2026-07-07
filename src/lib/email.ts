@@ -1,14 +1,15 @@
 import { Resend } from "resend"
 import { formatUsdCents } from "@/lib/money"
+import { env } from "@/lib/env"
 
 // Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(env.RESEND_API_KEY)
 
 // From address configuration. Must be on a domain the Resend API key is
 // authorized for — the verified sending domain is the `noreply.hellosugar.salon`
 // subdomain (not the apex). Override per-environment with EMAIL_FROM if needed.
 const FROM_ADDRESS =
-  process.env.EMAIL_FROM || "Hello Sugar Marketplace <marketplace@noreply.hellosugar.salon>"
+  env.EMAIL_FROM || "Hello Sugar Marketplace <marketplace@noreply.hellosugar.salon>"
 
 // Type definitions
 export interface SendEmailOptions {
@@ -77,7 +78,7 @@ export interface CompetitorAlertData {
  */
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   // No key configured → don't attempt a send (it would error); make it visible.
-  if (!process.env.RESEND_API_KEY) {
+  if (!env.RESEND_API_KEY) {
     console.warn(`[email] RESEND_API_KEY not set — skipped "${subject}" to ${to}`)
     return { success: false as const, skipped: true as const }
   }
@@ -85,7 +86,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   // Safe-by-default outside production: only deliver to real recipients when an
   // EMAIL_OVERRIDE inbox is set (point it at your own address to test). In
   // production, always send to the real recipient.
-  const override = process.env.EMAIL_OVERRIDE?.trim()
+  const override = env.EMAIL_OVERRIDE?.trim()
   if (!override && process.env.NODE_ENV !== "production") {
     console.warn(`[email] non-production: skipped "${subject}" to ${to} (set EMAIL_OVERRIDE to test real sends)`)
     return { success: false as const, skipped: true as const }
@@ -140,7 +141,7 @@ export async function sendStatusChangeEmail(data: StatusChangeEmailData) {
   }
 
   const msg = statusMessages[newStatus]
-  const listingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
+  const listingUrl = `${env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
@@ -172,7 +173,7 @@ export async function sendStatusChangeEmail(data: StatusChangeEmailData) {
  */
 export async function sendContactNotification(data: ContactNotificationData) {
   const { sellerEmail, sellerName, buyerName, buyerEmail, listingTitle, listingId, message } = data
-  const listingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
+  const listingUrl = `${env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
@@ -206,7 +207,7 @@ export async function sendContactNotification(data: ContactNotificationData) {
  */
 export async function sendAlertMatchEmail(data: AlertMatchData) {
   const { buyerEmail, buyerName, listingTitle, listingId, listingType, city, state, askingPrice } = data
-  const listingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
+  const listingUrl = `${env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/listings/${listingId}`
   const formattedPrice = formatUsdCents(askingPrice)
 
   const html = `
@@ -228,7 +229,7 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
       <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />
       <p style="color: #8F7067; font-size: 14px;">
         Hello Sugar Marketplace<br />
-        <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/account/alerts" style="color: #8F7067;">Manage your alerts</a>
+        <a href="${env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/account/alerts" style="color: #8F7067;">Manage your alerts</a>
       </p>
     </div>
   `
@@ -245,7 +246,7 @@ export async function sendAlertMatchEmail(data: AlertMatchData) {
  */
 export async function sendReminderEmail(data: ReminderEmailData) {
   const { sellerEmail, sellerName, listingTitle, listingId, daysSinceUpdate, markSoldUrl } = data
-  const listingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/seller/listings/${listingId}/edit`
+  const listingUrl = `${env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"}/seller/listings/${listingId}/edit`
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
@@ -293,7 +294,7 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
   const { buyerName, searchName, searchUrl, competitors } = data
   const n = competitors.length
   const subject = `${n} new competitor closure${n !== 1 ? "s" : ""} near your saved search`
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
+  const appUrl = env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
 
   const cards = competitors
     .map((c) => {

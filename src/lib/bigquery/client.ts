@@ -1,5 +1,6 @@
 import "server-only"
 import { BigQuery } from "@google-cloud/bigquery"
+import { env } from "@/lib/env"
 
 let cached: BigQuery | null | undefined
 
@@ -14,7 +15,7 @@ let cached: BigQuery | null | undefined
 export function getBigQueryClient(): BigQuery | null {
   if (cached !== undefined) return cached
 
-  const projectId = process.env.BIGQUERY_PROJECT_ID
+  const projectId = env.BIGQUERY_PROJECT_ID
   if (!projectId) {
     cached = null
     return cached
@@ -22,7 +23,7 @@ export function getBigQueryClient(): BigQuery | null {
 
   // Inline JSON credential (parsed from env, never a file path — serverless safe).
   const inlineJson =
-    process.env.GCP_SERVICE_ACCOUNT_JSON || process.env.BIGQUERY_CREDENTIALS
+    env.GCP_SERVICE_ACCOUNT_JSON || env.BIGQUERY_CREDENTIALS
   if (inlineJson) {
     try {
       cached = new BigQuery({ projectId, credentials: JSON.parse(inlineJson) })
@@ -36,7 +37,7 @@ export function getBigQueryClient(): BigQuery | null {
     return cached
   }
 
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  if (env.GOOGLE_APPLICATION_CREDENTIALS) {
     cached = new BigQuery({ projectId }) // SDK reads the key file from the env path
     return cached
   }

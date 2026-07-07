@@ -20,6 +20,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     active:bg-hs-red-800
     disabled:bg-gray-300 disabled:text-gray-500
     shadow-sm hover:shadow-md
+    !text-base
   `,
   secondary: `
     bg-white text-gray-900
@@ -45,6 +46,7 @@ const variantStyles: Record<ButtonVariant, string> = {
     hover:bg-hs-red-700
     active:bg-hs-red-800
     disabled:bg-gray-300 disabled:text-gray-500
+    !text-base
   `,
 }
 
@@ -90,7 +92,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           inline-flex items-center justify-center
           font-semibold rounded-full
           transition-all duration-200 ease-out
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2
           disabled:cursor-not-allowed
           active:scale-[0.98]
           ${variantStyles[variant]}
@@ -146,7 +148,7 @@ export function ButtonLink({
         inline-flex items-center gap-1.5
         text-sm font-semibold text-hs-red-600
         hover:text-hs-red-700 hover:underline underline-offset-2
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-600 focus-visible:ring-offset-2
         disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed
         transition-colors duration-150
         ${className}

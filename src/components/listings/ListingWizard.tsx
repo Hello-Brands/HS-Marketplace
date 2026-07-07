@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useForm, FormProvider } from 'react-hook-form'
+import { useForm, FormProvider, type FieldPath } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TypeLocationStep } from './steps/TypeLocationStep'
 import { FinancialsStep } from './steps/FinancialsStep'
 import { PhotosDetailsStep } from './steps/PhotosDetailsStep'
-import { listingSchema, getFieldsForStep } from '@/lib/listings/schemas'
+import { listingSchema, stepSchemas, getFieldsForStep } from '@/lib/listings/schemas'
 import { saveDraft, submitListing } from '@/lib/listings/actions'
 import type { ListingFormData } from '@/lib/listings/types'
 
@@ -63,13 +63,26 @@ export function ListingWizard({ userId }: ListingWizardProps) {
   }, [listingId])
 
   const handleStepComplete = async (nextStep: number) => {
-    // Validate current step fields
-    const fieldsToValidate = getFieldsForStep(step)
-    const isValid = await methods.trigger(fieldsToValidate)
-    if (!isValid) return
+    // Validate ONLY the current step, against that step's own schema. Field-scoping
+    // the combined `listingSchema` here fails because it is a `.and()` intersection
+    // (later-step fields like empty `photos` would block advancing this step).
+    const values = methods.getValues()
+    const stepSchema = stepSchemas[step]
+    methods.clearErrors(getFieldsForStep(step))
+    if (stepSchema) {
+      const result = stepSchema.safeParse(values)
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          methods.setError(issue.path.join('.') as FieldPath<ListingFormData>, {
+            type: 'validation',
+            message: issue.message,
+          })
+        }
+        return
+      }
+    }
 
     // Auto-save draft with toast
-    const values = methods.getValues()
     await handleSaveDraft(values)
 
     setStep(nextStep)

@@ -5,11 +5,12 @@ import { users } from '@/db/schema/auth'
 import { eq, and, lt, or, isNull } from 'drizzle-orm'
 import { sendReminderEmail } from '@/lib/email'
 import { createActionToken } from '@/lib/listings/action-tokens'
+import { env } from '@/lib/env'
 
 export async function GET(request: Request) {
   // Verify cron secret to prevent unauthorized invocations
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
     if (!seller.email) continue
 
     const markSoldToken = await createActionToken('markSold', listing.id)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://marketplace.hellosugar.salon'
+    const appUrl = env.NEXT_PUBLIC_APP_URL || 'https://marketplace.hellosugar.salon'
     const markSoldUrl = `${appUrl}/api/actions/${markSoldToken}`
 
     const daysSinceUpdate = Math.floor(

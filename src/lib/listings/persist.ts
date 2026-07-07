@@ -193,18 +193,20 @@ export function buildPhotoInserts(
 }
 
 /**
- * Replace a listing's locations. Snapshots the current rows first so prior BigQuery
- * mappings + geocode results carry across the delete-and-reinsert, then rewrites them
- * from the form payload. Used by both the seller and admin edit paths.
- *
- * Atomic: the async resolution (owner directory + geocode) runs first, then the
- * delete + all re-inserts commit in ONE neon-http batch (a single transaction), so
- * an edit can never drop the old rows and then fail to write the new ones.
+ * Build (but do NOT execute) the delete + re-insert queries that replace a listing's
+ * locations. Snapshots the current rows first (a read) so prior BigQuery mappings +
+ * geocode results carry across the delete-and-reinsert, then resolves the owner
+ * directory + best-effort geocode (async, up front). Returns `[delete, ...inserts]`
+ * so the caller can commit them in ONE neon-http batch alongside the parent listing
+ * update — mirroring the create path — instead of this helper awaiting its own batch.
+ * That way the whole edit (parent + locations + photos) is a single transaction, and
+ * an edit can never drop the old rows and then fail to write the new ones. Used by
+ * both the seller (`saveDraft`) and admin (`adminUpdateListing`) edit paths.
  */
-export async function syncListingLocations(
+export async function buildLocationSync(
   listingId: string,
   locations: ListingFormData['locations'],
-) {
+): Promise<BatchItem<'pg'>[]> {
   const existingRows = await db
     .select({
       name: listingLocations.name,
@@ -223,18 +225,21 @@ export async function syncListingLocations(
   const prior = new Map<string, PriorRow>(
     existingRows.map((r) => [normalizeName(r.name), r]),
   )
-  // Resolve owner directory + geocode BEFORE opening the atomic write.
+  // Resolve owner directory + geocode BEFORE the batch is composed by the caller.
   const inserts = await buildLocationInserts(listingId, locations, prior)
   const del = db.delete(listingLocations).where(eq(listingLocations.listingId, listingId))
-  await db.batch([del, ...inserts])
+  return [del, ...inserts]
 }
 
 /**
- * Replace a listing's photos (delete-and-reinsert). Used by both edit paths.
- * Atomic: the delete + all re-inserts commit in ONE neon-http batch.
+ * Build (but do NOT execute) the delete + re-insert queries that replace a listing's
+ * photos. Pure/sync — returns `[delete, ...inserts]` for the caller's single db.batch.
+ * Used by both edit paths.
  */
-export async function syncListingPhotos(listingId: string, photos: ListingFormData['photos']) {
+export function buildPhotoSync(
+  listingId: string,
+  photos: ListingFormData['photos'],
+): BatchItem<'pg'>[] {
   const del = db.delete(listingPhotos).where(eq(listingPhotos.listingId, listingId))
-  const inserts = buildPhotoInserts(listingId, photos)
-  await db.batch([del, ...inserts])
+  return [del, ...buildPhotoInserts(listingId, photos)]
 }

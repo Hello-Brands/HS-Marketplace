@@ -1,10 +1,7 @@
 import { auth } from '@/auth'
-import { redirect, notFound } from 'next/navigation'
-import { db } from '@/db'
-import { listings, listingLocations, listingPhotos } from '@/db/schema/listings'
-import { eq } from 'drizzle-orm'
 import { ListingEditForm } from '@/components/listings/ListingEditForm'
 import { toListingFormData } from '@/lib/listings/to-form-data'
+import { loadSellerListing } from '@/lib/listings/load-listing'
 
 // In Next.js 15+, params is a Promise
 export default async function EditListingPage({
@@ -15,25 +12,7 @@ export default async function EditListingPage({
   const { id } = await params
 
   const session = await auth()
-  if (!session?.user?.id) {
-    redirect('/login')
-  }
-
-  const listing = await db.query.listings.findFirst({
-    where: eq(listings.id, id),
-    with: {
-      locations: { orderBy: [listingLocations.displayOrder] },
-      photos: { orderBy: [listingPhotos.displayOrder] },
-    },
-  })
-
-  if (!listing) {
-    notFound()
-  }
-
-  if (listing.sellerId !== session.user.id && session.user.role !== 'admin') {
-    redirect('/seller/listings')
-  }
+  const listing = await loadSellerListing(id, session)
 
   const initialData = toListingFormData(listing)
 

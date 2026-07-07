@@ -1,35 +1,11 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import { useState, useCallback, useEffect } from 'react'
-import 'leaflet/dist/leaflet.css'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import * as maptilersdk from '@maptiler/sdk'
+import '@maptiler/sdk/dist/maptiler-sdk.css'
 import { EXISTING_HS_LOCATIONS } from '@/lib/listings/mock-data'
-
-// Dynamic imports for SSR compatibility
-const MapContainer = dynamic(
-  () => import('react-leaflet').then(m => m.MapContainer),
-  { ssr: false }
-)
-const TileLayer = dynamic(
-  () => import('react-leaflet').then(m => m.TileLayer),
-  { ssr: false }
-)
-const Circle = dynamic(
-  () => import('react-leaflet').then(m => m.Circle),
-  { ssr: false }
-)
-const Marker = dynamic(
-  () => import('react-leaflet').then(m => m.Marker),
-  { ssr: false }
-)
-const Popup = dynamic(
-  () => import('react-leaflet').then(m => m.Popup),
-  { ssr: false }
-)
-const MapClickHandler = dynamic(
-  () => import('./MapClickHandler'),
-  { ssr: false }
-)
+import { BRAND } from '@/lib/brand-colors'
+import { escapeHtml } from '@/lib/escape-html'
 
 interface TerritoryPickerProps {
   value?: { center: { lat: number; lng: number }; radius: number }
@@ -38,34 +14,152 @@ interface TerritoryPickerProps {
   onNameChange: (name: string) => void
 }
 
+const TERRITORY_SOURCE = 'territory-circle'
+
+// Approximate a ground circle (radius in METERS) as a lat/lng polygon for the
+// territory overlay. Mirrors MapView's circlePolygon, but metric — the wizard's
+// radius value is stored in meters, not miles.
+function circlePolygonMeters(
+  lng: number,
+  lat: number,
+  radiusMeters: number,
+  points = 64
+): GeoJSON.Feature {
+  const latR = radiusMeters / 111320
+  const lngR = radiusMeters / (111320 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01))
+  const ring: [number, number][] = []
+  for (let i = 0; i <= points; i++) {
+    const t = (i / points) * 2 * Math.PI
+    ring.push([lng + lngR * Math.cos(t), lat + latR * Math.sin(t)])
+  }
+  return {
+    type: 'Feature',
+    geometry: { type: 'Polygon', coordinates: [ring] },
+    properties: {},
+  }
+}
+
 export function TerritoryPicker({
   value,
   onChange,
   territoryName,
   onNameChange,
 }: TerritoryPickerProps) {
-  const [isClient, setIsClient] = useState(false)
+  const mapContainer = useRef<HTMLDivElement>(null)
+  const map = useRef<maptilersdk.Map | null>(null)
+  const mapReady = useRef(false)
+
   const [center, setCenter] = useState(value?.center || { lat: 33.749, lng: -84.388 })
   const [radius, setRadius] = useState(value?.radius || 8000) // 8km default
 
+  // Keep the latest center/radius readable inside the (once-bound) map click
+  // handler without making the init effect depend on them.
+  const centerRef = useRef(center)
+  centerRef.current = center
+  const radiusRef = useRef(radius)
+  radiusRef.current = radius
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  const handleRadiusChange = useCallback(
+    (newRadius: number) => {
+      setRadius(newRadius)
+      onChangeRef.current({ center: centerRef.current, radius: newRadius })
+    },
+    []
+  )
+
+  // Initialize the map once and wire up click-to-set-center + HS location pins.
   useEffect(() => {
-    setIsClient(true)
+    if (map.current || !mapContainer.current) return
+
+    maptilersdk.config.apiKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY!
+
+    map.current = new maptilersdk.Map({
+      container: mapContainer.current,
+      style: maptilersdk.MapStyle.STREETS,
+      center: [centerRef.current.lng, centerRef.current.lat],
+      zoom: 10,
+    })
+
+    // Click to place the territory center.
+    map.current.on('click', (e) => {
+      const newCenter = { lat: e.lngLat.lat, lng: e.lngLat.lng }
+      setCenter(newCenter)
+      onChangeRef.current({ center: newCenter, radius: radiusRef.current })
+    })
+
+    map.current.on('load', () => {
+      mapReady.current = true
+
+      // Existing Hello Sugar locations as read-only context pins.
+      for (const loc of EXISTING_HS_LOCATIONS) {
+        const el = document.createElement('div')
+        const inner = document.createElement('div')
+        inner.style.cssText = `
+          width: 14px;
+          height: 14px;
+          background-color: ${BRAND.taupe};
+          border: 2px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        `
+        el.appendChild(inner)
+
+        const popup = new maptilersdk.Popup({
+          offset: 18,
+          closeButton: false,
+          maxWidth: '220px',
+        }).setHTML(
+          `<div style="font-family:'Montserrat',system-ui,sans-serif;font-size:13px;font-weight:600;color:${BRAND.ink};padding:2px 4px;">${escapeHtml(loc.name)}</div>`
+        )
+
+        new maptilersdk.Marker({ element: el })
+          .setLngLat([loc.lng, loc.lat])
+          .setPopup(popup)
+          .addTo(map.current!)
+      }
+    })
+
+    return () => {
+      map.current?.remove()
+      map.current = null
+      mapReady.current = false
+    }
   }, [])
 
-  const handleMapClick = useCallback((latlng: { lat: number; lng: number }) => {
-    const newCenter = { lat: latlng.lat, lng: latlng.lng }
-    setCenter(newCenter)
-    onChange({ center: newCenter, radius })
-  }, [radius, onChange])
+  // Draw / update the territory circle whenever center or radius changes.
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
 
-  const handleRadiusChange = useCallback((newRadius: number) => {
-    setRadius(newRadius)
-    onChange({ center, radius: newRadius })
-  }, [center, onChange])
+    const apply = () => {
+      const data = circlePolygonMeters(center.lng, center.lat, radius)
+      const existing = m.getSource(TERRITORY_SOURCE) as
+        | maptilersdk.GeoJSONSource
+        | undefined
+      if (existing) {
+        existing.setData(data)
+      } else {
+        m.addSource(TERRITORY_SOURCE, { type: 'geojson', data })
+        m.addLayer({
+          id: `${TERRITORY_SOURCE}-fill`,
+          type: 'fill',
+          source: TERRITORY_SOURCE,
+          paint: { 'fill-color': BRAND.crimson, 'fill-opacity': 0.2 },
+        })
+        m.addLayer({
+          id: `${TERRITORY_SOURCE}-line`,
+          type: 'line',
+          source: TERRITORY_SOURCE,
+          paint: { 'line-color': BRAND.crimson, 'line-width': 2, 'line-opacity': 0.85 },
+        })
+      }
+    }
 
-  if (!isClient) {
-    return <div className="h-96 bg-gray-100 rounded-lg animate-pulse" />
-  }
+    if (mapReady.current) apply()
+    else m.once('load', apply)
+  }, [center, radius])
 
   return (
     <div className="space-y-4">
@@ -91,32 +185,7 @@ export function TerritoryPicker({
           Click on the map to set the center, then adjust the radius.
         </p>
         <div className="h-96 rounded-lg overflow-hidden border border-gray-200">
-          <MapContainer
-            center={[center.lat, center.lng]}
-            zoom={10}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            />
-
-            <MapClickHandler onMapClick={handleMapClick} />
-
-            {/* Existing Hello Sugar locations as context */}
-            {EXISTING_HS_LOCATIONS.map((loc, i) => (
-              <Marker key={i} position={[loc.lat, loc.lng]}>
-                <Popup>{loc.name}</Popup>
-              </Marker>
-            ))}
-
-            {/* Territory circle */}
-            <Circle
-              center={[center.lat, center.lng]}
-              radius={radius}
-              pathOptions={{ color: '#ED1845', fillOpacity: 0.2 }}
-            />
-          </MapContainer>
+          <div ref={mapContainer} className="h-full w-full" />
         </div>
       </div>
 

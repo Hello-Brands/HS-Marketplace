@@ -12,13 +12,14 @@ import {
 import { canFetchLiveData } from "./access"
 import { buildMetricFromTrend } from "./metric"
 import type { BundleLocationKpi } from "./bundle"
+import { env } from "@/lib/env"
 
 /**
  * Check if we should use mock data (dev mode without API credentials).
  */
 function shouldUseMockData(): boolean {
-  const baseUrl = process.env.HS_INTERNAL_API_URL
-  const token = process.env.HS_INTERNAL_API_TOKEN
+  const baseUrl = env.HS_INTERNAL_API_URL
+  const token = env.HS_INTERNAL_API_TOKEN
   return !baseUrl || !token
 }
 
@@ -29,8 +30,8 @@ function shouldUseMockData(): boolean {
  */
 async function fetchLocationKpiLive(locationId: string): Promise<KpiData | null> {
   try {
-    const baseUrl = process.env.HS_INTERNAL_API_URL
-    const token = process.env.HS_INTERNAL_API_TOKEN
+    const baseUrl = env.HS_INTERNAL_API_URL
+    const token = env.HS_INTERNAL_API_TOKEN
 
     if (!baseUrl || !token) {
       return null
