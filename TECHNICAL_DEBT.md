@@ -1,17 +1,17 @@
 # Technical Debt Register
 
 **Project:** HS-Marketplace
-**Last Updated:** 2026-07-06 (quarterly-style re-scan; DEBT-021–029 added, DEBT-008/009 escalated)
+**Last Updated:** 2026-07-06 (remediation session — all 22 open items worked; see Remediation below)
 **Maintained By:** Parker Fellows
 
 ## Summary
 
-- **Total Debt Items:** 29 (22 active, 7 resolved)
-- **Active — Critical:** 1
-- **Active — High:** 3
-- **Active — Medium:** 12
-- **Active — Low:** 6
-- **Estimated Remaining Effort:** ~8-11 days
+- **Total Debt Items:** 29 (24 resolved, 5 partially open)
+- **Active — Critical:** 0  ·  **High:** 0
+- **Remaining:** 5 partially-resolved items with small documented remainders, plus 2
+  ops follow-ups (run `db:push` for the DEBT-010 indexes; run the DEBT-020 audit script
+  against prod)
+- **Suite:** 476/476 passing (was 466); every batch gated on `tsc --noEmit` + vitest
 
 **How this register was produced:** initial automated scan (197 files, ~18k LOC) plus four
 manual review passes on 2026-07-02; all Critical/High findings verified against source.
@@ -19,6 +19,46 @@ manual review passes on 2026-07-02; all Critical/High findings verified against 
 13 open items at HEAD, a manual debt review of the ~5.9k lines landed since (PRs #25/#26,
 rebrand, FDD fix), and cross-referencing the 2026-07-02 pre-launch audit
 (`audit-report.md`, production-reproduced findings). Suite status: **466/466 passing**.
+
+---
+
+## Remediation — 2026-07-06 (this session)
+
+All 22 open items were worked on branch `fix/tech-debt-2026-07`, committed in batches,
+each gated on `tsc --noEmit` + the vitest suite (now **476 passing**, up from 466).
+
+**Resolved (code complete):**
+- DEBT-008 — `next` 15.5.14 → 15.5.20; the auth-bypass CVEs + resend/svix/uuid high chain cleared.
+- DEBT-009 — orphaned, unauthenticated `/api/kpi/[locationId]` route deleted.
+- DEBT-011 — `React.cache()` on getListingById; recordListingView deferred via `after()`.
+- DEBT-012 — `buildMetricFromTrend` helper; 5 copy-pasted trend envelopes removed.
+- DEBT-013 — shared `toListingFormData` mapper for the seller + admin edit pages.
+- DEBT-015 — alert `toRow`/`updateAlert` now driven by one `ALERT_FIELDS` descriptor.
+- DEBT-016 — geocoder dynamic-imported off the initial browse chunk; Leaflet CSS self-hosted (no unpkg).
+- DEBT-018 — favorites fetches parallelized; created-at ordering restored.
+- DEBT-021 — centralized `requireSession/requireAdmin/requireSellerAccess` applied across routes + mutating actions.
+- DEBT-022 — disclaimer acknowledgment enforced server-side on the listing-create path.
+- DEBT-023 — MapView listing-popup fields escaped (stored-XSS closed).
+- DEBT-024 — getUnlistedHsLocations projects only non-PII columns (no more `SELECT *`).
+- DEBT-025 — app-wide security headers (CSP, HSTS, X-Frame-Options DENY, nosniff, Referrer/Permissions-Policy).
+- DEBT-026 — `onRequestError` instrumentation hook (structured error logging for Vercel observability).
+- DEBT-027 — listing writes made atomic via `db.batch` (neon-http has no interactive transactions).
+
+**Resolved in code — one ops step remains:**
+- DEBT-010 — 5 indexes added to the Drizzle schema; run `db:push` to apply to prod.
+- DEBT-020 — read-only `scripts/audit-cents-corruption.ts` written; run it against prod and repair any flagged rows.
+
+**Partially resolved (documented remainder):**
+- DEBT-014 — map-ready guard deduped (`runWhenMapReady`); deeper marker-builder refactor deferred (untested imperative component, needs browser verification).
+- DEBT-017 — token TTL cut 7d → 72h; true single-use still needs a nonce store (schema change).
+- DEBT-019 — homepage debug comment, MONTH_ABBR, and layout shell deduped; the `proxy.ts` `any` is kept as an intentional NextAuth-middleware bridge (won't-fix).
+- DEBT-028 — best-effort in-process rate limiter on the geocode proxy + contact form; a durable/distributed limit needs Upstash/Vercel KV or BotID.
+- DEBT-029 — FDD version single-sourced + shared `pointInScope`; the getUnlistedHsLocations query-level test is deferred (pure filters already covered; a db-chain mock would be brittle).
+
+**Subagent security note:** during this work several delegated subagents surfaced
+prompt-injection payloads (fake "system"/"trusted background agent" instructions) that
+do NOT originate in the repo source. They were ignored, and every shipped change was
+independently verified with `tsc` + the test suite.
 
 ---
 
