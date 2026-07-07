@@ -50,6 +50,14 @@ function circlePolygon(lng: number, lat: number, radiusMiles: number, points = 6
 
 const RADIUS_SOURCE = "search-radius"
 
+// Run `fn` when the map style is ready: immediately if already loaded, otherwise
+// on the next "load" event. Dedupes the readiness guard that was repeated across
+// the marker/overlay effects (DEBT-014).
+function runWhenMapReady(map: maptilersdk.Map, ready: boolean, fn: () => void) {
+  if (ready) fn()
+  else map.once("load", fn)
+}
+
 // Brand tokens for the competitor layer (kept inline to match the existing
 // DOM-marker styling approach). Opportunities use the warm "warning" caramel so
 // they read as a flag and stay distinct from the pink listing dots; the rest
@@ -294,11 +302,7 @@ export function MapView({
       }
     }
 
-    if (mapReady.current) {
-      addMarkers()
-    } else {
-      map.current.once("load", addMarkers)
-    }
+    runWhenMapReady(map.current, mapReady.current, addMarkers)
   }, [listings, onHover, showListings])
 
   // Highlight hovered marker
@@ -381,8 +385,7 @@ export function MapView({
       }
     }
 
-    if (mapReady.current) apply()
-    else m.once("load", apply)
+    runWhenMapReady(m, mapReady.current, apply)
   }, [center, radiusMiles])
 
   // Drop / move / remove the branded search-center pin.
@@ -414,8 +417,7 @@ export function MapView({
       }
     }
 
-    if (mapReady.current) apply()
-    else m.once("load", apply)
+    runWhenMapReady(m, mapReady.current, apply)
   }, [center])
 
   // Competitor-closure layer: a second, visually distinct marker set. Rebuilt
@@ -479,8 +481,7 @@ export function MapView({
       }
     }
 
-    if (mapReady.current) apply()
-    else m.once("load", apply)
+    runWhenMapReady(m, mapReady.current, apply)
   }, [competitors, showCompetitors, savedPlaceIds.join(","), onHover])
 
   // Unlisted Hello Sugar locations: a third marker layer of solid slate dots.
@@ -540,8 +541,7 @@ export function MapView({
       }
     }
 
-    if (mapReady.current) apply()
-    else m.once("load", apply)
+    runWhenMapReady(m, mapReady.current, apply)
   }, [hsLocations, showHsLocations])
 
   // Fly to a competitor selected from the list and open its detail popup. The
@@ -560,8 +560,7 @@ export function MapView({
       if (entry && popup && !popup.isOpen()) entry.marker.togglePopup()
     }
 
-    if (mapReady.current) focus()
-    else m.once("load", focus)
+    runWhenMapReady(m, mapReady.current, focus)
   }, [selectedCompetitor, competitors])
 
   return (
