@@ -16,19 +16,29 @@ export interface ScopedCompetitor {
 }
 
 /**
- * True if the competitor satisfies the scope's state set (when any) AND its
- * radius (when a full center+radius is set). No geo and no states → always true.
+ * True if a point satisfies the scope's state set (when any) AND its radius
+ * (when a full center+radius is set). No geo and no states → always true. A
+ * null state fails an active state filter. Shared by competitor and unlisted-HS
+ * location filtering (DEBT-029).
  */
-export function competitorInScope(c: ScopedCompetitor, scope: CompetitorScope): boolean {
+export function pointInScope(
+  point: { latitude: number; longitude: number; state: string | null },
+  scope: CompetitorScope,
+): boolean {
   if (scope.states && scope.states.length > 0) {
-    if (!scope.states.includes(c.state)) return false
+    if (!point.state || !scope.states.includes(point.state)) return false
   }
   if (scope.centerLat != null && scope.centerLng != null && scope.radiusMiles != null) {
-    if (!isWithinRadius(scope.centerLat, scope.centerLng, c.latitude, c.longitude, scope.radiusMiles)) {
+    if (!isWithinRadius(scope.centerLat, scope.centerLng, point.latitude, point.longitude, scope.radiusMiles)) {
       return false
     }
   }
   return true
+}
+
+/** A competitor's state is always present, so this is `pointInScope` on a competitor. */
+export function competitorInScope(c: ScopedCompetitor, scope: CompetitorScope): boolean {
+  return pointInScope(c, scope)
 }
 
 export function filterCompetitorsByScope<T extends ScopedCompetitor>(

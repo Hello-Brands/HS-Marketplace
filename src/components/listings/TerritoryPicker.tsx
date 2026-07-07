@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useState, useCallback, useEffect } from 'react'
+import 'leaflet/dist/leaflet.css'
 import { EXISTING_HS_LOCATIONS } from '@/lib/listings/mock-data'
 
 // Dynamic imports for SSR compatibility
@@ -49,13 +50,6 @@ export function TerritoryPicker({
 
   useEffect(() => {
     setIsClient(true)
-    // Load Leaflet CSS
-    if (typeof window !== 'undefined') {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-      document.head.appendChild(link)
-    }
   }, [])
 
   const handleMapClick = useCallback((latlng: { lat: number; lng: number }) => {

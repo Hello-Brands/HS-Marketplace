@@ -1,4 +1,4 @@
-import { isWithinRadius } from "./geo"
+import { pointInScope } from "./competitor-filter"
 import type { CompetitorScope } from "./competitor-filter"
 
 /** owner_locations date fields needed to decide whether a location is open. */
@@ -66,20 +66,10 @@ export function isNotListed(
   return !activeListedBqNames.has(resolvedBqLocationName)
 }
 
-/** Scope test mirroring competitorInScope; a null state fails an active state filter. */
+/** Scope test for an unlisted HS location — shared with competitors via pointInScope. */
 export function hsLocationInScope(
   loc: { latitude: number; longitude: number; state: string | null },
   scope: CompetitorScope
 ): boolean {
-  if (scope.states && scope.states.length > 0) {
-    if (!loc.state || !scope.states.includes(loc.state)) return false
-  }
-  if (scope.centerLat != null && scope.centerLng != null && scope.radiusMiles != null) {
-    if (
-      !isWithinRadius(scope.centerLat, scope.centerLng, loc.latitude, loc.longitude, scope.radiusMiles)
-    ) {
-      return false
-    }
-  }
-  return true
+  return pointInScope(loc, scope)
 }

@@ -1,6 +1,9 @@
+import { FDD_VERSION } from "@/lib/listings/fdd"
+
 // Static "Selling Your Franchise" disclaimer content shown on the add-listing
-// gate. Copy is intentionally hardcoded (legal text). Fee amounts reference the
-// Franchise Agreement / 2026 FDD rather than stating figures.
+// gate. Most fees reference the Franchise Agreement / FDD (year from FDD_VERSION,
+// the single source of truth also written to the acknowledgment audit row); the
+// broker fee is the one figure stated inline.
 export function SellingDisclaimer() {
   return (
     <div>
@@ -53,7 +56,7 @@ export function SellingDisclaimer() {
           You find your own buyer. Hello Sugar is not involved in the transaction beyond approving the transfer.
         </p>
         <ul className="mt-2 list-disc pl-5 text-sm text-gray-700 space-y-1">
-          <li>Transfer Fee (per your Franchise Agreement / 2026 FDD)</li>
+          <li>Transfer Fee (per your Franchise Agreement / {FDD_VERSION} FDD)</li>
           <li>Fee Deposit (per your Franchise Agreement)</li>
           <li>Your own legal fees for the transaction</li>
         </ul>
@@ -66,8 +69,8 @@ export function SellingDisclaimer() {
           diligence, and facilitating the transaction.
         </p>
         <ul className="mt-2 list-disc pl-5 text-sm text-gray-700 space-y-1">
-          <li>Transfer Fee (per your Franchise Agreement / 2026 FDD)</li>
-          <li>Resale Assistance Fee (per your Franchise Agreement / 2026 FDD)</li>
+          <li>Transfer Fee (per your Franchise Agreement / {FDD_VERSION} FDD)</li>
+          <li>Resale Assistance Fee (per your Franchise Agreement / {FDD_VERSION} FDD)</li>
         </ul>
         <div className="mt-3 rounded-lg border border-dashed border-amber-400 bg-amber-50/60 p-3 text-sm text-gray-700 leading-relaxed">
           <strong>Broker Fees (if applicable)</strong> — If a broker is involved, a fee of{" "}
