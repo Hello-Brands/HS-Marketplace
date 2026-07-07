@@ -13,7 +13,7 @@
    `@theme inline` block below (and the cascade it depends on) would be
    risky to replace wholesale with the generated files, so instead every
    value here is copied by hand from tokens.json and re-expressed as the
-   --hs-*/--gray-*/--color-* names this app already uses, plus the
+   --hs-, --gray-, and --color- prefixed names this app already uses, plus the
    --hs-color-* semantic aliases added below.
    SOURCE OF TRUTH: hello-sugar-brand skill, tokens/tokens.json.
    SYNC RULE: whenever tokens.json changes (a brand color, a semantic
