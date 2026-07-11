@@ -9,7 +9,7 @@ import {
   getReviewSummaryByLocation,
   type LocationReviewSummary,
 } from "@/lib/bigquery/queries"
-import { canFetchLiveData } from "./access"
+import { canFetchLiveData, canOwnerFetchLiveData } from "./access"
 import { buildMetricFromTrend } from "./metric"
 import type { BundleLocationKpi } from "./bundle"
 import { env } from "@/lib/env"
@@ -185,4 +185,54 @@ export async function fetchBundleLocationKpis(
 
     return { id: loc.id, name: loc.name, netSales, membership }
   })
+}
+
+/**
+ * Owner-scoped KPI fetch for /account/locations/[id] — the owner-gate
+ * counterpart of the listing-gated fetchers above. The caller passes the
+ * ownerIdentifier from a server-verified owner_locations row plus the
+ * session's ownerIdentifier; anything short of an exact owner match with a
+ * resolved BigQuery name returns all-null ("not connected" rendering).
+ */
+export async function fetchOwnerLocationKpis(args: {
+  rowOwnerIdentifier: string
+  sessionOwnerIdentifier: string | null
+  bqLocationName: string | null
+}): Promise<{
+  netSales: KpiMetric | null
+  membership: KpiMetric | null
+  reviews: LocationReviewSummary | null
+}> {
+  if (
+    !canOwnerFetchLiveData(
+      args.rowOwnerIdentifier,
+      args.sessionOwnerIdentifier,
+      args.bqLocationName
+    )
+  ) {
+    return { netSales: null, membership: null, reviews: null }
+  }
+  const bqName = args.bqLocationName as string
+
+  const [netMap, mcrMap, mcrTrendMap, reviewMap] = await Promise.all([
+    getNetSalesByLocation(),
+    getMcrByLocation(),
+    getMcrTrendByLocation(),
+    getReviewSummaryByLocation(),
+  ])
+
+  const ns = netMap.get(bqName)
+  const netSales = ns
+    ? buildMetricFromTrend(ns.trend, { lastMonth: ns.totalCents / 100 })
+    : null
+
+  let membership: KpiMetric | null = null
+  const pct = mcrMap.get(bqName)
+  if (pct !== undefined) {
+    const points = mcrTrendMap.get(bqName) ?? []
+    const trend = points.length > 0 ? points : [{ month: "TTM", value: pct }]
+    membership = buildMetricFromTrend(trend)
+  }
+
+  return { netSales, membership, reviews: reviewMap.get(bqName) ?? null }
 }
