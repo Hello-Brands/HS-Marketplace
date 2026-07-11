@@ -39,4 +39,16 @@ describe("hsLocationPopupHtml", () => {
     expect(html).not.toContain("@")
     expect(html).not.toContain("owner")
   })
+
+  it("owned variant shows the yours badge and a details CTA", () => {
+    const html = hsLocationPopupHtml(base, true)
+    expect(html).toContain("Your location")
+    expect(html).toContain("view details")
+  })
+
+  it("default variant is unchanged (no CTA, not-for-sale badge)", () => {
+    const html = hsLocationPopupHtml(base)
+    expect(html).toContain("not for sale")
+    expect(html).not.toContain("view details")
+  })
 })
