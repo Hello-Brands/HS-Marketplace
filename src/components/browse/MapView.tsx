@@ -202,6 +202,10 @@ export function MapView({
   const onToggleSaveCompetitorRef = useRef(onToggleSaveCompetitor)
   onToggleSaveCompetitorRef.current = onToggleSaveCompetitor
   const mapReady = useRef(false)
+  // Key of the listing ids the camera was last fitted to. Lets ownership
+  // recolor rebuilds (showMyLocations/ownedListingIds changes) skip the
+  // re-fit so the legend toggle never yanks the user's pan/zoom.
+  const lastFittedListingIds = useRef<string | null>(null)
   const centerMarker = useRef<maptilersdk.Marker | null>(null)
   // Latest click handler, read inside marker listeners without making it a
   // dependency of the marker effect (keeps the effect from rebuilding markers).
@@ -243,7 +247,10 @@ export function MapView({
       markers.current.forEach(({ marker }) => marker.remove())
       markers.current = []
 
-      if (!showListings) return
+      if (!showListings) {
+        lastFittedListingIds.current = null
+        return
+      }
 
       const validListings = listings.filter(
         (l) => l.latitude !== null && l.longitude !== null
@@ -318,8 +325,11 @@ export function MapView({
         markers.current.push({ marker, id: listing.id })
       }
 
-      // Auto-fit bounds to show all markers
-      if (validListings.length > 0) {
+      // Auto-fit bounds to show all markers — but only when the rendered
+      // listing set changed, not when a rebuild merely recolors owned dots.
+      const idsKey = validListings.map((l) => l.id).join(",")
+      if (validListings.length > 0 && idsKey !== lastFittedListingIds.current) {
+        lastFittedListingIds.current = idsKey
         const bounds = new maptilersdk.LngLatBounds()
         validListings.forEach((l) => {
           bounds.extend([l.longitude!, l.latitude!])
