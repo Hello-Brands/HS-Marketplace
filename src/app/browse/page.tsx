@@ -5,6 +5,7 @@ import { getListings, type ListingFilters, type ListingSort } from "@/lib/listin
 import { getCompetitorClosures } from "@/lib/competitor-query"
 import { getUnlistedHsLocations } from "@/lib/hs-locations-query"
 import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
+import { getMyMapOwnership } from "@/lib/owner-map/data"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
 import { SiteHeader } from "@/components/layout/SiteHeader"
@@ -66,7 +67,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   // resilient (returns [] if the scraper table is empty/unavailable), so it
   // never blocks the page.
   const filters = parseFilters(searchParams)
-  const [{ items: initialListings }, competitorClosures, savedCompetitorIds, hsLocations] =
+  const [{ items: initialListings }, competitorClosures, savedCompetitorIds, hsLocations, mapOwnership] =
     await Promise.all([
       getListings(filters),
       getCompetitorClosures({
@@ -82,6 +83,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         radiusMiles: filters.radiusMiles,
         states: filters.states,
       }),
+      getMyMapOwnership(),
     ])
   const count = initialListings.length
 
@@ -97,6 +99,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         competitorClosures={competitorClosures}
         savedCompetitorIds={savedCompetitorIds}
         hsLocations={hsLocations}
+        mapOwnership={mapOwnership}
       />
     </>
   )

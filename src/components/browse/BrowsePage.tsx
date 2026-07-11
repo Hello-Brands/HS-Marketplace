@@ -12,6 +12,7 @@ import { MapLegend } from "./MapLegend"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
+import { EMPTY_MAP_OWNERSHIP, type MapOwnership } from "@/lib/owner-map/ownership"
 import { useRouter } from "next/navigation"
 import { competitorToSnapshot } from "@/lib/saved-competitors"
 import { toggleSavedCompetitor } from "@/lib/saved-competitors-actions"
@@ -35,6 +36,7 @@ interface BrowsePageProps {
   favoriteIds?: string[]
   savedCompetitorIds?: string[]
   hsLocations?: UnlistedHsLocation[]
+  mapOwnership?: MapOwnership
 }
 
 export function BrowsePage({
@@ -43,6 +45,7 @@ export function BrowsePage({
   favoriteIds = [],
   savedCompetitorIds = [],
   hsLocations = [],
+  mapOwnership = EMPTY_MAP_OWNERSHIP,
 }: BrowsePageProps) {
   const [viewMode, setViewMode] = useState<"list" | "map">("map")
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -68,6 +71,7 @@ export function BrowsePage({
   const showListings = rawFilters.showListings
   const showCompetitors = rawFilters.showCompetitors
   const showHsLocations = rawFilters.showHsLocations
+  const showMyLocations = rawFilters.showMyLocations
   const router = useRouter()
 
   // Active search center (drives radius filtering, the map circle, and "X mi away").
@@ -135,6 +139,27 @@ export function BrowsePage({
     },
     [router]
   )
+
+  // Owned unlisted HS dot → owner detail page. Memoized like handleListingClick
+  // so the MapView marker effect doesn't rebuild every render.
+  const handleHsLocationClick = useCallback(
+    (id: string) => {
+      router.push(`/account/locations/${id}`)
+    },
+    [router]
+  )
+
+  // Legend row appears only when at least one owned location is actually on
+  // the map (owned ids that didn't survive geocoding/open/unlisted filters
+  // shouldn't summon the row).
+  const hasOwnedOnMap = useMemo(() => {
+    const listingIds = new Set(mapOwnership.ownedListingIds)
+    const hsIds = new Set(mapOwnership.ownedHsLocationIds)
+    return (
+      initialListings.some((l) => listingIds.has(l.id)) ||
+      hsLocations.some((l) => hsIds.has(l.id))
+    )
+  }, [mapOwnership, initialListings, hsLocations])
 
   // Clicking a competitor card selects it on the map (fly-to + popup). Switch to
   // the map view first if we're in the full-width list so the map is visible.
@@ -379,9 +404,13 @@ export function BrowsePage({
                 selectedCompetitor={selectedCompetitor}
                 center={searchCenter}
                 radiusMiles={searchCenter ? rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES : null}
+                ownedListingIds={mapOwnership.ownedListingIds}
+                ownedHsLocationIds={mapOwnership.ownedHsLocationIds}
+                showMyLocations={showMyLocations}
+                onHsLocationClick={handleHsLocationClick}
               />
 
-              <MapLegend />
+              <MapLegend hasOwnedLocations={hasOwnedOnMap} />
 
               {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
                 <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />
