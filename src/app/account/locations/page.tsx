@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { getMyOwnerLocations } from "@/lib/owner-directory/data"
 import { deriveLocationStatus, type OverallStatus } from "@/lib/owner-directory/status"
 import { Badge } from "@/components/ui/Badge"
@@ -47,9 +48,10 @@ export default async function MyLocationsPage() {
             const status = deriveLocationStatus(loc)
             const connected = loc.resolvedBqLocationName !== null
             return (
-              <div
+              <Link
                 key={loc.id}
-                className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200"
+                href={`/account/locations/${loc.id}`}
+                className="flex flex-col gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -73,7 +75,7 @@ export default async function MyLocationsPage() {
                     <span className="text-xs text-gray-400">#{loc.blvdLocationNumber}</span>
                   )}
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>
