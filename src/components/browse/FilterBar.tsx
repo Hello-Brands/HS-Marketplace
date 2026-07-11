@@ -50,6 +50,7 @@ export function useListingFilters() {
     showListings: parseAsBoolean.withDefault(true),
     showCompetitors: parseAsBoolean.withDefault(true),
     showHsLocations: parseAsBoolean.withDefault(true),
+    showMyLocations: parseAsBoolean.withDefault(true),
   })
 }
 

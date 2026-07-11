@@ -26,6 +26,15 @@ interface MapViewProps {
   // Open HS locations that are NOT for sale — map-only, hover-only, no navigation.
   hsLocations?: UnlistedHsLocation[]
   showHsLocations?: boolean
+  // Ids of listings / unlisted HS locations the signed-in user owns — rendered
+  // in brand green. Same size/shape as their layer; color is the only change.
+  ownedListingIds?: string[]
+  ownedHsLocationIds?: string[]
+  // Legend toggle: when false, owned dots render exactly like non-owned dots.
+  showMyLocations?: boolean
+  // Click handler for OWNED unlisted HS dots only (navigates to the owner
+  // detail page). Non-owned HS dots keep the pin-popup behavior.
+  onHsLocationClick?: (id: string) => void
   savedPlaceIds?: string[]
   onToggleSaveCompetitor?: (c: CompetitorClosure) => void
   // A competitor chosen from the list. `seq` bumps on every click so re-selecting
@@ -174,6 +183,10 @@ export function MapView({
   showListings = true,
   hsLocations = [],
   showHsLocations = true,
+  ownedListingIds = [],
+  ownedHsLocationIds = [],
+  showMyLocations = true,
+  onHsLocationClick,
   savedPlaceIds = [],
   onToggleSaveCompetitor,
   selectedCompetitor,
@@ -189,11 +202,17 @@ export function MapView({
   const onToggleSaveCompetitorRef = useRef(onToggleSaveCompetitor)
   onToggleSaveCompetitorRef.current = onToggleSaveCompetitor
   const mapReady = useRef(false)
+  // Key of the listing ids the camera was last fitted to. Lets ownership
+  // recolor rebuilds (showMyLocations/ownedListingIds changes) skip the
+  // re-fit so the legend toggle never yanks the user's pan/zoom.
+  const lastFittedListingIds = useRef<string | null>(null)
   const centerMarker = useRef<maptilersdk.Marker | null>(null)
   // Latest click handler, read inside marker listeners without making it a
   // dependency of the marker effect (keeps the effect from rebuilding markers).
   const onListingClickRef = useRef(onListingClick)
   onListingClickRef.current = onListingClick
+  const onHsLocationClickRef = useRef(onHsLocationClick)
+  onHsLocationClickRef.current = onHsLocationClick
 
   // Initialize map once
   useEffect(() => {
@@ -228,11 +247,16 @@ export function MapView({
       markers.current.forEach(({ marker }) => marker.remove())
       markers.current = []
 
-      if (!showListings) return
+      if (!showListings) {
+        lastFittedListingIds.current = null
+        return
+      }
 
       const validListings = listings.filter(
         (l) => l.latitude !== null && l.longitude !== null
       )
+
+      const ownedListingSet = new Set(ownedListingIds)
 
       for (const listing of validListings) {
         // Outer element is positioned by MapTiler — it rewrites `transform`
@@ -242,12 +266,18 @@ export function MapView({
         const el = document.createElement("div")
         el.dataset.listingId = listing.id
 
+        const isMine = showMyLocations && ownedListingSet.has(listing.id)
+        const baseColor = isMine ? BRAND.success : BRAND.crimson
+        const hoverColor = isMine ? BRAND.successStrong : BRAND.crimsonStrong
+
         const inner = document.createElement("div")
         inner.className = "map-marker"
+        inner.dataset.baseColor = baseColor
+        inner.dataset.hoverColor = hoverColor
         inner.style.cssText = `
           width: 16px;
           height: 16px;
-          background-color: ${BRAND.crimson};
+          background-color: ${baseColor};
           border: 2px solid white;
           border-radius: 50%;
           cursor: pointer;
@@ -295,8 +325,11 @@ export function MapView({
         markers.current.push({ marker, id: listing.id })
       }
 
-      // Auto-fit bounds to show all markers
-      if (validListings.length > 0) {
+      // Auto-fit bounds to show all markers — but only when the rendered
+      // listing set changed, not when a rebuild merely recolors owned dots.
+      const idsKey = validListings.map((l) => l.id).join(",")
+      if (validListings.length > 0 && idsKey !== lastFittedListingIds.current) {
+        lastFittedListingIds.current = idsKey
         const bounds = new maptilersdk.LngLatBounds()
         validListings.forEach((l) => {
           bounds.extend([l.longitude!, l.latitude!])
@@ -306,7 +339,7 @@ export function MapView({
     }
 
     runWhenMapReady(map.current, mapReady.current, addMarkers)
-  }, [listings, onHover, showListings])
+  }, [listings, onHover, showListings, ownedListingIds.join(","), showMyLocations])
 
   // Highlight hovered marker
   useEffect(() => {
@@ -317,12 +350,12 @@ export function MapView({
       if (id === hoveredId) {
         // Scale/recolor the inner element (MapTiler doesn't touch it).
         inner.style.transform = "scale(1.3)"
-        inner.style.backgroundColor = BRAND.crimsonStrong
+        inner.style.backgroundColor = inner.dataset.hoverColor ?? BRAND.crimsonStrong
         // zIndex on the outer element is safe — MapTiler doesn't set it.
         el.style.zIndex = "10"
       } else {
         inner.style.transform = "scale(1)"
-        inner.style.backgroundColor = BRAND.crimson
+        inner.style.backgroundColor = inner.dataset.baseColor ?? BRAND.crimson
         el.style.zIndex = ""
       }
     }
@@ -509,7 +542,11 @@ export function MapView({
         (l) => Number.isFinite(l.latitude) && Number.isFinite(l.longitude)
       )
 
+      const ownedHsSet = new Set(ownedHsLocationIds)
+
       for (const loc of valid) {
+        const isMine = showMyLocations && ownedHsSet.has(loc.id)
+
         const el = document.createElement("div")
         el.dataset.hsLocationId = loc.id
 
@@ -517,7 +554,7 @@ export function MapView({
         inner.style.cssText = `
           width: 16px;
           height: 16px;
-          background-color: ${BRAND.taupe};
+          background-color: ${isMine ? BRAND.success : BRAND.taupe};
           border: 2px solid white;
           border-radius: 50%;
           cursor: pointer;
@@ -532,7 +569,7 @@ export function MapView({
           maxWidth: "220px",
         })
           .setLngLat([loc.longitude, loc.latitude])
-          .setHTML(hsLocationPopupHtml(loc))
+          .setHTML(hsLocationPopupHtml(loc, isMine))
 
         const marker = new maptilersdk.Marker({ element: el })
           .setLngLat([loc.longitude, loc.latitude])
@@ -547,10 +584,16 @@ export function MapView({
           inner.style.transform = "scale(1)"
           if (!pinned) popup.remove()
         })
-        // stopPropagation keeps the map's closeOnClick from immediately
-        // dismissing the popup we just pinned.
+        // Owned dots navigate to the owner detail page; everyone else's keep
+        // the pin-the-popup behavior. stopPropagation (both paths) keeps the
+        // map's closeOnClick from immediately dismissing a pinned popup.
         el.addEventListener("click", (e) => {
           e.stopPropagation()
+          if (isMine && onHsLocationClickRef.current) {
+            popup.remove()
+            onHsLocationClickRef.current(loc.id)
+            return
+          }
           pinned = true
           popup.addTo(m)
         })
@@ -563,7 +606,7 @@ export function MapView({
     }
 
     runWhenMapReady(m, mapReady.current, apply)
-  }, [hsLocations, showHsLocations])
+  }, [hsLocations, showHsLocations, ownedHsLocationIds.join(","), showMyLocations])
 
   // Fly to a competitor selected from the list and open its detail popup. The
   // competitor markers already exist (built by the effect above); we just locate

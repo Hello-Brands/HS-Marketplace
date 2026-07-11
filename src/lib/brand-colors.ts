@@ -26,4 +26,8 @@ export const BRAND = {
   ink: '#1F1917',
   /** --gray-200 / --color-border — chart gridlines/axes */
   border: '#E8DED7',
+  /** --color-success / --color-green-600 — "your location" map markers */
+  success: '#3F7D5B',
+  /** --color-green-700 — success hover/active on map markers */
+  successStrong: '#33654A',
 } as const

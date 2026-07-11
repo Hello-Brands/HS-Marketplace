@@ -52,18 +52,20 @@ function ToggleRow({
   active,
   onClick,
   swatch,
+  titleOverride,
 }: {
   label: string
   active: boolean
   onClick: () => void
   swatch?: React.ReactNode
+  titleOverride?: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      title={active ? `Hide ${label.toLowerCase()} on the map` : `Show ${label.toLowerCase()} on the map`}
+      title={titleOverride ?? (active ? `Hide ${label.toLowerCase()} on the map` : `Show ${label.toLowerCase()} on the map`)}
       className={`group -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-md px-1 py-1 text-left text-xs font-medium transition-colors
         hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-1
         ${active ? "text-gray-800" : "text-gray-300"}`}
@@ -77,8 +79,8 @@ function ToggleRow({
   )
 }
 
-/** Collapsible on-map key: 4 swatches, 3 rows that toggle their map layer. */
-export function MapLegend() {
+/** Collapsible on-map key: swatch rows that toggle their map layer. */
+export function MapLegend({ hasOwnedLocations = false }: { hasOwnedLocations?: boolean }) {
   const [filters, setFilters] = useListingFilters()
   const [collapsed, setCollapsed] = useState(false)
   const compActive = filters.showCompetitors
@@ -105,6 +107,15 @@ export function MapLegend() {
           <p className="pb-1.5 text-[10px] leading-snug text-gray-400">
             Click a row to show or hide it on the map
           </p>
+          {hasOwnedLocations && (
+            <ToggleRow
+              label="Your locations"
+              active={filters.showMyLocations}
+              onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
+              swatch={<Dot color="var(--color-success)" />}
+              titleOverride={filters.showMyLocations ? "Show your locations in the normal colors" : "Highlight your locations in green"}
+            />
+          )}
           <ToggleRow
             label="For sale"
             active={filters.showListings}
