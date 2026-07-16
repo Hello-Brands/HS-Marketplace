@@ -171,6 +171,52 @@ function competitorMarkerEl(c: CompetitorClosure): HTMLDivElement {
   return el
 }
 
+// --- Hello Sugar swirl-mark location markers -------------------------------
+// The three location layers (for-sale listings, owned locations, unlisted HS
+// salons) render the brand swirl mark instead of a plain colored dot:
+//   color → for-sale listing   white → owned by viewer   black → unlisted HS
+const MARKER_ICON = {
+  color: "/markers/hs-marker-color.png",
+  white: "/markers/hs-marker-white.png",
+  black: "/markers/hs-marker-black.png",
+} as const
+
+type MarkerVariant = keyof typeof MARKER_ICON
+
+// Drop-shadows tuned per variant so each mark seats legibly on the light street
+// map. The white (owner) mark gets a tighter dark halo so it doesn't dissolve
+// into pale tiles the way a plain white glyph would.
+const MARKER_SHADOW: Record<MarkerVariant, string> = {
+  color: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+  black: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+  white: "drop-shadow(0 0 1px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
+}
+
+const MARKER_SIZE = 30
+
+// Build a swirl-mark marker element. As with the competitor markers, the outer
+// element is positioned by MapTiler (it rewrites `transform` every frame — we
+// must never touch it); all visuals + the hover scale live on the inner <img>.
+function hsIconMarkerEl(variant: MarkerVariant): HTMLDivElement {
+  const el = document.createElement("div")
+  const inner = document.createElement("img")
+  inner.src = MARKER_ICON[variant]
+  inner.alt = ""
+  inner.draggable = false
+  inner.style.cssText = `
+    display: block;
+    width: ${MARKER_SIZE}px;
+    height: ${MARKER_SIZE}px;
+    object-fit: contain;
+    cursor: pointer;
+    transform-origin: center;
+    filter: ${MARKER_SHADOW[variant]};
+    transition: transform 0.15s ease;
+  `
+  el.appendChild(inner)
+  return el
+}
+
 export function MapView({
   listings,
   hoveredId,
@@ -263,31 +309,15 @@ export function MapView({
         // (translate) every frame. We must NOT set its transform or give it a
         // CSS transition, or markers detach from the map (jump to 0,0 / lag
         // behind while panning). All visuals + hover animation live on `inner`.
-        const el = document.createElement("div")
+        const isMine = showMyLocations && ownedListingSet.has(listing.id)
+
+        // Owned locations show the white swirl mark; everything else for sale
+        // shows the full-color mark.
+        const el = hsIconMarkerEl(isMine ? "white" : "color")
         el.dataset.listingId = listing.id
 
-        const isMine = showMyLocations && ownedListingSet.has(listing.id)
-        const baseColor = isMine ? BRAND.success : BRAND.crimson
-        const hoverColor = isMine ? BRAND.successStrong : BRAND.crimsonStrong
-
-        const inner = document.createElement("div")
-        inner.className = "map-marker"
-        inner.dataset.baseColor = baseColor
-        inner.dataset.hoverColor = hoverColor
-        inner.style.cssText = `
-          width: 16px;
-          height: 16px;
-          background-color: ${baseColor};
-          border: 2px solid white;
-          border-radius: 50%;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          transition: transform 0.15s ease, background-color 0.15s ease;
-        `
-        el.appendChild(inner)
-
         const popup = new maptilersdk.Popup({
-          offset: 20,
+          offset: 24,
           closeButton: false,
           maxWidth: "220px",
         }).setHTML(`
@@ -348,14 +378,12 @@ export function MapView({
       const inner = el.firstElementChild as HTMLElement | null
       if (!inner) continue
       if (id === hoveredId) {
-        // Scale/recolor the inner element (MapTiler doesn't touch it).
+        // Scale the inner element up (MapTiler doesn't touch it).
         inner.style.transform = "scale(1.3)"
-        inner.style.backgroundColor = inner.dataset.hoverColor ?? BRAND.crimsonStrong
         // zIndex on the outer element is safe — MapTiler doesn't set it.
         el.style.zIndex = "10"
       } else {
         inner.style.transform = "scale(1)"
-        inner.style.backgroundColor = inner.dataset.baseColor ?? BRAND.crimson
         el.style.zIndex = ""
       }
     }
@@ -547,24 +575,14 @@ export function MapView({
       for (const loc of valid) {
         const isMine = showMyLocations && ownedHsSet.has(loc.id)
 
-        const el = document.createElement("div")
+        // Owned locations show the white swirl mark; unlisted HS salons show
+        // the black mark.
+        const el = hsIconMarkerEl(isMine ? "white" : "black")
         el.dataset.hsLocationId = loc.id
-
-        const inner = document.createElement("div")
-        inner.style.cssText = `
-          width: 16px;
-          height: 16px;
-          background-color: ${isMine ? BRAND.success : BRAND.taupe};
-          border: 2px solid white;
-          border-radius: 50%;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          transition: transform 0.15s ease;
-        `
-        el.appendChild(inner)
+        const inner = el.firstElementChild as HTMLElement
 
         const popup = new maptilersdk.Popup({
-          offset: 20,
+          offset: 24,
           closeButton: false,
           maxWidth: "220px",
         })
