@@ -192,7 +192,7 @@ const MARKER_SHADOW: Record<MarkerVariant, string> = {
   white: "drop-shadow(0 0 1px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
 }
 
-const MARKER_SIZE = 30
+const MARKER_SIZE = 16
 
 // Build a swirl-mark marker element. As with the competitor markers, the outer
 // element is positioned by MapTiler (it rewrites `transform` every frame — we
