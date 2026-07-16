@@ -3,13 +3,24 @@
 import { useState } from "react"
 import { useListingFilters } from "./FilterBar"
 
-function Dot({ color }: { color: string }) {
+// Swirl-mark swatch mirroring the map markers. `backdrop` seats the white
+// (owner) mark on a neutral chip so it stays visible against the white card —
+// the same legibility problem it has on pale map tiles.
+function IconSwatch({ src, backdrop }: { src: string; backdrop?: string }) {
   return (
     <span
       aria-hidden="true"
-      className="inline-block h-3 w-3 rounded-full border border-white"
-      style={{ backgroundColor: color, boxShadow: "0 0 0 1px rgba(0,0,0,.08)" }}
-    />
+      className="inline-flex h-4 w-4 items-center justify-center rounded-full"
+      style={backdrop ? { backgroundColor: backdrop } : undefined}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        className="h-3.5 w-3.5 object-contain"
+        style={{ filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" }}
+      />
+    </span>
   )
 }
 
@@ -112,21 +123,21 @@ export function MapLegend({ hasOwnedLocations = false }: { hasOwnedLocations?: b
               label="Your locations"
               active={filters.showMyLocations}
               onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
-              swatch={<Dot color="var(--color-success)" />}
-              titleOverride={filters.showMyLocations ? "Show your locations in the normal colors" : "Highlight your locations in green"}
+              swatch={<IconSwatch src="/markers/hs-marker-white.png" backdrop="var(--hs-taupe)" />}
+              titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the white mark"}
             />
           )}
           <ToggleRow
             label="For sale"
             active={filters.showListings}
             onClick={() => setFilters({ showListings: !filters.showListings })}
-            swatch={<Dot color="var(--hs-red-600)" />}
+            swatch={<IconSwatch src="/markers/hs-marker-color.png" />}
           />
           <ToggleRow
             label="Hello Sugar (not listed)"
             active={filters.showHsLocations}
             onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
-            swatch={<Dot color="var(--hs-taupe)" />}
+            swatch={<IconSwatch src="/markers/hs-marker-black.png" />}
           />
 
           <div className="mt-1.5 border-t border-gray-100 pt-1.5">
