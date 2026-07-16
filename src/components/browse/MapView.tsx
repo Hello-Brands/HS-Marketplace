@@ -142,14 +142,16 @@ function competitorMarkerEl(c: CompetitorClosure): HTMLDivElement {
   // outer element's transform every frame, so we must not touch it).
   const inner = document.createElement("div")
   if (c.isOpportunity) {
+    // 11.3px box → ~16px point-to-point once rotated 45° (16 / √2), matching
+    // the 16px location marks. Halo trimmed to a 2px ring.
     inner.style.cssText = `
-      width: 16px;
-      height: 16px;
+      width: 11.3px;
+      height: 11.3px;
       background-color: ${COMP_OPP};
       border: 2px solid white;
       border-radius: 3px;
       cursor: pointer;
-      box-shadow: 0 0 0 4px ${COMP_OPP_HALO}, 0 2px 4px rgba(0,0,0,0.3);
+      box-shadow: 0 0 0 2px ${COMP_OPP_HALO}, 0 2px 4px rgba(0,0,0,0.3);
       transform: rotate(45deg);
       transition: transform 0.15s ease;
     `
