@@ -40,7 +40,7 @@ function parseFilters(sp: RawSearchParams): ListingFilters {
 
 function BrowsePageSkeleton() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
       {/* Filter bar placeholder */}
       <div className="bg-white border-b h-14 animate-pulse" />
       {/* View controls placeholder */}
@@ -88,7 +88,10 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   const count = initialListings.length
 
   return (
-    <>
+    // Viewport-pinned shell: header + browse content are clamped to the window
+    // height so the map fills the viewport (Zillow-style) and only inner panels
+    // scroll — never the whole page. See BrowsePage for the flex height chain.
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
       <SiteHeader
         world="marketplace"
         title="Browse Listings"
@@ -101,7 +104,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         hsLocations={hsLocations}
         mapOwnership={mapOwnership}
       />
-    </>
+    </div>
   )
 }
 

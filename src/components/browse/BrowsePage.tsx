@@ -206,14 +206,14 @@ export function BrowsePage({
   const savedCompetitorIdList = useMemo(() => Array.from(savedSet), [savedSet])
 
   return (
-    <main className="flex flex-col min-h-screen bg-gray-50">
+    <main className="flex flex-col flex-1 min-h-0 bg-gray-50">
       {/* Filter bar — desktop only, sticky at top */}
-      <div className="hidden md:block">
+      <div className="hidden md:block shrink-0">
         <FilterBar onLocationSelect={handleLocationSelect} />
       </div>
 
       {/* View controls + mobile filter button */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-gray-200 shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
           {/* Mobile: Filters button */}
           <button
@@ -344,29 +344,33 @@ export function BrowsePage({
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1">
+      {/* Main content — fills the remaining viewport height; min-h-0 lets inner
+         panels scroll instead of the whole page (overflow confined here). */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         {viewMode === "list" ? (
-          /* List view — full width */
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <BrowseListContent
-              showListings={showListings}
-              showCompetitors={showCompetitors}
-              initialListings={initialListings}
-              filters={filters}
-              favoriteIds={favoriteIds}
-              competitorClosures={competitorClosures}
-              savedSet={savedSet}
-              onToggleSaveCompetitor={handleToggleSaveCompetitor}
-              onSelectCompetitor={handleSelectCompetitor}
-              hoveredId={hoveredId}
-              onHover={setHoveredId}
-            />
+          /* List view — full width; scrolls internally now that the page shell
+             is viewport-clamped. */
+          <div className="h-full overflow-y-auto">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <BrowseListContent
+                showListings={showListings}
+                showCompetitors={showCompetitors}
+                initialListings={initialListings}
+                filters={filters}
+                favoriteIds={favoriteIds}
+                competitorClosures={competitorClosures}
+                savedSet={savedSet}
+                onToggleSaveCompetitor={handleToggleSaveCompetitor}
+                onSelectCompetitor={handleSelectCompetitor}
+                hoveredId={hoveredId}
+                onHover={setHoveredId}
+              />
+            </div>
           </div>
         ) : (
           /* Map view — map-dominant split (cards 1/3 left, map 2/3 right) on
              desktop; map-only on mobile (toggle to List for the card grid). */
-          <div className="flex h-[calc(100dvh-200px)]">
+          <div className="flex h-full">
             {/* List panel — hidden on mobile when in map view */}
             <div className="hidden md:block md:w-1/3 overflow-y-auto border-r border-gray-200 bg-white">
               <div className="px-4 py-4">
