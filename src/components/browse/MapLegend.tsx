@@ -91,7 +91,7 @@ function ToggleRow({
 }
 
 /** Collapsible on-map key: swatch rows that toggle their map layer. */
-export function MapLegend({ hasOwnedLocations = false }: { hasOwnedLocations?: boolean }) {
+export function MapLegend() {
   const [filters, setFilters] = useListingFilters()
   const [collapsed, setCollapsed] = useState(false)
   const compActive = filters.showCompetitors
@@ -118,15 +118,13 @@ export function MapLegend({ hasOwnedLocations = false }: { hasOwnedLocations?: b
           <p className="pb-1.5 text-[10px] leading-snug text-gray-400">
             Click a row to show or hide it on the map
           </p>
-          {hasOwnedLocations && (
-            <ToggleRow
-              label="Your locations"
-              active={filters.showMyLocations}
-              onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
-              swatch={<IconSwatch src="/markers/hs-marker-white.png" backdrop="var(--hs-taupe)" />}
-              titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the white mark"}
-            />
-          )}
+          <ToggleRow
+            label="Your locations"
+            active={filters.showMyLocations}
+            onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
+            swatch={<IconSwatch src="/markers/hs-marker-white.png" backdrop="var(--hs-taupe)" />}
+            titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the white mark"}
+          />
           <ToggleRow
             label="For sale"
             active={filters.showListings}

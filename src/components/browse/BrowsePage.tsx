@@ -149,18 +149,6 @@ export function BrowsePage({
     [router]
   )
 
-  // Legend row appears only when at least one owned location is actually on
-  // the map (owned ids that didn't survive geocoding/open/unlisted filters
-  // shouldn't summon the row).
-  const hasOwnedOnMap = useMemo(() => {
-    const listingIds = new Set(mapOwnership.ownedListingIds)
-    const hsIds = new Set(mapOwnership.ownedHsLocationIds)
-    return (
-      initialListings.some((l) => listingIds.has(l.id)) ||
-      hsLocations.some((l) => hsIds.has(l.id))
-    )
-  }, [mapOwnership, initialListings, hsLocations])
-
   // Clicking a competitor card selects it on the map (fly-to + popup). Switch to
   // the map view first if we're in the full-width list so the map is visible.
   const handleSelectCompetitor = useCallback((c: CompetitorClosure) => {
@@ -414,7 +402,7 @@ export function BrowsePage({
                 onHsLocationClick={handleHsLocationClick}
               />
 
-              <MapLegend hasOwnedLocations={hasOwnedOnMap} />
+              <MapLegend />
 
               {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
                 <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />
