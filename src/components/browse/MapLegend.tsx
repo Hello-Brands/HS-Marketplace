@@ -3,21 +3,38 @@
 import { useState } from "react"
 import { useListingFilters } from "./FilterBar"
 
-// Swirl-mark swatch mirroring the map markers. `backdrop` seats the white
-// (owner) mark on a neutral chip so it stays visible against the white card —
-// the same legibility problem it has on pale map tiles.
-function IconSwatch({ src, backdrop }: { src: string; backdrop?: string }) {
+// Swirl-mark swatch mirroring the map markers. `halo` gives the white
+// (unlisted) mark a soft dark shadow so it stays visible against the white
+// card — the same legibility problem it has on pale map tiles.
+function IconSwatch({ src, halo }: { src: string; halo?: boolean }) {
   return (
-    <span
-      aria-hidden="true"
-      className="inline-flex h-4 w-4 items-center justify-center rounded-full"
-      style={backdrop ? { backgroundColor: backdrop } : undefined}
-    >
+    <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt=""
         className="h-3.5 w-3.5 object-contain"
+        style={{
+          filter: halo
+            ? "drop-shadow(0 0 1px rgba(0,0,0,.45)) drop-shadow(0 1px 2px rgba(0,0,0,.3))"
+            : "drop-shadow(0 1px 1px rgba(0,0,0,.25))",
+        }}
+      />
+    </span>
+  )
+}
+
+// Owner badge swatch: the white wordmark on its brand-red field, matching the
+// map's owner marker. Height follows the badge's own aspect so the rounding
+// clips the red field itself.
+function BadgeSwatch({ src }: { src: string }) {
+  return (
+    <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        className="h-auto w-[18px] max-w-none rounded-[2px]"
         style={{ filter: "drop-shadow(0 1px 1px rgba(0,0,0,.25))" }}
       />
     </span>
@@ -122,8 +139,8 @@ export function MapLegend() {
             label="Your locations"
             active={filters.showMyLocations}
             onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
-            swatch={<IconSwatch src="/markers/hs-marker-white.png" backdrop="var(--hs-taupe)" />}
-            titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the white mark"}
+            swatch={<BadgeSwatch src="/markers/hs-marker-owner.png" />}
+            titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the Hello Sugar badge"}
           />
           <ToggleRow
             label="For sale"
@@ -135,7 +152,7 @@ export function MapLegend() {
             label="Hello Sugar (not listed)"
             active={filters.showHsLocations}
             onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
-            swatch={<IconSwatch src="/markers/hs-marker-black.png" />}
+            swatch={<IconSwatch src="/markers/hs-marker-white.png" halo />}
           />
 
           <div className="mt-1.5 border-t border-gray-100 pt-1.5">

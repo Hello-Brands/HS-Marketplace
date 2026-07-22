@@ -173,30 +173,33 @@ function competitorMarkerEl(c: CompetitorClosure): HTMLDivElement {
   return el
 }
 
-// --- Hello Sugar swirl-mark location markers -------------------------------
-// The three location layers (for-sale listings, owned locations, unlisted HS
-// salons) render the brand swirl mark instead of a plain colored dot:
-//   color → for-sale listing   white → owned by viewer   black → unlisted HS
+// --- Hello Sugar location markers -------------------------------------------
+// The three location layers render brand marks instead of plain colored dots:
+//   color → for-sale listing (swirl)   white → unlisted HS salon (swirl)
+//   owner → owned by viewer (white wordmark badge on the brand-red field)
 const MARKER_ICON = {
   color: "/markers/hs-marker-color.png",
   white: "/markers/hs-marker-white.png",
-  black: "/markers/hs-marker-black.png",
+  owner: "/markers/hs-marker-owner.png",
 } as const
 
 type MarkerVariant = keyof typeof MARKER_ICON
 
 // Drop-shadows tuned per variant so each mark seats legibly on the light street
-// map. The white (owner) mark gets a tighter dark halo so it doesn't dissolve
-// into pale tiles the way a plain white glyph would.
+// map. The white (unlisted) mark gets a tighter dark halo so it doesn't
+// dissolve into pale tiles the way a plain white glyph would.
 const MARKER_SHADOW: Record<MarkerVariant, string> = {
   color: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
-  black: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+  owner: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
   white: "drop-shadow(0 0 1px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
 }
 
 const MARKER_SIZE = 16
+// The owner badge is a wide wordmark, not a square glyph — render it wider so
+// it stays legible while matching the swirls' visual weight (24 × ~15.6px).
+const OWNER_BADGE_WIDTH = 24
 
-// Build a swirl-mark marker element. As with the competitor markers, the outer
+// Build a brand-mark marker element. As with the competitor markers, the outer
 // element is positioned by MapTiler (it rewrites `transform` every frame — we
 // must never touch it); all visuals + the hover scale live on the inner <img>.
 function hsIconMarkerEl(variant: MarkerVariant): HTMLDivElement {
@@ -205,11 +208,14 @@ function hsIconMarkerEl(variant: MarkerVariant): HTMLDivElement {
   inner.src = MARKER_ICON[variant]
   inner.alt = ""
   inner.draggable = false
+  // Badge keeps its own aspect (height: auto) so border-radius clips the
+  // actual red field instead of a letterboxed square.
+  const size = variant === "owner"
+    ? `width: ${OWNER_BADGE_WIDTH}px; height: auto; border-radius: 3px;`
+    : `width: ${MARKER_SIZE}px; height: ${MARKER_SIZE}px; object-fit: contain;`
   inner.style.cssText = `
     display: block;
-    width: ${MARKER_SIZE}px;
-    height: ${MARKER_SIZE}px;
-    object-fit: contain;
+    ${size}
     cursor: pointer;
     transform-origin: center;
     filter: ${MARKER_SHADOW[variant]};
@@ -313,9 +319,9 @@ export function MapView({
         // behind while panning). All visuals + hover animation live on `inner`.
         const isMine = showMyLocations && ownedListingSet.has(listing.id)
 
-        // Owned locations show the white swirl mark; everything else for sale
+        // Owned locations show the wordmark badge; everything else for sale
         // shows the full-color mark.
-        const el = hsIconMarkerEl(isMine ? "white" : "color")
+        const el = hsIconMarkerEl(isMine ? "owner" : "color")
         el.dataset.listingId = listing.id
 
         const popup = new maptilersdk.Popup({
@@ -577,9 +583,9 @@ export function MapView({
       for (const loc of valid) {
         const isMine = showMyLocations && ownedHsSet.has(loc.id)
 
-        // Owned locations show the white swirl mark; unlisted HS salons show
-        // the black mark.
-        const el = hsIconMarkerEl(isMine ? "white" : "black")
+        // Owned locations show the wordmark badge; unlisted HS salons show
+        // the white swirl mark.
+        const el = hsIconMarkerEl(isMine ? "owner" : "white")
         el.dataset.hsLocationId = loc.id
         const inner = el.firstElementChild as HTMLElement
 
