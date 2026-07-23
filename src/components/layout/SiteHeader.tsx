@@ -7,9 +7,10 @@ interface SiteHeaderProps {
   world: NavWorld
   title?: string
   subtitle?: string
+  mobileSearch?: React.ReactNode
 }
 
-export async function SiteHeader({ world, title, subtitle }: SiteHeaderProps) {
+export async function SiteHeader({ world, title, subtitle, mobileSearch }: SiteHeaderProps) {
   const session = await auth()
   const user = session?.user
   if (!user) return null
@@ -28,6 +29,7 @@ export async function SiteHeader({ world, title, subtitle }: SiteHeaderProps) {
         email={user.email ?? ""}
         title={title}
         subtitle={subtitle}
+        mobileSearch={mobileSearch}
       />
       {world === "marketplace" && <MobileTabBar items={visibleNavItems(world, caps)} />}
     </>

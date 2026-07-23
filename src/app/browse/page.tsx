@@ -7,6 +7,7 @@ import { getUnlistedHsLocations } from "@/lib/hs-locations-query"
 import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
 import { getMyMapOwnership } from "@/lib/owner-map/data"
 import { BrowsePage } from "@/components/browse/BrowsePage"
+import { BrowseHeaderSearch } from "@/components/browse/BrowseHeaderSearch"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
 import { SiteHeader } from "@/components/layout/SiteHeader"
 
@@ -96,6 +97,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         world="marketplace"
         title="Browse Listings"
         subtitle={`${count} active listing${count !== 1 ? "s" : ""}`}
+        mobileSearch={<BrowseHeaderSearch />}
       />
       <BrowsePage
         initialListings={initialListings}
