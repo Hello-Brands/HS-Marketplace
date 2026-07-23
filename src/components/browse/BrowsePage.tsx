@@ -5,7 +5,6 @@ import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
 import { BrowseListContent } from "./BrowseListContent"
-import { LocationSearch } from "./LocationSearchDynamic"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
 import { MapLegend } from "./MapLegend"
@@ -18,6 +17,7 @@ import { useQueryState } from "nuqs"
 import { competitorToSnapshot } from "@/lib/saved-competitors"
 import { toggleSavedCompetitor } from "@/lib/saved-competitors-actions"
 import { viewModeParser } from "@/lib/view-mode"
+import { countListingFilters } from "@/lib/filter-count"
 
 // Dynamic import for MapView avoids SSR issues with MapTiler SDK
 const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
@@ -101,6 +101,8 @@ export function BrowsePage({
     centerLng: rawFilters.centerLng ?? undefined,
     radiusMiles: rawFilters.radiusMiles ?? undefined,
   }
+
+  const activeFilterCount = countListingFilters(rawFilters)
 
   function handleLocationSelect(location: { lng: number; lat: number; name: string }) {
     // Set the search center (filters results) IN ADDITION to panning the map.
@@ -204,20 +206,9 @@ export function BrowsePage({
         <FilterBar onLocationSelect={handleLocationSelect} />
       </div>
 
-      {/* View controls + mobile filter button */}
-      <div className="bg-white border-b border-gray-200 shrink-0">
+      {/* View controls — desktop only (mobile uses the pill row below) */}
+      <div className="hidden md:block bg-white border-b border-gray-200 shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
-          {/* Mobile: Filters button */}
-          <button
-            onClick={() => setMobileFiltersOpen(true)}
-            className="md:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-h-[44px]"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            Filters
-          </button>
-
           {/* View toggle */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden shadow-sm">
             <button
@@ -264,10 +255,6 @@ export function BrowsePage({
 
           {/* Location search + radius + Save search */}
           <div className="flex w-full sm:w-auto sm:flex-1 flex-wrap items-center gap-3 justify-end order-last sm:order-none">
-            <div className="max-w-sm flex-1 md:hidden">
-              <LocationSearch onSelect={handleLocationSelect} />
-            </div>
-
             {/* Radius control + active-location chip (only when a center is set) */}
             {searchCenter && (
               <div className="flex flex-wrap items-center gap-3">
@@ -314,6 +301,64 @@ export function BrowsePage({
               </div>
             )}
 
+            <SaveSearchButton
+              filters={{
+                query: rawFilters.query || undefined,
+                types: rawFilters.types,
+                states: rawFilters.states,
+                minPrice: rawFilters.minPrice,
+                maxPrice: rawFilters.maxPrice,
+                minYearsOpen: rawFilters.minYearsOpen,
+                inventoryIncluded: rawFilters.inventoryIncluded,
+                sort: rawFilters.sort,
+                centerLat: rawFilters.centerLat,
+                centerLng: rawFilters.centerLng,
+                radiusMiles: rawFilters.radiusMiles,
+                centerLabel: rawFilters.centerLabel || undefined,
+                includeListings: rawFilters.showListings,
+                includeCompetitors: rawFilters.showCompetitors,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile pill row — Zillow-style second header row. Scrolls horizontally
+         if the radius chip makes it overflow. */}
+      <div className="md:hidden bg-white border-b border-gray-200 shrink-0">
+        <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto">
+          <button
+            onClick={() => setMobileFiltersOpen(true)}
+            className="flex shrink-0 items-center gap-2 rounded-full border border-gray-300 bg-white px-4 min-h-[44px] text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-hs-red-600 px-1.5 text-[11px] font-bold text-white tabular-nums">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {searchCenter && (
+            <button
+              type="button"
+              onClick={handleClearLocation}
+              title={`Clear location: ${rawFilters.centerLabel}`}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-hs-red-50 px-3 min-h-[44px] max-w-[180px] text-sm font-medium text-hs-red-700 hover:bg-hs-red-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
+            >
+              <span className="truncate">
+                {rawFilters.centerLabel || "Location"} · {rawFilters.radiusMiles ?? DEFAULT_RADIUS_MILES} mi
+              </span>
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+
+          <div className="shrink-0 ml-auto">
             <SaveSearchButton
               filters={{
                 query: rawFilters.query || undefined,
