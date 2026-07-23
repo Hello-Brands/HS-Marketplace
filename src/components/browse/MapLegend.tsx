@@ -107,11 +107,56 @@ function ToggleRow({
   )
 }
 
+/** The layer-toggle rows, shared by the desktop legend panel and the mobile
+    layers sheet. Self-contained: reads/writes the nuqs layer flags itself. */
+export function MapLayerRows() {
+  const [filters, setFilters] = useListingFilters()
+  const compActive = filters.showCompetitors
+
+  return (
+    <>
+      <ToggleRow
+        label="Your locations"
+        active={filters.showMyLocations}
+        onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
+        swatch={<BadgeSwatch src="/markers/hs-marker-owner.png" />}
+        titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the Hello Sugar badge"}
+      />
+      <ToggleRow
+        label="For sale"
+        active={filters.showListings}
+        onClick={() => setFilters({ showListings: !filters.showListings })}
+        swatch={<IconSwatch src="/markers/hs-marker-color.png" />}
+      />
+      <ToggleRow
+        label="Hello Sugar (not listed)"
+        active={filters.showHsLocations}
+        onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
+        swatch={<IconSwatch src="/markers/hs-marker-white.png" halo />}
+      />
+
+      <div className="mt-1.5 border-t border-gray-100 pt-1.5">
+        <ToggleRow
+          label="Competitors"
+          active={compActive}
+          onClick={() => setFilters({ showCompetitors: !filters.showCompetitors })}
+        />
+        <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
+          <Diamond color="var(--color-warning)" />
+          <span>Opportunity</span>
+        </div>
+        <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
+          <DiamondHollow />
+          <span>Closed</span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 /** Collapsible on-map key: swatch rows that toggle their map layer. */
 export function MapLegend() {
-  const [filters, setFilters] = useListingFilters()
   const [collapsed, setCollapsed] = useState(false)
-  const compActive = filters.showCompetitors
 
   return (
     <div className="absolute bottom-3 left-3 z-10 w-52 rounded-xl border border-gray-200 bg-white/95 shadow-lg backdrop-blur-sm">
@@ -135,41 +180,7 @@ export function MapLegend() {
           <p className="pb-1.5 text-[10px] leading-snug text-gray-400">
             Click a row to show or hide it on the map
           </p>
-          <ToggleRow
-            label="Your locations"
-            active={filters.showMyLocations}
-            onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
-            swatch={<BadgeSwatch src="/markers/hs-marker-owner.png" />}
-            titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the Hello Sugar badge"}
-          />
-          <ToggleRow
-            label="For sale"
-            active={filters.showListings}
-            onClick={() => setFilters({ showListings: !filters.showListings })}
-            swatch={<IconSwatch src="/markers/hs-marker-color.png" />}
-          />
-          <ToggleRow
-            label="Hello Sugar (not listed)"
-            active={filters.showHsLocations}
-            onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
-            swatch={<IconSwatch src="/markers/hs-marker-white.png" halo />}
-          />
-
-          <div className="mt-1.5 border-t border-gray-100 pt-1.5">
-            <ToggleRow
-              label="Competitors"
-              active={compActive}
-              onClick={() => setFilters({ showCompetitors: !filters.showCompetitors })}
-            />
-            <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
-              <Diamond color="var(--color-warning)" />
-              <span>Opportunity</span>
-            </div>
-            <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
-              <DiamondHollow />
-              <span>Closed</span>
-            </div>
-          </div>
+          <MapLayerRows />
         </div>
       )}
     </div>

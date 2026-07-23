@@ -504,6 +504,13 @@ body {
   }
 }
 
+/* Mobile map chrome: pitch/compass reset isn't useful on small screens. */
+@media (max-width: 47.9375rem) {
+  .maplibregl-ctrl-compass {
+    display: none !important;
+  }
+}
+
 /* Display headings use Outfit */
 h1, h2, h3, .font-display {
   font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;

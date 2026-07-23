@@ -10,6 +10,7 @@ import { BrowseListContent } from "./BrowseListContent"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
 import { MapLegend } from "./MapLegend"
+import { MobileMapLayers } from "./MobileMapLayers"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
@@ -461,7 +462,12 @@ export function BrowsePage({
                 onHsLocationClick={handleHsLocationClick}
               />
 
-              <MapLegend />
+              {/* Desktop keeps the always-available legend panel; mobile gets
+                 the layers FAB + bottom sheet instead. */}
+              <div className="hidden md:block">
+                <MapLegend />
+              </div>
+              <MobileMapLayers />
 
               <FloatingViewToggle
                 viewMode={viewMode}
