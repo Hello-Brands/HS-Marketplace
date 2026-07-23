@@ -1,0 +1,79 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { type NavItem, isActive } from "@/lib/navigation"
+import { tabBarHiddenForPath } from "@/lib/tab-bar"
+
+// Persistent bottom navigation on mobile (Zillow-style). Marketplace world
+// only — SiteHeader renders it. Account/world-switch/sign-out stay in the
+// hamburger drawer, so there is no "Menu" tab.
+
+// Short labels for the tight tab layout; falls back to the nav label.
+const TAB_LABELS: Record<string, string> = {
+  "/account/alerts": "Alerts",
+  "/seller/listings": "Listings",
+}
+
+const ICON_PROPS = {
+  className: "w-6 h-6",
+  fill: "none",
+  viewBox: "0 0 24 24",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  "aria-hidden": true,
+} as const
+
+const TAB_ICONS: Record<string, React.ReactNode> = {
+  "/browse": (
+    <svg {...ICON_PROPS}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+    </svg>
+  ),
+  "/account/favorites": (
+    <svg {...ICON_PROPS}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+    </svg>
+  ),
+  "/account/alerts": (
+    <svg {...ICON_PROPS}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+    </svg>
+  ),
+  "/seller/listings": (
+    <svg {...ICON_PROPS}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a2 2 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+    </svg>
+  ),
+}
+
+export function MobileTabBar({ items }: { items: NavItem[] }) {
+  const pathname = usePathname()
+  if (tabBarHiddenForPath(pathname)) return null
+
+  return (
+    <nav
+      aria-label="Primary"
+      className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-200 pb-safe"
+    >
+      <div className="flex">
+        {items.map((item) => {
+          const active = isActive(pathname, item)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-[44px] flex-1 flex-col items-center gap-0.5 pt-1.5 pb-0.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset ${
+                active ? "text-hs-red-600" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {TAB_ICONS[item.href] ?? TAB_ICONS["/browse"]}
+              <span>{TAB_LABELS[item.href] ?? item.label}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}

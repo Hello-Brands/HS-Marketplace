@@ -496,6 +496,14 @@ body {
   height: calc(5rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* Reserve room for the fixed mobile tab bar (MobileTabBar). Mobile-only so
+   desktop layouts are untouched; height ≈ 3.5rem bar + home-indicator inset. */
+@media (max-width: 47.9375rem) {
+  .pb-tabbar {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Display headings use Outfit */
 h1, h2, h3, .font-display {
   font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;

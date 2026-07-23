@@ -198,7 +198,7 @@ export function BrowsePage({
   const savedCompetitorIdList = useMemo(() => Array.from(savedSet), [savedSet])
 
   return (
-    <main className="flex flex-col flex-1 min-h-0 bg-gray-50">
+    <main className="flex flex-col flex-1 min-h-0 bg-gray-50 pb-tabbar">
       {/* Filter bar — desktop only, sticky at top */}
       <div className="hidden md:block shrink-0">
         <FilterBar onLocationSelect={handleLocationSelect} />

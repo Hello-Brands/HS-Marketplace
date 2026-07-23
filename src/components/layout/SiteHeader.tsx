@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
-import { deriveCapabilities, type NavWorld } from "@/lib/navigation"
+import { deriveCapabilities, visibleNavItems, type NavWorld } from "@/lib/navigation"
 import { HeaderNav } from "./HeaderNav"
+import { MobileTabBar } from "./MobileTabBar"
 
 interface SiteHeaderProps {
   world: NavWorld
@@ -20,12 +21,15 @@ export async function SiteHeader({ world, title, subtitle }: SiteHeaderProps) {
   })
 
   return (
-    <HeaderNav
-      world={world}
-      caps={caps}
-      email={user.email ?? ""}
-      title={title}
-      subtitle={subtitle}
-    />
+    <>
+      <HeaderNav
+        world={world}
+        caps={caps}
+        email={user.email ?? ""}
+        title={title}
+        subtitle={subtitle}
+      />
+      {world === "marketplace" && <MobileTabBar items={visibleNavItems(world, caps)} />}
+    </>
   )
 }
