@@ -472,11 +472,6 @@ body {
   line-height: 1.6;
 }
 
-/* Lock background scroll while the mobile nav drawer is open (HeaderNav). */
-body.drawer-open {
-  overflow: hidden;
-}
-
 /* ====================================
    SAFE-AREA INSETS (notched devices)
    ==================================== */

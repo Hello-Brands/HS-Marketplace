@@ -16,6 +16,7 @@ import {
   visiblePrimaryAction,
   isActive,
 } from "@/lib/navigation"
+import { useScrollLock } from "@/hooks/useScrollLock"
 
 interface HeaderNavProps {
   world: NavWorld
@@ -32,18 +33,14 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
   const action = visiblePrimaryAction(world, caps)
   const logoHref = world === "admin" ? "/admin" : "/browse"
 
+  useScrollLock(open)
+
   useEffect(() => {
     function onEsc(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false)
     }
-    if (open) {
-      document.addEventListener("keydown", onEsc)
-      document.body.classList.add("drawer-open")
-    }
-    return () => {
-      document.removeEventListener("keydown", onEsc)
-      document.body.classList.remove("drawer-open")
-    }
+    if (open) document.addEventListener("keydown", onEsc)
+    return () => document.removeEventListener("keydown", onEsc)
   }, [open])
 
   return (
