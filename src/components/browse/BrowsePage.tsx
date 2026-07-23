@@ -14,8 +14,10 @@ import type { CompetitorClosure } from "@/lib/competitor-query"
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { EMPTY_MAP_OWNERSHIP, type MapOwnership } from "@/lib/owner-map/ownership"
 import { useRouter } from "next/navigation"
+import { useQueryState } from "nuqs"
 import { competitorToSnapshot } from "@/lib/saved-competitors"
 import { toggleSavedCompetitor } from "@/lib/saved-competitors-actions"
+import { viewModeParser } from "@/lib/view-mode"
 
 // Dynamic import for MapView avoids SSR issues with MapTiler SDK
 const MapView = dynamic(() => import("./MapView").then((m) => m.MapView), {
@@ -47,7 +49,9 @@ export function BrowsePage({
   hsLocations = [],
   mapOwnership = EMPTY_MAP_OWNERSHIP,
 }: BrowsePageProps) {
-  const [viewMode, setViewMode] = useState<"list" | "map">("map")
+  // View mode lives in the URL (?view=list|map) so it survives reload/share
+  // and other components (header search, floating toggle) can flip it.
+  const [viewMode, setViewMode] = useQueryState("view", viewModeParser)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   // Competitor selected by clicking a list card. `seq` bumps per click so the
   // map re-flies even when the same card is clicked again.
