@@ -18,7 +18,7 @@ const LISTING_TYPES = [
   { label: "Territory", value: "territory" },
 ]
 
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { label: "Newest first", value: "newest" },
   { label: "Price: Low to high", value: "price-asc" },
   { label: "Price: High to low", value: "price-desc" },

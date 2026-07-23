@@ -2,8 +2,10 @@
 
 import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES } from "./FilterBar"
+import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES, SORT_OPTIONS } from "./FilterBar"
 import { MobileFilterDrawer } from "./MobileFilterDrawer"
+import { FloatingViewToggle } from "./FloatingViewToggle"
+import { BottomSheet } from "@/components/ui"
 import { BrowseListContent } from "./BrowseListContent"
 import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
@@ -58,6 +60,7 @@ export function BrowsePage({
   const [selectedCompetitor, setSelectedCompetitor] = useState<{ id: string; seq: number } | null>(null)
   const selectSeq = useRef(0)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [sortSheetOpen, setSortSheetOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
   // Saved competitor place ids, hydrated from the server and updated
   // optimistically. Shared by the list rows and the map popup so both reflect
@@ -387,22 +390,29 @@ export function BrowsePage({
         {viewMode === "list" ? (
           /* List view — full width; scrolls internally now that the page shell
              is viewport-clamped. */
-          <div className="h-full overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <BrowseListContent
-                showListings={showListings}
-                showCompetitors={showCompetitors}
-                initialListings={initialListings}
-                filters={filters}
-                favoriteIds={favoriteIds}
-                competitorClosures={competitorClosures}
-                savedSet={savedSet}
-                onToggleSaveCompetitor={handleToggleSaveCompetitor}
-                onSelectCompetitor={handleSelectCompetitor}
-                hoveredId={hoveredId}
-                onHover={setHoveredId}
-              />
+          <div className="relative h-full">
+            <div className="h-full overflow-y-auto">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
+                <BrowseListContent
+                  showListings={showListings}
+                  showCompetitors={showCompetitors}
+                  initialListings={initialListings}
+                  filters={filters}
+                  favoriteIds={favoriteIds}
+                  competitorClosures={competitorClosures}
+                  savedSet={savedSet}
+                  onToggleSaveCompetitor={handleToggleSaveCompetitor}
+                  onSelectCompetitor={handleSelectCompetitor}
+                  hoveredId={hoveredId}
+                  onHover={setHoveredId}
+                />
+              </div>
             </div>
+            <FloatingViewToggle
+              viewMode={viewMode}
+              onViewChange={setViewMode}
+              onSortClick={() => setSortSheetOpen(true)}
+            />
           </div>
         ) : (
           /* Map view — map-dominant split (cards 1/3 left, map 2/3 right) on
@@ -453,6 +463,12 @@ export function BrowsePage({
 
               <MapLegend />
 
+              <FloatingViewToggle
+                viewMode={viewMode}
+                onViewChange={setViewMode}
+                onSortClick={() => setSortSheetOpen(true)}
+              />
+
               {shouldShowRadiusHint(viewMode, searchCenter !== null, hintDismissed) && (
                 <RadiusSearchHint onDismiss={() => setHintDismissed(true)} />
               )}
@@ -467,6 +483,37 @@ export function BrowsePage({
         onClose={() => setMobileFiltersOpen(false)}
         onLocationSelect={handleLocationSelect}
       />
+
+      {/* Mobile sort sheet (desktop uses the FilterBar <select>) */}
+      <BottomSheet open={sortSheetOpen} onClose={() => setSortSheetOpen(false)} title="Sort">
+        <div role="radiogroup" aria-label="Sort listings">
+          {SORT_OPTIONS.filter((o) => !o.requiresCenter || searchCenter !== null).map((o) => {
+            const selected = rawFilters.sort === o.value
+            return (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => {
+                  setFilters({ sort: o.value })
+                  setSortSheetOpen(false)
+                }}
+                className={`flex w-full items-center justify-between rounded-lg px-3 min-h-[44px] text-left text-sm font-medium transition-colors ${
+                  selected ? "bg-hs-red-50 text-hs-red-700" : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {o.label}
+                {selected && (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </BottomSheet>
     </main>
   )
 }
