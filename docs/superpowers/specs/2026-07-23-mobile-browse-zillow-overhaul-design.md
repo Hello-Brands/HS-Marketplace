@@ -22,7 +22,7 @@ but desktop rendering and behavior must not change).
 | Bottom tab bar | Yes — Browse / Saved / Alerts / My Listings (capability-gated) |
 | Map markers | Keep brand swirl markers (no price pills) |
 | Map key on mobile | Layers button → bottom sheet; desktop keeps current legend |
-| Mobile filters | Full-screen sheet, live-applied via nuqs, sticky "Show N results" footer |
+| Mobile filters | Full-screen sheet, live-applied via nuqs, sticky "Show results" footer |
 | Mobile header | Zillow-tight 2 rows; "Browse Listings" banner hidden on mobile |
 | List/map relationship | Approach A: hard toggle with floating pills (no draggable sheet) |
 | Extras | Favorites hearts on cards; view mode promoted to URL param; unified scroll lock |
@@ -101,7 +101,9 @@ but desktop rendering and behavior must not change).
 - Slides up full-screen: header ("Filters" + close X), stacked sections —
   Location/radius, Listing type, Price, Keyword, State, and the remaining
   facets `FilterBar` exposes — each as a plain stacked group, no popovers.
-- Sticky footer: **"Show N results"** (live count) + **"Clear all"**.
+- Sticky footer: **"Show results"** + **"Clear all"**. (A true live count isn't
+  available client-side — listings paginate at 12 — so the button carries no
+  number.)
 - Filters remain **live-applied** through the same `useListingFilters()` nuqs
   hooks desktop uses (`{ shallow: false }` refetch behavior unchanged). The
   footer button just closes the sheet. No staged/draft filter state.
