@@ -36,6 +36,17 @@ export async function toggleFavorite(listingId: string): Promise<{ favorited: bo
   return { favorited: true }
 }
 
+export async function getFavoriteListingIds(): Promise<string[]> {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  const rows = await db.query.favorites.findMany({
+    where: eq(favorites.userId, session.user.id),
+    columns: { listingId: true },
+  })
+  return rows.map((r) => r.listingId)
+}
+
 export async function isFavorited(listingId: string): Promise<boolean> {
   const session = await auth()
   if (!session?.user?.id) return false

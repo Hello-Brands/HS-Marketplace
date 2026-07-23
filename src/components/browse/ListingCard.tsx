@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { centsToDollars, formatUsdCents } from "@/lib/money"
 import type { ListingCard as ListingCardType } from "@/lib/listings-query"
+import { FavoriteHeart } from "./FavoriteHeart"
 
 const TYPE_LABELS: Record<string, string> = {
   suite: "Suite",
@@ -24,6 +25,9 @@ interface ListingCardProps {
   // Horizontal, low-height layout for the narrow map-view side panel so several
   // results are visible at once. The full-width grid uses the default card.
   compact?: boolean
+  // When provided, renders the favorite heart (browse grid). Undefined keeps
+  // the card exactly as before for call sites without favorites data.
+  favorited?: boolean
 }
 
 // The browse grid abbreviates millions ("$1.2M") but shows full thousands
@@ -37,7 +41,7 @@ function formatPrice(cents: number): string {
   return formatUsdCents(cents)
 }
 
-export function ListingCard({ listing, isHovered, onHover, compact }: ListingCardProps) {
+export function ListingCard({ listing, isHovered, onHover, compact, favorited }: ListingCardProps) {
   const cityState =
     [listing.city, listing.state].filter(Boolean).join(", ") || "Location not specified"
 
@@ -76,13 +80,20 @@ export function ListingCard({ listing, isHovered, onHover, compact }: ListingCar
             <p className="text-base font-bold text-hs-red-600 tracking-tight tabular-nums">
               {formatPrice(listing.askingPrice)}
             </p>
-            <span
-              className={`
-                shrink-0 inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md
-                ${TYPE_COLORS[listing.type] ?? "bg-gray-100 text-gray-700"}
-              `}
-            >
-              {TYPE_LABELS[listing.type] ?? listing.type}
+            <span className="flex items-center gap-1">
+              <span
+                className={`
+                  shrink-0 inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md
+                  ${TYPE_COLORS[listing.type] ?? "bg-gray-100 text-gray-700"}
+                `}
+              >
+                {TYPE_LABELS[listing.type] ?? listing.type}
+              </span>
+              {favorited !== undefined && (
+                <span className="-my-2 -mr-2">
+                  <FavoriteHeart listingId={listing.id} initialFavorited={favorited} />
+                </span>
+              )}
             </span>
           </div>
           <p className="text-sm font-medium text-gray-900 truncate mt-0.5">{cityState}</p>
@@ -145,6 +156,13 @@ export function ListingCard({ listing, isHovered, onHover, compact }: ListingCar
             {TYPE_LABELS[listing.type] ?? listing.type}
           </span>
         </div>
+
+        {/* Favorite heart overlay */}
+        {favorited !== undefined && (
+          <div className="absolute top-2 right-2">
+            <FavoriteHeart listingId={listing.id} initialFavorited={favorited} />
+          </div>
+        )}
       </div>
 
       {/* Content */}
