@@ -1,14 +1,16 @@
 import { auth } from "@/auth"
-import { deriveCapabilities, type NavWorld } from "@/lib/navigation"
+import { deriveCapabilities, visibleNavItems, type NavWorld } from "@/lib/navigation"
 import { HeaderNav } from "./HeaderNav"
+import { MobileTabBar } from "./MobileTabBar"
 
 interface SiteHeaderProps {
   world: NavWorld
   title?: string
   subtitle?: string
+  mobileSearch?: React.ReactNode
 }
 
-export async function SiteHeader({ world, title, subtitle }: SiteHeaderProps) {
+export async function SiteHeader({ world, title, subtitle, mobileSearch }: SiteHeaderProps) {
   const session = await auth()
   const user = session?.user
   if (!user) return null
@@ -20,12 +22,16 @@ export async function SiteHeader({ world, title, subtitle }: SiteHeaderProps) {
   })
 
   return (
-    <HeaderNav
-      world={world}
-      caps={caps}
-      email={user.email ?? ""}
-      title={title}
-      subtitle={subtitle}
-    />
+    <>
+      <HeaderNav
+        world={world}
+        caps={caps}
+        email={user.email ?? ""}
+        title={title}
+        subtitle={subtitle}
+        mobileSearch={mobileSearch}
+      />
+      {world === "marketplace" && <MobileTabBar items={visibleNavItems(world, caps)} />}
+    </>
   )
 }

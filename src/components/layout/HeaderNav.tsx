@@ -16,6 +16,7 @@ import {
   visiblePrimaryAction,
   isActive,
 } from "@/lib/navigation"
+import { useScrollLock } from "@/hooks/useScrollLock"
 
 interface HeaderNavProps {
   world: NavWorld
@@ -23,35 +24,35 @@ interface HeaderNavProps {
   email: string
   title?: string
   subtitle?: string
+  /** Mobile-only search slot for row 1 (browse). Also hides the contextual
+      title tier on mobile so the header is 1 red row + the page's pill row. */
+  mobileSearch?: React.ReactNode
 }
 
-export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProps) {
+export function HeaderNav({ world, caps, email, title, subtitle, mobileSearch }: HeaderNavProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const items = visibleNavItems(world, caps)
   const action = visiblePrimaryAction(world, caps)
   const logoHref = world === "admin" ? "/admin" : "/browse"
 
+  useScrollLock(open)
+
   useEffect(() => {
     function onEsc(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false)
     }
-    if (open) {
-      document.addEventListener("keydown", onEsc)
-      document.body.classList.add("drawer-open")
-    }
-    return () => {
-      document.removeEventListener("keydown", onEsc)
-      document.body.classList.remove("drawer-open")
-    }
+    if (open) document.addEventListener("keydown", onEsc)
+    return () => document.removeEventListener("keydown", onEsc)
   }, [open])
 
   return (
     <header className="sticky top-0 z-40 bg-hs-red-600 text-white">
       {/* Top tier — global */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex items-center justify-between h-14 gap-3">
           <Logo href={logoHref} />
+          {mobileSearch && <div className="flex-1 min-w-0 md:hidden">{mobileSearch}</div>}
           <div className="hidden md:flex items-center gap-3">
             {caps.isAdmin && <WorldSwitcher world={world} />}
             <AccountMenu email={email} isAdmin={caps.isAdmin} isOwner={caps.isOwner} />
@@ -70,7 +71,7 @@ export function HeaderNav({ world, caps, email, title, subtitle }: HeaderNavProp
       </div>
 
       {/* Bottom tier — contextual */}
-      <div className="border-t border-white/15">
+      <div className={`border-t border-white/15 ${mobileSearch ? "hidden md:block" : ""}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 h-12">
             <div className="min-w-0">

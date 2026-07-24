@@ -36,7 +36,7 @@ export default async function MyLocationsPage() {
             : "Locations linked to your owner account"
         }
       />
-      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 pb-tabbar">
       {!ownerIdentifier || locations.length === 0 ? (
         <EmptyStateIllustrated
           title="No owned locations linked yet"

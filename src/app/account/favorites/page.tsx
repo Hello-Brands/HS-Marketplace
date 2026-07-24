@@ -110,7 +110,7 @@ export default async function FavoritesPage() {
         title="Saved Listings"
         subtitle={`${favoriteListings.length} saved listing${favoriteListings.length !== 1 ? 's' : ''} · ${savedComps.length} competitor${savedComps.length !== 1 ? 's' : ''}`}
       />
-      <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+      <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8 pb-tabbar">
       {favoriteListings.length === 0 ? (
         <EmptyStateIllustrated
           title="No saved listings yet"

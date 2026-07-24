@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useInView } from "react-intersection-observer"
 import { getListings } from "@/lib/listings-query"
 import type { ListingCard as ListingCardType, ListingFilters } from "@/lib/listings-query"
@@ -12,9 +12,7 @@ interface ListingGridProps {
   filters: ListingFilters
   hoveredId?: string | null
   onHover?: (id: string | null) => void
-  // Accepted from BrowsePage (favorited listing ids). Not yet rendered on the
-  // browse card — reserved for the favorite indicator. Kept optional/inert so
-  // the prop typechecks without dead destructuring.
+  // Favorited listing ids — rendered as the heart on each card.
   favoriteIds?: string[]
   // Stack cards in one column (used by the narrow map-view side panel); the
   // full-width list view keeps the responsive 1–3 column grid.
@@ -23,7 +21,7 @@ interface ListingGridProps {
 
 const PAGE_SIZE = 12
 
-export function ListingGrid({ initialListings, filters, hoveredId, onHover, singleColumn }: ListingGridProps) {
+export function ListingGrid({ initialListings, filters, hoveredId, onHover, favoriteIds = [], singleColumn }: ListingGridProps) {
   const [listings, setListings] = useState<ListingCardType[]>(initialListings)
   const [cursor, setCursor] = useState<string | null>(() => {
     if (initialListings.length !== PAGE_SIZE) return null
@@ -88,6 +86,8 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover, sing
     })
   }, [inView, hasMore, loading, cursor])
 
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds])
+
   const totalCount = listings.length
 
   if (!loading && totalCount === 0 && !hasMore) {
@@ -115,6 +115,7 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover, sing
             isHovered={hoveredId === listing.id}
             onHover={onHover}
             compact={singleColumn}
+            favorited={favoriteSet.has(listing.id)}
           />
         ))}
 

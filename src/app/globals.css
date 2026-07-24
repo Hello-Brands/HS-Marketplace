@@ -472,11 +472,6 @@ body {
   line-height: 1.6;
 }
 
-/* Lock background scroll while the mobile nav drawer is open (HeaderNav). */
-body.drawer-open {
-  overflow: hidden;
-}
-
 /* ====================================
    SAFE-AREA INSETS (notched devices)
    ==================================== */
@@ -499,6 +494,21 @@ body.drawer-open {
 /* Spacer that reserves room for the fixed mobile contact bar (≈5rem) plus inset. */
 .h-cta-spacer {
   height: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Reserve room for the fixed mobile tab bar (MobileTabBar). Mobile-only so
+   desktop layouts are untouched; height ≈ 3.5rem bar + home-indicator inset. */
+@media (max-width: 47.9375rem) {
+  .pb-tabbar {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Mobile map chrome: pitch/compass reset isn't useful on small screens. */
+@media (max-width: 47.9375rem) {
+  .maplibregl-ctrl-compass {
+    display: none !important;
+  }
 }
 
 /* Display headings use Outfit */
@@ -979,4 +989,10 @@ input[type="number"] {
 @keyframes filterpop {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Slide-up entrance for mobile sheets (BottomSheet / FullScreenSheet). */
+@keyframes sheetup {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }

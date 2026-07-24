@@ -46,7 +46,7 @@ export default async function SellerListingsPage() {
 
   // Multiple listings: show card grid
   return (
-    <div>
+    <div className="pb-tabbar">
       <div className="flex flex-wrap items-center justify-between gap-y-2 mb-6">
         <h1 className="min-w-0 text-2xl font-bold text-gray-900">My Listings</h1>
         <Link

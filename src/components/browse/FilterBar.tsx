@@ -12,20 +12,20 @@ export const RADIUS_MAX_MILES = 100
 export const DEFAULT_RADIUS_MILES = 25
 
 // Bundle is intentionally absent from the filter UI (still valid in the DB).
-const LISTING_TYPES = [
+export const LISTING_TYPES = [
   { label: "Suite", value: "suite" },
   { label: "Flagship", value: "flagship" },
   { label: "Territory", value: "territory" },
 ]
 
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { label: "Newest first", value: "newest" },
   { label: "Price: Low to high", value: "price-asc" },
   { label: "Price: High to low", value: "price-desc" },
   { label: "Nearest first", value: "distance", requiresCenter: true },
 ]
 
-const TIME_OPEN_OPTIONS = [
+export const TIME_OPEN_OPTIONS = [
   { label: "Any", value: 0 },
   { label: "1+ years", value: 1 },
   { label: "2+ years", value: 2 },
@@ -367,7 +367,7 @@ function FiltersPanel({
 }
 
 // ---- State dropdown panel (unchanged) -------------------------------------
-function StatePanel({
+export function StatePanel({
   selected, onToggle, onClear,
 }: {
   selected: string[]
@@ -457,7 +457,7 @@ function PricePanel({
   )
 }
 
-function PriceInput({
+export function PriceInput({
   value, onChange, placeholder, onEnter,
 }: {
   value: string
