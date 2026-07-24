@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { FilterBar, useListingFilters, RADIUS_MIN_MILES, RADIUS_MAX_MILES, DEFAULT_RADIUS_MILES, SORT_OPTIONS } from "./FilterBar"
-import { MobileFilterDrawer } from "./MobileFilterDrawer"
+import { MobileFilterSheet } from "./MobileFilterSheet"
 import { FloatingViewToggle } from "./FloatingViewToggle"
 import { BottomSheet } from "@/components/ui"
 import { BrowseListContent } from "./BrowseListContent"
@@ -483,9 +483,9 @@ export function BrowsePage({
         )}
       </div>
 
-      {/* Mobile filter drawer */}
-      <MobileFilterDrawer
-        isOpen={mobileFiltersOpen}
+      {/* Mobile filter sheet */}
+      <MobileFilterSheet
+        open={mobileFiltersOpen}
         onClose={() => setMobileFiltersOpen(false)}
         onLocationSelect={handleLocationSelect}
       />
