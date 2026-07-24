@@ -54,7 +54,7 @@ export function MobileTabBar({ items }: { items: NavItem[] }) {
   return (
     <nav
       aria-label="Primary"
-      className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-gray-200 pb-safe"
+      className="md:hidden fixed inset-x-0 bottom-0 z-30 bg-white border-t border-gray-200 pb-safe"
     >
       <div className="flex">
         {items.map((item) => {

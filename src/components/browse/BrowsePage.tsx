@@ -332,6 +332,7 @@ export function BrowsePage({
       <div className="md:hidden bg-white border-b border-gray-200 shrink-0">
         <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto">
           <button
+            type="button"
             onClick={() => setMobileFiltersOpen(true)}
             className="flex shrink-0 items-center gap-2 rounded-full border border-gray-300 bg-white px-4 min-h-[44px] text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
           >

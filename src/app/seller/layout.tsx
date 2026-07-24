@@ -18,7 +18,7 @@ export default async function SellerLayout({
   }
 
   return (
-    <AppShell world="marketplace" mainClassName="max-w-5xl mx-auto px-4 lg:px-6 py-8">
+    <AppShell world="marketplace" mainClassName="max-w-5xl mx-auto px-4 lg:px-6 py-8 pb-tabbar">
       {children}
     </AppShell>
   )

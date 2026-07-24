@@ -52,7 +52,7 @@ export default async function OwnerLocationDetailPage({
   return (
     <>
       <SiteHeader world="marketplace" title={loc.blvdLocationName} subtitle="Your location" />
-      <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-8 pb-tabbar">
         <Link
           href="/account/locations"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-hs-red-700 hover:text-hs-red-800"
