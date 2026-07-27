@@ -328,14 +328,49 @@ The section header gains the multi-link count.
 
 ## Migration
 
-The DB is push-managed and prod serves the old code until the new deploy is
-live, so dropping columns in the same change is a deploy-ordering hazard. Two
-PRs:
+Prod serves the old code until the new deploy is live, so dropping columns in
+the same change is a deploy-ordering hazard. Two PRs:
 
 - **PR 1** — add `user_owner_links`, backfill, move every read and write onto
   it. `users.owner_identifier` / `owner_link_source` remain in place, unread.
   Safe to roll back.
 - **PR 2** — drop both columns, after PR 1 is verified in prod.
+
+### Applying the schema change
+
+`npm run db:push` is **blocked** by `scripts/db-push-guard.mjs` against any
+non-local database, and deliberately so — push without a tracked migration is
+how prod drifted (audit 2026-07-06). The tracked path is
+`npm run db:generate` → review SQL → `npm run db:migrate`.
+
+But `drizzle-kit generate` cannot be used here either. Verified 2026-07-27
+against `drizzle/meta/0004_snapshot.json`: several live tables and columns were
+pushed and never recorded in any snapshot — `owner_locations` is absent
+entirely, and `public.users` lists only
+`id, name, email, email_verified, image, role, seller_access, created_at`
+(no `owner_identifier`, `owner_link_source`, `login_count`, or `last_login_at`).
+A whole-schema diff would therefore try to re-create `owner_locations` and
+re-add those columns, hitting interactive rename/conflict prompts and risking
+ALTERs on unrelated tables.
+
+So both migrations are **hand-authored**, exactly as `0002` and `0004` were:
+
+1. Write `drizzle/000N_<tag>.sql` in Drizzle style — quoted identifiers,
+   `--> statement-breakpoint` between statements, FK constraints wrapped in the
+   `DO $$ BEGIN ... EXCEPTION WHEN duplicate_object THEN null; END $$;` idiom.
+2. Append an entry to `drizzle/meta/_journal.json` with the next `idx`, the
+   `tag`, and a `when` greater than the last applied (`1783600000000`). The
+   migrator keys off `when` versus `drizzle.__drizzle_migrations.created_at`.
+3. Add `drizzle/meta/000N_snapshot.json`: copy the prior snapshot, assign a new
+   `id`, set `prevId` to the prior snapshot's `id`, and insert the new table.
+4. `npm run db:migrate` (needs `DATABASE_URL_DIRECT`) reads the journal and SQL
+   only, not the snapshots, so it applies just the new file.
+
+PR 2's drop uses `DROP COLUMN IF EXISTS` and leaves the `public.users` snapshot
+entry untouched — those columns were never recorded there, so there is nothing
+to remove.
+
+### Backfill
 
 The backfill is a script under `scripts/` following the existing pattern
 (`scripts/geocode-owner-locations.ts`). Its state mapping:
@@ -344,6 +379,7 @@ The backfill is a script under `scripts/` following the existing pattern
 | --- | --- |
 | `ownerIdentifier` set, source `auto` | one row, `source: "auto"` |
 | `ownerIdentifier` set, source `manual` | one row, `source: "manual"` |
+| `ownerIdentifier` set, source `null` | one row, `source: "auto"` — shouldn't exist, but treat as auto rather than silently dropping a live link |
 | `ownerIdentifier` null, source `manual` | a `revoked` row for **every** owner their normalized email currently matches, `UNKNOWN_OWNER` excluded |
 | `ownerIdentifier` null, source null | no rows |
 
@@ -371,6 +407,15 @@ Gates: `npx tsc --noEmit` and `npx vitest run`. Not `next build` (the `.next`
 lock on this Windows machine requires the dev server stopped); lint is excluded
 as broken pre-existing.
 
+**There is no React component testing in this repo** — `vitest.config.mts` sets
+`environment: "node"` and `include: ["src/__tests__/**/*.test.ts"]` (no `.tsx`),
+and `@testing-library/react` / `jsdom` are not installed. Rather than add a
+testing stack as a side effect of this change, the admin panel's logic is
+extracted into a pure, node-testable module
+(`src/lib/owner-directory/admin-view.ts`): row grouping, chip variant mapping,
+addable-owner filtering, and the multi-link count. `OwnerDirectory.tsx` keeps
+only rendering, and is covered by `tsc` plus manual verification.
+
 - **`src/__tests__/owner-directory/link.test.ts`** — rewritten around
   `planOwnerLinks`. Table-driven over all seven reconciliation rows, plus two
   properties: **idempotency** (planning against the state a prior plan produced
@@ -385,9 +430,14 @@ as broken pre-existing.
   pure function so it is testable without a DB, including the
   `null` + `manual` → revoke-everything case.
 - **Updated** where they stub the old scalar:
-  `src/__tests__/owner-directory/my-location.test.ts`,
-  `src/__tests__/navigation.test.ts`, `src/__tests__/auth.test.ts`,
-  `src/__tests__/listings/seller-locations.test.ts`.
+  `src/__tests__/owner-directory/my-location.test.ts` (mocks
+  `getMyOwnerLocations` returning `{ ownerIdentifier, locations }`),
+  `src/__tests__/navigation.test.ts` (`deriveCapabilities` owner case),
+  `src/__tests__/auth.test.ts` (session-callback propagation, two cases).
+
+  `src/__tests__/listings/seller-locations.test.ts` needs **no** change: its
+  `ownerIdentifier` references are on the `OwnerLocation` row type, which is
+  unchanged.
 
 ## Out of scope
 
