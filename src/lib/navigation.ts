@@ -19,7 +19,7 @@ export interface Capabilities {
 export interface SessionUserLike {
   role?: string | null
   sellerAccess?: boolean | null
-  ownerIdentifier?: string | null
+  ownerIdentifiers?: readonly string[] | null
 }
 
 export interface PrimaryAction {
@@ -33,7 +33,7 @@ export function deriveCapabilities(user: SessionUserLike): Capabilities {
   return {
     isAdmin,
     hasSeller: !!user.sellerAccess || isAdmin,
-    isOwner: !!user.ownerIdentifier,
+    isOwner: !!user.ownerIdentifiers?.length,
   }
 }
 

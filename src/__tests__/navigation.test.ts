@@ -16,9 +16,19 @@ describe("deriveCapabilities", () => {
     const caps = deriveCapabilities({ role: "user", sellerAccess: true })
     expect(caps).toEqual({ isAdmin: false, hasSeller: true, isOwner: false })
   })
-  it("marks owner when ownerIdentifier present", () => {
-    const caps = deriveCapabilities({ role: "user", ownerIdentifier: "OWN-1" })
+  it("marks owner when any owner link is present", () => {
+    const caps = deriveCapabilities({ role: "user", ownerIdentifiers: ["OWN-1"] })
     expect(caps.isOwner).toBe(true)
+  })
+  it("marks owner for a multi-profile owner", () => {
+    const caps = deriveCapabilities({
+      role: "user",
+      ownerIdentifiers: ["ut-lines-towns", "ut-towns"],
+    })
+    expect(caps.isOwner).toBe(true)
+  })
+  it("is not an owner for an empty link array", () => {
+    expect(deriveCapabilities({ role: "user", ownerIdentifiers: [] }).isOwner).toBe(false)
   })
   it("plain buyer has no capabilities", () => {
     expect(deriveCapabilities({ role: "user" })).toEqual({
