@@ -651,12 +651,44 @@ git commit -m "feat(owner-links): replace decideOwnerLink with planOwnerLinks se
   - `links.ts`: `async function getEffectiveOwnerIdentifiers(userId: string): Promise<string[]>`, `async function getUserOwnerLinks(userId: string): Promise<ExistingOwnerLink[]>`
   - `login.ts`: `async function linkOwnerAtLogin(userId: string, email: string | null | undefined): Promise<OwnerLinkPlan>` (return type changed from `OwnerLinkDecision`)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Create the shared mock-query helper**
 
-Create `src/__tests__/owner-directory/login.test.ts`. The mock builders return `this` for every chained method so `select().from().where()` resolves to a stubbed array:
+Tasks 3, 6 and 9 all need the same chainable Drizzle stub, so it lives in one place. Create `test/helpers/drizzle-mock.ts` (sibling of the existing `test/stubs/server-only.ts`):
+
+```ts
+/**
+ * A thenable stand-in for a Drizzle query builder: every chained method
+ * returns the same object, and awaiting it resolves to `result`. Lets a test
+ * stub `db.select()` without modelling the builder's real types.
+ *
+ * Add to CHAINED_METHODS when a test needs a builder method not listed here.
+ */
+const CHAINED_METHODS = [
+  "from",
+  "where",
+  "orderBy",
+  "leftJoin",
+  "limit",
+  "values",
+  "set",
+  "onConflictDoUpdate",
+] as const
+
+export function builder(result: unknown) {
+  const b: Record<string, unknown> = {}
+  for (const method of CHAINED_METHODS) b[method] = () => b
+  b.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve)
+  return b
+}
+```
+
+- [ ] **Step 2: Write the failing test**
+
+Create `src/__tests__/owner-directory/login.test.ts`, importing the helper above:
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { builder } from "../../../test/helpers/drizzle-mock"
 
 vi.mock("server-only", () => ({}))
 
@@ -675,16 +707,6 @@ vi.mock("@/db", () => ({
     batch: (...a: unknown[]) => batch(...a),
   },
 }))
-
-/** A thenable query builder: every chained method returns itself. */
-function builder(result: unknown) {
-  const b: Record<string, unknown> = {}
-  for (const m of ["from", "where", "orderBy", "limit", "values", "set", "onConflictDoUpdate"]) {
-    b[m] = () => b
-  }
-  b.then = (res: (v: unknown) => unknown) => Promise.resolve(result).then(res)
-  return b
-}
 
 const MATCHES = [{ ownerIdentifier: "ut-lines-towns" }, { ownerIdentifier: "ut-towns" }]
 
@@ -1187,10 +1209,11 @@ git commit -m "feat(kpi): owner live-data gate uses set membership"
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `src/__tests__/owner-directory/data.test.ts`. The security property under test is that an empty owner set never reaches the location query:
+Create `src/__tests__/owner-directory/data.test.ts`. The security property under test is that an empty owner set never reaches the location query. `builder` comes from the shared helper created in Task 3:
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { builder } from "../../../test/helpers/drizzle-mock"
 
 vi.mock("server-only", () => ({}))
 
@@ -1205,13 +1228,6 @@ vi.mock("@/lib/owner-directory/links", () => ({
 
 const select = vi.fn()
 vi.mock("@/db", () => ({ db: { select: (...a: unknown[]) => select(...a) } }))
-
-function builder(result: unknown) {
-  const b: Record<string, unknown> = {}
-  for (const m of ["from", "where", "orderBy", "leftJoin", "limit"]) b[m] = () => b
-  b.then = (res: (v: unknown) => unknown) => Promise.resolve(result).then(res)
-  return b
-}
 
 describe("getMyOwnerLocations", () => {
   beforeEach(() => {
@@ -1745,10 +1761,11 @@ git commit -m "feat(admin): pure view-model for multi-link owner rows"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `src/__tests__/owner-directory/actions.test.ts`. These cover the guards, which are the part worth protecting — a DB-level integration test is out of scope here:
+Create `src/__tests__/owner-directory/actions.test.ts`. These cover the guards, which are the part worth protecting — a DB-level integration test is out of scope here. `builder` comes from the shared helper created in Task 3:
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { builder } from "../../../test/helpers/drizzle-mock"
 
 vi.mock("server-only", () => ({}))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
@@ -1768,13 +1785,6 @@ vi.mock("@/db", () => ({
 }))
 
 vi.mock("@/lib/owner-directory/sync", () => ({ syncOwnerLocations: vi.fn() }))
-
-function builder(result: unknown) {
-  const b: Record<string, unknown> = {}
-  for (const m of ["from", "where", "limit", "values", "onConflictDoUpdate", "set"]) b[m] = () => b
-  b.then = (res: (v: unknown) => unknown) => Promise.resolve(result).then(res)
-  return b
-}
 
 describe("addOwnerLink", () => {
   beforeEach(() => {
