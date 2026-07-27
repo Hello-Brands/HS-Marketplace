@@ -17,6 +17,13 @@ export default defineConfig({
     // @playwright/test's globals if the layout ever changes.
     exclude: ["tests/e2e/**", "node_modules/**"],
     globals: true,
+    // Eight test files use `vi.resetModules()` + dynamic `await import()` to
+    // rewire module-level mocks per test, which re-transforms the module graph
+    // on every case. Cumulative import time on a Windows dev box runs ~60s, so
+    // under parallel workers those re-imports routinely exceed vitest's 5s
+    // default and fail as timeouts — every affected test passes in isolation.
+    // Raised to 30s so CPU contention can't masquerade as a test failure.
+    testTimeout: 30000,
     env: {
       SKIP_ENV_VALIDATION: "1",
       RESEND_API_KEY: "re_test",
