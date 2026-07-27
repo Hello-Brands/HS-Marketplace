@@ -38,7 +38,7 @@ describe("fetchOwnerLocationKpis", () => {
     const { fetchOwnerLocationKpis } = await import("@/lib/kpi/fetch")
     const out = await fetchOwnerLocationKpis({
       rowOwnerIdentifier: "owner-1",
-      sessionOwnerIdentifier: "owner-2",
+      sessionOwnerIdentifiers: ["owner-2"],
       bqLocationName: "Sugar House",
     })
     expect(out).toEqual({ netSales: null, membership: null, reviews: null })
@@ -49,7 +49,7 @@ describe("fetchOwnerLocationKpis", () => {
     const { fetchOwnerLocationKpis } = await import("@/lib/kpi/fetch")
     const out = await fetchOwnerLocationKpis({
       rowOwnerIdentifier: "owner-1",
-      sessionOwnerIdentifier: "owner-1",
+      sessionOwnerIdentifiers: ["owner-1"],
       bqLocationName: null,
     })
     expect(out).toEqual({ netSales: null, membership: null, reviews: null })
@@ -71,7 +71,7 @@ describe("fetchOwnerLocationKpis", () => {
     const { fetchOwnerLocationKpis } = await import("@/lib/kpi/fetch")
     const out = await fetchOwnerLocationKpis({
       rowOwnerIdentifier: "owner-1",
-      sessionOwnerIdentifier: "owner-1",
+      sessionOwnerIdentifiers: ["owner-1"],
       bqLocationName: "Sugar House",
     })
 
@@ -86,7 +86,7 @@ describe("fetchOwnerLocationKpis", () => {
     const { fetchOwnerLocationKpis } = await import("@/lib/kpi/fetch")
     const out = await fetchOwnerLocationKpis({
       rowOwnerIdentifier: "owner-1",
-      sessionOwnerIdentifier: "owner-1",
+      sessionOwnerIdentifiers: ["owner-1"],
       bqLocationName: "Sugar House",
     })
     expect(out.membership).not.toBeNull()

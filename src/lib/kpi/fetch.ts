@@ -191,12 +191,12 @@ export async function fetchBundleLocationKpis(
  * Owner-scoped KPI fetch for /account/locations/[id] — the owner-gate
  * counterpart of the listing-gated fetchers above. The caller passes the
  * ownerIdentifier from a server-verified owner_locations row plus the
- * session's ownerIdentifier; anything short of an exact owner match with a
+ * session's owner identifiers; anything short of an exact owner match with a
  * resolved BigQuery name returns all-null ("not connected" rendering).
  */
 export async function fetchOwnerLocationKpis(args: {
   rowOwnerIdentifier: string
-  sessionOwnerIdentifier: string | null
+  sessionOwnerIdentifiers: readonly string[]
   bqLocationName: string | null
 }): Promise<{
   netSales: KpiMetric | null
@@ -206,7 +206,7 @@ export async function fetchOwnerLocationKpis(args: {
   if (
     !canOwnerFetchLiveData(
       args.rowOwnerIdentifier,
-      args.sessionOwnerIdentifier,
+      args.sessionOwnerIdentifiers,
       args.bqLocationName
     )
   ) {
