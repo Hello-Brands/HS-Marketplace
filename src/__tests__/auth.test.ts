@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
  * removed or inverted, these tests fail.
  */
 
-const { captured, mockAllowlistFindFirst, mockUpdate, updateSetCalls } = vi.hoisted(() => {
+const { captured, mockAllowlistFindFirst, mockUpdate, updateSetCalls, getEffectiveOwnerIdentifiers } = vi.hoisted(() => {
   const updateSetCalls: Record<string, unknown>[] = []
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,6 +22,7 @@ const { captured, mockAllowlistFindFirst, mockUpdate, updateSetCalls } = vi.hois
       },
     })),
     updateSetCalls,
+    getEffectiveOwnerIdentifiers: vi.fn(),
   }
 })
 
@@ -34,6 +35,10 @@ vi.mock("next-auth", () => ({
 vi.mock("@auth/drizzle-adapter", () => ({ DrizzleAdapter: vi.fn(() => ({})) }))
 vi.mock("@/lib/owner-directory/login", () => ({
   linkOwnerAtLogin: vi.fn().mockResolvedValue(undefined),
+}))
+vi.mock("@/lib/owner-directory/links", () => ({
+  getEffectiveOwnerIdentifiers,
+  getUserOwnerLinks: vi.fn(),
 }))
 vi.mock("@/lib/analytics/logins", () => ({
   recordLogin: vi.fn().mockResolvedValue(undefined),
@@ -148,30 +153,40 @@ describe("auth signIn callback (real src/auth.ts)", () => {
 })
 
 describe("auth session callback (real src/auth.ts)", () => {
-  it("propagates id, role, sellerAccess, and ownerIdentifier onto the session user", async () => {
+  it("propagates id, role, sellerAccess, and ownerIdentifiers onto the session user", async () => {
+    getEffectiveOwnerIdentifiers.mockResolvedValue(["ut-lines-towns", "ut-towns"])
     const session = { user: { name: "Jane", email: "jane@hellosugar.salon" } }
     const result = await sessionCallback({
       session,
-      user: {
-        id: "user-1",
-        role: "admin",
-        sellerAccess: true,
-        ownerIdentifier: "OWNER-42",
-      },
+      user: { id: "user-1", role: "admin", sellerAccess: true },
     })
     expect(result.user.id).toBe("user-1")
     expect(result.user.role).toBe("admin")
     expect(result.user.sellerAccess).toBe(true)
-    expect(result.user.ownerIdentifier).toBe("OWNER-42")
+    expect(result.user.ownerIdentifiers).toEqual(["ut-lines-towns", "ut-towns"])
+    expect(getEffectiveOwnerIdentifiers).toHaveBeenCalledWith("user-1")
   })
 
-  it("null-coalesces a missing ownerIdentifier", async () => {
+  it("gives an unlinked user an empty array, not null", async () => {
+    getEffectiveOwnerIdentifiers.mockResolvedValue([])
     const result = await sessionCallback({
       session: { user: {} },
-      user: { id: "user-2", role: "user", sellerAccess: false, ownerIdentifier: undefined },
+      user: { id: "user-2", role: "user", sellerAccess: false },
     })
-    expect(result.user.ownerIdentifier).toBeNull()
+    expect(result.user.ownerIdentifiers).toEqual([])
     expect(result.user.sellerAccess).toBe(false)
+  })
+
+  it("falls back to an empty array when the link lookup fails (never breaks the session)", async () => {
+    getEffectiveOwnerIdentifiers.mockRejectedValue(new Error("neon exploded"))
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const result = await sessionCallback({
+      session: { user: {} },
+      user: { id: "user-3", role: "user", sellerAccess: false },
+    })
+    expect(result.user.ownerIdentifiers).toEqual([])
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
   })
 })
 
