@@ -3,6 +3,15 @@ import { builder } from "../../../test/helpers/drizzle-mock"
 
 vi.mock("server-only", () => ({}))
 
+// Partial mock: inArray becomes a spy that still delegates to the real
+// implementation, so we can assert the exact column and identifiers a query
+// scopes by without matching the SQL AST it returns (brittle, couples to
+// Drizzle internals).
+vi.mock("drizzle-orm", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("drizzle-orm")>()
+  return { ...actual, inArray: vi.fn(actual.inArray) }
+})
+
 const auth = vi.fn()
 vi.mock("@/auth", () => ({ auth }))
 
@@ -29,10 +38,18 @@ describe("getMyOwnerLocations", () => {
     select.mockReturnValue(builder([{ id: "a" }, { id: "b" }]))
 
     const { getMyOwnerLocations } = await import("@/lib/owner-directory/data")
+    const { inArray } = await import("drizzle-orm")
+    const { ownerLocations } = await import("@/db/schema")
     const result = await getMyOwnerLocations()
 
     expect(result.ownerIdentifiers).toEqual(["ut-lines-towns", "ut-towns"])
     expect(result.locations).toHaveLength(2)
+    // Proves the query scopes by the right column and the right identifiers
+    // (not merely that some `.where(...)` was called with something).
+    expect(inArray).toHaveBeenCalledWith(ownerLocations.ownerIdentifier, [
+      "ut-lines-towns",
+      "ut-towns",
+    ])
   })
 
   it("returns empty WITHOUT querying locations when the user has no links", async () => {

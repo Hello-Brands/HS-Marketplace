@@ -1,5 +1,5 @@
 import "server-only"
-import { and, asc, eq, ilike, inArray, ne, or, type SQL } from "drizzle-orm"
+import { and, asc, ilike, inArray, ne, or, type SQL } from "drizzle-orm"
 import { auth } from "@/auth"
 import { db } from "@/db"
 import { users } from "@/db/schema/auth"
