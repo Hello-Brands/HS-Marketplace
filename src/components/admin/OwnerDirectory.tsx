@@ -6,10 +6,17 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import {
   refreshOwnerDirectory,
-  manuallyLinkUser,
-  manuallyUnlinkUser,
-  resetUserLink,
+  addOwnerLink,
+  revokeOwnerLink,
+  clearOwnerLink,
 } from "@/lib/owner-directory/actions"
+import {
+  linkSourceBadgeVariant,
+  addableOwners,
+  type AdminUserRow,
+  type AdminOwnerLink,
+} from "@/lib/owner-directory/admin-view"
+import { isEffectiveLinkSource } from "@/lib/owner-directory/link"
 
 type DirectoryRow = {
   id: string
@@ -22,14 +29,6 @@ type DirectoryRow = {
   blvdMatchMethod: "number_exact" | "name_exact" | "name_fuzzy" | "unmatched"
   blvdMatchConfidence: "high" | "medium" | "low" | "none"
   isUnknown: boolean
-}
-
-type UserRow = {
-  id: string
-  name: string | null
-  email: string | null
-  ownerIdentifier: string | null
-  ownerLinkSource: "auto" | "manual" | null
 }
 
 type Owner = { ownerIdentifier: string; ownerName: string | null }
@@ -45,10 +44,12 @@ export function OwnerDirectory({
   directory,
   users,
   owners,
+  multiLinkCount,
 }: {
   directory: DirectoryRow[]
-  users: UserRow[]
+  users: AdminUserRow[]
   owners: Owner[]
+  multiLinkCount: number
 }) {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -113,19 +114,28 @@ export function OwnerDirectory({
 
       {/* Manual override panel */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-gray-900">Owner links (manual override)</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Owner links</h2>
         <p className="text-sm text-gray-500">
-          Link a user whose sign-in email differs from their directory contact email. Manual
-          links are never overwritten by the automatic match.
+          A user can hold several owner profiles — owners appear in the directory once per
+          co-ownership grouping. Links are matched automatically from the directory contact
+          email; add one by hand when a sign-in email differs. Manual links and revocations
+          both survive re-sync.
+          {multiLinkCount > 0 && (
+            <>
+              {" "}
+              <span className="font-medium text-gray-700">
+                {multiLinkCount} user{multiLinkCount !== 1 ? "s" : ""} linked to multiple owners.
+              </span>
+            </>
+          )}
         </p>
         <div className="overflow-x-auto rounded-xl border border-gray-200">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="text-left font-semibold px-4 py-2.5">User</th>
-                <th className="text-left font-semibold px-4 py-2.5">Linked owner</th>
-                <th className="text-left font-semibold px-4 py-2.5">Source</th>
-                <th className="text-left font-semibold px-4 py-2.5">Override</th>
+                <th className="text-left font-semibold px-4 py-2.5">Linked owners</th>
+                <th className="text-left font-semibold px-4 py-2.5">Add</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -200,30 +210,44 @@ function UserLinkRow({
   pending,
   run,
 }: {
-  user: UserRow
+  user: AdminUserRow
   owners: Owner[]
   pending: boolean
   run: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void
 }) {
-  const [selected, setSelected] = useState(user.ownerIdentifier ?? "")
+  const [selected, setSelected] = useState("")
+  const inDirectory = useMemo(
+    () => new Set(owners.map((o) => o.ownerIdentifier)),
+    [owners]
+  )
+  const addable = useMemo(() => addableOwners(owners, user.links), [owners, user.links])
 
   return (
     <tr>
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5 align-top">
         <div className="font-medium text-gray-900">{user.name || "—"}</div>
         <div className="text-gray-500">{user.email}</div>
       </td>
-      <td className="px-4 py-2.5 text-gray-900">{user.ownerIdentifier || "—"}</td>
-      <td className="px-4 py-2.5">
-        {user.ownerLinkSource ? (
-          <Badge variant={user.ownerLinkSource === "manual" ? "primary" : "default"} size="sm">
-            {user.ownerLinkSource}
-          </Badge>
-        ) : (
+      <td className="px-4 py-2.5 align-top">
+        {user.links.length === 0 ? (
           <span className="text-gray-400">—</span>
+        ) : (
+          <div className="flex flex-col gap-1.5 items-start">
+            {user.links.map((link) => (
+              <LinkChip
+                key={link.ownerIdentifier}
+                link={link}
+                userId={user.id}
+                ownerName={owners.find((o) => o.ownerIdentifier === link.ownerIdentifier)?.ownerName ?? null}
+                inDirectory={inDirectory.has(link.ownerIdentifier)}
+                pending={pending}
+                run={run}
+              />
+            ))}
+          </div>
         )}
       </td>
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5 align-top">
         <div className="flex items-center gap-2 flex-wrap">
           <select
             value={selected}
@@ -231,7 +255,7 @@ function UserLinkRow({
             className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm max-w-[14rem]"
           >
             <option value="">Select owner…</option>
-            {owners.map((o) => (
+            {addable.map((o) => (
               <option key={o.ownerIdentifier} value={o.ownerIdentifier}>
                 {o.ownerIdentifier}
                 {o.ownerName ? ` (${o.ownerName})` : ""}
@@ -241,33 +265,82 @@ function UserLinkRow({
           <Button
             size="sm"
             variant="outline"
-            disabled={pending || !selected || selected === user.ownerIdentifier}
-            onClick={() => run(() => manuallyLinkUser(user.id, selected), "Linked")}
+            disabled={pending || !selected}
+            onClick={() =>
+              run(async () => {
+                const res = await addOwnerLink(user.id, selected)
+                if (res.ok) setSelected("")
+                return res
+              }, "Linked")
+            }
           >
-            Link
+            Add
           </Button>
-          {user.ownerIdentifier && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={pending}
-              onClick={() => run(() => manuallyUnlinkUser(user.id), "Unlinked")}
-            >
-              Unlink
-            </Button>
-          )}
-          {user.ownerLinkSource === "manual" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={pending}
-              onClick={() => run(() => resetUserLink(user.id), "Reset to auto")}
-            >
-              Reset
-            </Button>
-          )}
         </div>
       </td>
     </tr>
+  )
+}
+
+/**
+ * One owner link. Revoked links stay visible (muted, with an undo) so a
+ * suppression is never invisible — otherwise a deliberately-blocked owner
+ * looks like a bug months later.
+ */
+function LinkChip({
+  link,
+  userId,
+  ownerName,
+  inDirectory,
+  pending,
+  run,
+}: {
+  link: AdminOwnerLink
+  userId: string
+  ownerName: string | null
+  inDirectory: boolean
+  pending: boolean
+  run: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void
+}) {
+  const effective = isEffectiveLinkSource(link.source)
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 ${
+        effective ? "border-gray-200 bg-white" : "border-dashed border-gray-300 bg-gray-50"
+      }`}
+    >
+      <span className={effective ? "text-gray-900" : "text-gray-400 line-through"}>
+        {link.ownerIdentifier}
+      </span>
+      {ownerName && <span className="text-xs text-gray-400">({ownerName})</span>}
+      <Badge variant={linkSourceBadgeVariant(link.source)} size="sm">
+        {link.source}
+      </Badge>
+      {!inDirectory && (
+        <Badge variant="warning" size="sm">
+          not in directory
+        </Badge>
+      )}
+      {effective ? (
+        <button
+          type="button"
+          aria-label={`Revoke ${link.ownerIdentifier}`}
+          disabled={pending}
+          onClick={() => run(() => revokeOwnerLink(userId, link.ownerIdentifier), "Revoked")}
+          className="text-gray-400 hover:text-hs-red-600 disabled:opacity-40 px-0.5"
+        >
+          ×
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(() => clearOwnerLink(userId, link.ownerIdentifier), "Revocation cleared")}
+          className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-40 underline"
+        >
+          undo
+        </button>
+      )}
+    </span>
   )
 }
