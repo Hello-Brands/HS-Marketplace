@@ -17,7 +17,15 @@ export type OwnerLinkPlan = {
   skipped: { ownerIdentifier: string; reason: "revoked" | "manual" }[]
 }
 
-export const EMPTY_OWNER_LINK_PLAN: OwnerLinkPlan = { toAdd: [], toRemove: [], skipped: [] }
+// Frozen (including its arrays — Object.freeze is shallow) because
+// linkOwnerAtLogin returns this exact shared singleton on its blank-email and
+// error paths. If a caller ever mutated .toAdd/.toRemove/.skipped on it,
+// state would leak across every subsequent call.
+export const EMPTY_OWNER_LINK_PLAN: OwnerLinkPlan = Object.freeze({
+  toAdd: Object.freeze([]) as unknown as string[],
+  toRemove: Object.freeze([]) as unknown as string[],
+  skipped: Object.freeze([]) as unknown as OwnerLinkPlan["skipped"],
+}) as OwnerLinkPlan
 
 /** Effective links are the ones that grant access; revoked ones never do. */
 export function isEffectiveLinkSource(source: OwnerLinkSource): boolean {
