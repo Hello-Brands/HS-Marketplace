@@ -30,20 +30,32 @@ describe("linkOwnerAtLogin", () => {
   it("links a user to every owner profile their email matches", async () => {
     selectDistinct.mockReturnValue(builder(MATCHES))
     select.mockReturnValue(builder([])) // no existing links
-    insert.mockReturnValue(builder(undefined))
+    const insertBuilder = builder(undefined)
+    insert.mockReturnValue(insertBuilder)
 
     const { linkOwnerAtLogin } = await import("@/lib/owner-directory/login")
     const plan = await linkOwnerAtLogin("user-1", "Austin@hellosugar.salon")
 
     expect(plan.toAdd).toEqual(["ut-lines-towns", "ut-towns"])
     expect(insert).toHaveBeenCalledTimes(1)
+    // Assert the exact insert payload, not just that insert happened — this
+    // is what catches a wrong field name or a missing/dropped `source`.
+    expect(insertBuilder.calls.values).toEqual([
+      [
+        [
+          { userId: "user-1", ownerIdentifier: "ut-lines-towns", source: "auto" },
+          { userId: "user-1", ownerIdentifier: "ut-towns", source: "auto" },
+        ],
+      ],
+    ])
     expect(batch).not.toHaveBeenCalled() // add-only needs no batch
   })
 
   it("batches an add and a remove together", async () => {
     selectDistinct.mockReturnValue(builder([{ ownerIdentifier: "fresh" }]))
     select.mockReturnValue(builder([{ ownerIdentifier: "stale", source: "auto" }]))
-    insert.mockReturnValue(builder(undefined))
+    const insertBuilder = builder(undefined)
+    insert.mockReturnValue(insertBuilder)
     del.mockReturnValue(builder(undefined))
 
     const { linkOwnerAtLogin } = await import("@/lib/owner-directory/login")
@@ -51,7 +63,30 @@ describe("linkOwnerAtLogin", () => {
 
     expect(plan.toAdd).toEqual(["fresh"])
     expect(plan.toRemove).toEqual(["stale"])
+    expect(insertBuilder.calls.values).toEqual([
+      [[{ userId: "user-1", ownerIdentifier: "fresh", source: "auto" }]],
+    ])
     expect(batch).toHaveBeenCalledTimes(1)
+  })
+
+  it("removes a stale auto link with no new match (remove-only branch, no batch)", async () => {
+    // Directory matches nothing this login, but the user still has a stale
+    // auto link from a previous match. This is the self-healing path the
+    // whole reconciliation design depends on: toAdd is empty, toRemove is
+    // not, so the delete must run directly (not batched — batch is only for
+    // when both an add and a remove exist).
+    selectDistinct.mockReturnValue(builder([]))
+    select.mockReturnValue(builder([{ ownerIdentifier: "stale", source: "auto" }]))
+    del.mockReturnValue(builder(undefined))
+
+    const { linkOwnerAtLogin } = await import("@/lib/owner-directory/login")
+    const plan = await linkOwnerAtLogin("user-1", "a@b.com")
+
+    expect(plan.toAdd).toEqual([])
+    expect(plan.toRemove).toEqual(["stale"])
+    expect(del).toHaveBeenCalledTimes(1)
+    expect(insert).not.toHaveBeenCalled()
+    expect(batch).not.toHaveBeenCalled()
   })
 
   it("writes nothing when the plan is empty", async () => {

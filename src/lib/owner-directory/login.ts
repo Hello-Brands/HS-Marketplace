@@ -5,6 +5,7 @@ import { ownerLocations, userOwnerLinks } from "@/db/schema"
 import { normalizeEmail } from "./email"
 import { UNKNOWN_OWNER } from "./query"
 import { planOwnerLinks, EMPTY_OWNER_LINK_PLAN, type OwnerLinkPlan } from "./link"
+import { getUserOwnerLinks } from "./links"
 
 /**
  * Additive login step: reconcile the user's auto links against every owner
@@ -34,13 +35,7 @@ export async function linkOwnerAtLogin(
             ne(ownerLocations.ownerIdentifier, UNKNOWN_OWNER)
           )
         ),
-      db
-        .select({
-          ownerIdentifier: userOwnerLinks.ownerIdentifier,
-          source: userOwnerLinks.source,
-        })
-        .from(userOwnerLinks)
-        .where(eq(userOwnerLinks.userId, userId)),
+      getUserOwnerLinks(userId),
     ])
 
     const plan = planOwnerLinks({

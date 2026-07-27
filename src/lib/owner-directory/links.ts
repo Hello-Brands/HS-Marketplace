@@ -1,11 +1,11 @@
 import "server-only"
 import { and, eq, inArray } from "drizzle-orm"
 import { db } from "@/db"
-import { userOwnerLinks } from "@/db/schema"
-import type { ExistingOwnerLink } from "./link"
+import { OWNER_LINK_SOURCES, userOwnerLinks, type OwnerLinkSource } from "@/db/schema"
+import { isEffectiveLinkSource, type ExistingOwnerLink } from "./link"
 
-/** Sources that grant access. Kept in sync with isEffectiveLinkSource. */
-const EFFECTIVE_SOURCES = ["auto", "manual"] as const
+/** Sources that grant access, derived from isEffectiveLinkSource so the two can't drift. */
+const EFFECTIVE_SOURCES: OwnerLinkSource[] = OWNER_LINK_SOURCES.filter(isEffectiveLinkSource)
 
 /**
  * Every link row for a user, including revoked ones — the reconciler needs
@@ -33,7 +33,7 @@ export async function getEffectiveOwnerIdentifiers(userId: string): Promise<stri
     .where(
       and(
         eq(userOwnerLinks.userId, userId),
-        inArray(userOwnerLinks.source, [...EFFECTIVE_SOURCES]),
+        inArray(userOwnerLinks.source, EFFECTIVE_SOURCES),
       ),
     )
   return rows.map((r) => r.ownerIdentifier)
