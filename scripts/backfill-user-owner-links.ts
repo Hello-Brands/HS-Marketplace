@@ -5,8 +5,21 @@
  * Run:  npx tsx scripts/backfill-user-owner-links.ts --dry-run   (no writes)
  *       npx tsx scripts/backfill-user-owner-links.ts             (live)
  *
- * Requires DATABASE_URL in .env.local. Run AFTER applying
- * drizzle/0005_user_owner_links.sql.
+ * Requires DATABASE_URL in .env.local.
+ *
+ * Deployment order is fixed, not a suggestion:
+ *   1. Apply drizzle/0005_user_owner_links.sql (npm run db:migrate) — the
+ *      table must exist before anything else touches it.
+ *   2. Run this backfill.
+ *   3. Deploy the application.
+ * Deploying before migrating 500s /account/locations, /account/locations/[id]
+ * and /admin/owner-directory, since those paths don't swallow the
+ * missing-relation error the way the session callback does. Deploying before
+ * backfilling leaves every owner with an empty link set until they next sign
+ * in, and lets deliberately-unlinked users get auto-linked in that window.
+ * Running the backfill AFTER deploy risks flipping a fresh admin `manual`
+ * decision back to `revoked`, because the script's upsert `set` is
+ * unconditional.
  *
  * Safe to re-run: every write is an upsert keyed on (user_id, owner_identifier),
  * so an interrupted run can simply be run again.

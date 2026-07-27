@@ -3,6 +3,14 @@ import { builder } from "../../../test/helpers/drizzle-mock"
 
 vi.mock("server-only", () => ({}))
 
+// Partial mock: eq becomes a spy that still delegates to the real
+// implementation, so we can assert the exact column/value the delete guard
+// scopes by without matching the SQL AST it returns.
+vi.mock("drizzle-orm", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("drizzle-orm")>()
+  return { ...actual, eq: vi.fn(actual.eq) }
+})
+
 const selectDistinct = vi.fn()
 const select = vi.fn()
 const insert = vi.fn()
@@ -79,6 +87,8 @@ describe("linkOwnerAtLogin", () => {
     select.mockReturnValue(builder([{ ownerIdentifier: "stale", source: "auto" }]))
     del.mockReturnValue(builder(undefined))
 
+    const { userOwnerLinks } = await import("@/db/schema")
+    const { eq } = await import("drizzle-orm")
     const { linkOwnerAtLogin } = await import("@/lib/owner-directory/login")
     const plan = await linkOwnerAtLogin("user-1", "a@b.com")
 
@@ -87,6 +97,10 @@ describe("linkOwnerAtLogin", () => {
     expect(del).toHaveBeenCalledTimes(1)
     expect(insert).not.toHaveBeenCalled()
     expect(batch).not.toHaveBeenCalled()
+    // The eq(source, "auto") guard stops the automatic login path from ever
+    // deleting a manual or revoked link, even if toRemove is ever miscomputed
+    // upstream. Assert it directly so dropping the guard fails this test.
+    expect(eq).toHaveBeenCalledWith(userOwnerLinks.source, "auto")
   })
 
   it("writes nothing when the plan is empty", async () => {

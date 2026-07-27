@@ -41,7 +41,9 @@ export const userOwnerLinks = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     // The admin who added or revoked; null for auto links.
-    actorUserId: text("actor_user_id").references(() => users.id),
+    actorUserId: text("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (table) => [
     uniqueIndex("user_owner_links_user_owner_idx").on(

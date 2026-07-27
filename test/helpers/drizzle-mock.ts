@@ -20,6 +20,7 @@ const CHAINED_METHODS = [
   "values",
   "set",
   "onConflictDoUpdate",
+  "onConflictDoNothing",
 ] as const
 
 export type ChainedBuilder = Record<string, unknown> & {

@@ -1,4 +1,5 @@
 import type { OwnerLinkSource } from "@/db/schema"
+import { UNKNOWN_OWNER } from "./query"
 
 /**
  * A user's legacy link state, as the old scalar columns recorded it, plus the
@@ -35,7 +36,7 @@ export type BackfillLinkRow = {
  * Pure, so this table is testable without a database.
  */
 export function planBackfillRows(state: LegacyLinkState): BackfillLinkRow[] {
-  if (state.ownerIdentifier) {
+  if (state.ownerIdentifier && state.ownerIdentifier !== UNKNOWN_OWNER) {
     return [
       {
         userId: state.userId,

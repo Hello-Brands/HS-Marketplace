@@ -63,6 +63,20 @@ describe("planBackfillRows", () => {
     ).toEqual([])
   })
 
+  it("produces no rows for a legacy UNKNOWN_OWNER identifier", () => {
+    // Unreachable today (both legacy write paths rejected this value) but
+    // owner_identifier is a soft reference, so guard it the same way the
+    // email-match branch already excludes UNKNOWN_OWNER.
+    expect(
+      planBackfillRows({
+        userId: "u1",
+        ownerIdentifier: "Unknown Owner",
+        ownerLinkSource: null,
+        emailMatchedOwners: [],
+      })
+    ).toEqual([])
+  })
+
   it("produces nothing for a plain never-linked user", () => {
     expect(
       planBackfillRows({

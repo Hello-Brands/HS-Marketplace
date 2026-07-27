@@ -1398,7 +1398,7 @@
           "tableTo": "users",
           "columnsFrom": ["actor_user_id"],
           "columnsTo": ["id"],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

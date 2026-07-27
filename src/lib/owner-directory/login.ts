@@ -45,13 +45,16 @@ export async function linkOwnerAtLogin(
 
     const addOp =
       plan.toAdd.length > 0
-        ? db.insert(userOwnerLinks).values(
-            plan.toAdd.map((ownerIdentifier) => ({
-              userId,
-              ownerIdentifier,
-              source: "auto" as const,
-            }))
-          )
+        ? db
+            .insert(userOwnerLinks)
+            .values(
+              plan.toAdd.map((ownerIdentifier) => ({
+                userId,
+                ownerIdentifier,
+                source: "auto" as const,
+              }))
+            )
+            .onConflictDoNothing()
         : null
 
     // eq(source, "auto") is a deliberate belt-and-braces guard: toRemove only

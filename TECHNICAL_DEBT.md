@@ -637,6 +637,34 @@ predicate; add a query-level test for `getUnlistedHsLocations`.
 
 ---
 
+### DEBT-030: Legacy `users.owner_identifier` / `users.owner_link_source` columns retained but unread
+
+**Category:** Code Quality / Data-safety
+**Severity:** Low
+**Created:** 2026-07-27
+
+**Location:**
+- File(s): `src/db/schema/auth.ts` (`owner_identifier`, `owner_link_source` columns)
+
+**Description:**
+The `feat/multi-owner-links` branch replaces the scalar `users.owner_identifier` /
+`users.owner_link_source` pair with the `user_owner_links` join table (one user can now hold
+several owner profiles). The two legacy columns are deliberately left in place rather than
+dropped in the same PR: `scripts/backfill-user-owner-links.ts` reads them once to seed
+`user_owner_links`, and keeping them around is a cheap rollback path if the new table needs to
+be re-derived. No code reads them once the backfill has run.
+
+**Proposed Solution:** Drop `users.owner_identifier` and `users.owner_link_source` in a
+follow-up migration. This is Task 13 of
+`docs/superpowers/plans/2026-07-27-multi-owner-links.md`, deliberately deferred to a separate
+PR. **Precondition:** PR 1 (this branch) verified in production.
+
+**Effort Estimate:** &lt;1 hour (one migration, no code changes expected)
+**Status:** Open
+**Target Resolution:** Separate follow-up PR, after PR 1 is verified in production
+
+---
+
 ## Resolved Debt Items
 
 ### DEBT-001: Admin listing edits corrupted money fields (dollars stored into cents columns) — Critical
