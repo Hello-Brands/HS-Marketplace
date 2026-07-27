@@ -52,6 +52,37 @@ describe("groupUserLinkRows", () => {
     ])
     expect(rows.map((r) => r.id)).toEqual(["b", "a"])
   })
+
+  it("keeps a revoked link in the output, alongside an effective one, with its source intact", () => {
+    const [row] = groupUserLinkRows([
+      { id: "u1", name: "Austin", email: "austin@x.com", ownerIdentifier: "ut-lines-towns", source: "auto" },
+      { id: "u1", name: "Austin", email: "austin@x.com", ownerIdentifier: "ut-towns", source: "revoked" },
+    ])
+    expect(row.links).toEqual([
+      { ownerIdentifier: "ut-lines-towns", source: "auto" },
+      { ownerIdentifier: "ut-towns", source: "revoked" },
+    ])
+  })
+
+  it("groups rows correctly even when a user's rows are interleaved with another user's", () => {
+    const rows = groupUserLinkRows([
+      { id: "u1", name: "Austin", email: "austin@x.com", ownerIdentifier: "ut-lines-towns", source: "auto" },
+      { id: "u2", name: "Lisa", email: "lisa@x.com", ownerIdentifier: "az-ut-lines", source: "manual" },
+      { id: "u1", name: "Austin", email: "austin@x.com", ownerIdentifier: "ut-towns", source: "auto" },
+    ])
+    expect(rows).toEqual([
+      {
+        id: "u1",
+        name: "Austin",
+        email: "austin@x.com",
+        links: [
+          { ownerIdentifier: "ut-lines-towns", source: "auto" },
+          { ownerIdentifier: "ut-towns", source: "auto" },
+        ],
+      },
+      { id: "u2", name: "Lisa", email: "lisa@x.com", links: [{ ownerIdentifier: "az-ut-lines", source: "manual" }] },
+    ])
+  })
 })
 
 describe("linkSourceBadgeVariant", () => {
