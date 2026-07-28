@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { cleanAddress, parseUsAddressTail } from "@/lib/geocode/address"
+import { buildGeocodeQueries, cleanAddress, parseUsAddressTail } from "@/lib/geocode/address"
 
 describe("cleanAddress", () => {
   it("strips #unit and suite noise but keeps street + city/state/zip", () => {
@@ -139,6 +139,34 @@ describe("cleanAddress", () => {
   })
 })
 
+describe("buildGeocodeQueries", () => {
+  it("tries the full address first, then street+zip, then street+city+state", () => {
+    expect(buildGeocodeQueries("3620 Kirkwood Hwy Suite 103, Wilmington DE 19808")).toEqual([
+      "3620 Kirkwood Hwy, Wilmington DE 19808",
+      "3620 Kirkwood Hwy, 19808",
+      "3620 Kirkwood Hwy, Wilmington DE",
+    ])
+  })
+
+  it("keeps the cleaned full address as the only query when the tail is unparseable", () => {
+    // "Bradenton" alone is not "City ST ZIP", so there is nothing to rebuild from.
+    expect(buildGeocodeQueries("101 Manatee Ave W Phenix Salons, Bradenton")).toEqual([
+      "101 Manatee Ave W, Bradenton",
+    ])
+  })
+
+  it("de-duplicates when the variants collapse to the same string", () => {
+    const queries = buildGeocodeQueries("100 First St, Denver CO 80202")
+    expect(new Set(queries).size).toBe(queries.length)
+    expect(queries[0]).toBe("100 First St, Denver CO 80202")
+  })
+
+  it("returns nothing for an address that cleans away to nothing", () => {
+    expect(buildGeocodeQueries("   ")).toEqual([])
+    expect(buildGeocodeQueries("Sola Salon Suites")).toEqual([])
+  })
+})
+
 describe("parseUsAddressTail", () => {
   it("parses city, two-letter state, and zip from the tail", () => {
     expect(
@@ -165,5 +193,36 @@ describe("parseUsAddressTail", () => {
   it("returns null when the tail isn't a City ST ZIP", () => {
     expect(parseUsAddressTail("just a name with no location")).toBeNull()
     expect(parseUsAddressTail("")).toBeNull()
+  })
+
+  // The directory commonly puts the city in its own segment, leaving a final
+  // "ST ZIP". Missing these cost the map dot's city/state label and the ZIP the
+  // geocode match is validated against.
+  describe("city in its own comma segment", () => {
+    it("joins the city segment with a bare 'ST ZIP' tail", () => {
+      expect(parseUsAddressTail("777 Grassland Drive Suite #111, American Fork, UT 84003")).toEqual({
+        city: "American Fork",
+        state: "UT",
+        zipCode: "84003",
+      })
+      expect(parseUsAddressTail("6935 Cypress Creek Pkwy, Houston, TX 77069")).toEqual({
+        city: "Houston",
+        state: "TX",
+        zipCode: "77069",
+      })
+    })
+
+    it("does NOT report a street as the city", () => {
+      // Joining here would give city "12823 N Dale Mabry Hwy #6 Tampa".
+      expect(parseUsAddressTail("12823 N Dale Mabry Hwy #6 Tampa, FL 33618")).toBeNull()
+    })
+
+    it("still prefers a self-contained tail when there is one", () => {
+      expect(parseUsAddressTail("1202 Wilmington Ave, Salt Lake City UT 84106")).toEqual({
+        city: "Salt Lake City",
+        state: "UT",
+        zipCode: "84106",
+      })
+    })
   })
 })
