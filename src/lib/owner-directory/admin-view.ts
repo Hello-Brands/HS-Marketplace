@@ -61,6 +61,43 @@ export function countMultiLinkUsers(rows: AdminUserRow[]): number {
   ).length
 }
 
+/** A directory row with no coordinates — it cannot be drawn on the map. */
+export type UngeocodedLocation = {
+  id: string
+  blvdLocationName: string
+  locationAddress: string | null
+}
+
+/**
+ * Directory rows that have no coordinates.
+ *
+ * The /browse map plots only geocoded rows, so each of these is INVISIBLE
+ * there — with no error, no empty state, nothing. That silence is the problem:
+ * an owner asking "why can't I see my location?" is usually looking at one of
+ * these, and the only way anyone found out was an owner complaining. Surfacing
+ * the list in admin turns a silent gap into something someone can act on.
+ *
+ * Deliberately not a separate query — the admin page already selects every
+ * column of every directory row, so this is a filter over data in hand.
+ */
+export function findUngeocodedLocations(
+  rows: {
+    id: string
+    blvdLocationName: string
+    locationAddress: string | null
+    latitude: number | null
+    longitude: number | null
+  }[]
+): UngeocodedLocation[] {
+  return rows
+    .filter((r) => r.latitude === null || r.longitude === null)
+    .map((r) => ({
+      id: r.id,
+      blvdLocationName: r.blvdLocationName,
+      locationAddress: r.locationAddress,
+    }))
+}
+
 /**
  * Owners the admin can still add for this user. A revoked owner stays
  * offered — re-linking one is a normal correction.
