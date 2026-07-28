@@ -5,6 +5,7 @@ import { db } from "@/db"
 import { users, accounts, sessions, verificationTokens, allowlist } from "@/db/schema/auth"
 import { authConfig } from "./auth.config"
 import { linkOwnerAtLogin } from "@/lib/owner-directory/login"
+import { getEffectiveOwnerIdentifiers } from "@/lib/owner-directory/links"
 import { recordLogin } from "@/lib/analytics/logins"
 import { env } from "@/lib/env"
 
@@ -46,7 +47,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = user.id
         session.user.role = user.role
         session.user.sellerAccess = user.sellerAccess
-        session.user.ownerIdentifier = user.ownerIdentifier ?? null
+        // Owner links live in user_owner_links (a user may hold several owner
+        // profiles), so this is one indexed lookup rather than a column on the
+        // adapter's user row. Read fresh so an admin revoke takes effect on the
+        // next page load instead of requiring sign-out. A failure must degrade
+        // to "not an owner", never break the session.
+        try {
+          session.user.ownerIdentifiers = await getEffectiveOwnerIdentifiers(user.id)
+        } catch (err) {
+          console.warn("[owner-link] session owner lookup failed (non-fatal):", err)
+          session.user.ownerIdentifiers = []
+        }
       }
       return session
     },

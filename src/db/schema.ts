@@ -17,6 +17,7 @@ export * from "./schema/savedCompetitors"
 
 // Owner directory (Part A)
 export * from "./schema/ownerLocations"
+export * from "./schema/userOwnerLinks"
 
 // Competitor closures — scraper-owned, app read-only (see schema file header)
 export * from "./schema/competitorOpportunities"

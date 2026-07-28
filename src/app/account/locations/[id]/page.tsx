@@ -45,7 +45,7 @@ export default async function OwnerLocationDetailPage({
 
   const { netSales, membership, reviews } = await fetchOwnerLocationKpis({
     rowOwnerIdentifier: loc.ownerIdentifier,
-    sessionOwnerIdentifier: session.user.ownerIdentifier ?? null,
+    sessionOwnerIdentifiers: session.user.ownerIdentifiers ?? [],
     bqLocationName: loc.resolvedBqLocationName,
   })
 

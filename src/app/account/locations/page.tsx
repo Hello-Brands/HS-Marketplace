@@ -23,7 +23,7 @@ export default async function MyLocationsPage() {
     redirect("/login")
   }
 
-  const { ownerIdentifier, locations } = await getMyOwnerLocations()
+  const { ownerIdentifiers, locations } = await getMyOwnerLocations()
 
   return (
     <>
@@ -31,13 +31,13 @@ export default async function MyLocationsPage() {
         world="marketplace"
         title="My Locations"
         subtitle={
-          ownerIdentifier
+          ownerIdentifiers.length > 0
             ? `${locations.length} location${locations.length !== 1 ? "s" : ""} owned by you`
             : "Locations linked to your owner account"
         }
       />
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8 pb-tabbar">
-      {!ownerIdentifier || locations.length === 0 ? (
+      {ownerIdentifiers.length === 0 || locations.length === 0 ? (
         <EmptyStateIllustrated
           title="No owned locations linked yet"
           description="We link your locations automatically from the Hello Sugar owner directory using your sign-in email. If you own locations but don't see them, an admin can link your account manually."

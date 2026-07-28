@@ -36,6 +36,13 @@
       "when": 1783600000000,
       "tag": "0004_listing_disclaimer_acknowledgments",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785153600000,
+      "tag": "0005_user_owner_links",
+      "breakpoints": true
     }
   ]
 }

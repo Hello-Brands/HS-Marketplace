@@ -39,7 +39,7 @@ describe("getMyOwnerLocationById", () => {
 
   it("returns the row when the signed-in owner owns it", async () => {
     getMyOwnerLocations.mockResolvedValue({
-      ownerIdentifier: "owner-1",
+      ownerIdentifiers: ["owner-1"],
       locations: [ownerLoc({ id: "a" }), ownerLoc({ id: "b" })],
     })
     const { getMyOwnerLocationById } = await import("@/lib/owner-directory/my-location")
@@ -49,7 +49,7 @@ describe("getMyOwnerLocationById", () => {
 
   it("returns null for an id outside the owner's scoped rows (someone else's location)", async () => {
     getMyOwnerLocations.mockResolvedValue({
-      ownerIdentifier: "owner-1",
+      ownerIdentifiers: ["owner-1"],
       locations: [ownerLoc({ id: "a" })],
     })
     const { getMyOwnerLocationById } = await import("@/lib/owner-directory/my-location")
@@ -57,7 +57,7 @@ describe("getMyOwnerLocationById", () => {
   })
 
   it("returns null for an unlinked user (no owned rows)", async () => {
-    getMyOwnerLocations.mockResolvedValue({ ownerIdentifier: null, locations: [] })
+    getMyOwnerLocations.mockResolvedValue({ ownerIdentifiers: [], locations: [] })
     const { getMyOwnerLocationById } = await import("@/lib/owner-directory/my-location")
     expect(await getMyOwnerLocationById("a")).toBeNull()
   })

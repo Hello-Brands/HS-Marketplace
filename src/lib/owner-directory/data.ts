@@ -1,42 +1,44 @@
 import "server-only"
-import { and, asc, eq, ilike, ne, or, type SQL } from "drizzle-orm"
+import { and, asc, eq, ilike, inArray, ne, or, type SQL } from "drizzle-orm"
 import { auth } from "@/auth"
 import { db } from "@/db"
 import { users } from "@/db/schema/auth"
-import { ownerLocations, type OwnerLocation } from "@/db/schema"
+import { ownerLocations, userOwnerLinks, type OwnerLocation } from "@/db/schema"
 import { UNKNOWN_OWNER } from "./query"
+import { getEffectiveOwnerIdentifiers } from "./links"
+import { groupUserLinkRows, type AdminUserRow } from "./admin-view"
 
 /**
  * The logged-in user's owned locations, scoped in the QUERY (not just the UI):
- * we read the user's own owner_identifier from the DB and only ever return rows
- * for that owner. Returns an empty list when the user isn't a linked owner.
- * Unknown Owner is never returned even if somehow linked.
+ * we read the user's own effective owner links from the DB and only ever
+ * return rows for those owners. A user may hold several owner profiles, so
+ * this is a merged set, ordered by location name — owner_identifier is
+ * internal bookkeeping and never surfaces in owner-facing UI.
+ *
+ * Returns an empty result when the user isn't a linked owner. Unknown Owner is
+ * never returned even if somehow linked.
  */
 export async function getMyOwnerLocations(): Promise<{
-  ownerIdentifier: string | null
+  ownerIdentifiers: string[]
   locations: OwnerLocation[]
 }> {
   const session = await auth()
-  if (!session?.user?.id) return { ownerIdentifier: null, locations: [] }
+  if (!session?.user?.id) return { ownerIdentifiers: [], locations: [] }
 
-  const [u] = await db
-    .select({ ownerIdentifier: users.ownerIdentifier })
-    .from(users)
-    .where(eq(users.id, session.user.id))
-    .limit(1)
+  const linked = await getEffectiveOwnerIdentifiers(session.user.id)
+  const ownerIdentifiers = linked.filter((o) => o !== UNKNOWN_OWNER)
 
-  const ownerId = u?.ownerIdentifier ?? null
-  if (!ownerId || ownerId === UNKNOWN_OWNER) {
-    return { ownerIdentifier: null, locations: [] }
-  }
+  // Explicit early return rather than relying on inArray(col, []) emitting a
+  // false predicate — this is a security boundary, not a convenience.
+  if (ownerIdentifiers.length === 0) return { ownerIdentifiers: [], locations: [] }
 
   const locations = await db
     .select()
     .from(ownerLocations)
-    .where(eq(ownerLocations.ownerIdentifier, ownerId))
+    .where(inArray(ownerLocations.ownerIdentifier, ownerIdentifiers))
     .orderBy(asc(ownerLocations.blvdLocationName))
 
-  return { ownerIdentifier: ownerId, locations }
+  return { ownerIdentifiers, locations }
 }
 
 async function requireAdminSession() {
@@ -81,25 +83,28 @@ export async function listLinkableOwners(): Promise<{ ownerIdentifier: string; o
   return rows
 }
 
-/** Admin-only: users with their current owner link, for the manual override panel. */
-export async function listUsersWithLinks(): Promise<
-  {
-    id: string
-    name: string | null
-    email: string | null
-    ownerIdentifier: string | null
-    ownerLinkSource: "auto" | "manual" | null
-  }[]
-> {
+/**
+ * Admin-only: every user with all their owner links (including revoked ones,
+ * which the panel shows so a suppression is never invisible).
+ *
+ * Deliberately does NOT join owner_locations for the display name: that table
+ * has many rows per identifier, so the join would need a distinct/aggregate.
+ * The admin component already receives the owner list from listLinkableOwners
+ * and resolves names — and "not in the list" is exactly the orphaned-link case
+ * it needs to surface.
+ */
+export async function listUsersWithLinks(): Promise<AdminUserRow[]> {
   await requireAdminSession()
-  return db
+  const rows = await db
     .select({
       id: users.id,
       name: users.name,
       email: users.email,
-      ownerIdentifier: users.ownerIdentifier,
-      ownerLinkSource: users.ownerLinkSource,
+      ownerIdentifier: userOwnerLinks.ownerIdentifier,
+      source: userOwnerLinks.source,
     })
     .from(users)
-    .orderBy(asc(users.email))
+    .leftJoin(userOwnerLinks, eq(userOwnerLinks.userId, users.id))
+    .orderBy(asc(users.email), asc(userOwnerLinks.ownerIdentifier))
+  return groupUserLinkRows(rows)
 }

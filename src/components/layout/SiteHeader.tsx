@@ -18,7 +18,7 @@ export async function SiteHeader({ world, title, subtitle, mobileSearch }: SiteH
   const caps = deriveCapabilities({
     role: user.role,
     sellerAccess: user.sellerAccess,
-    ownerIdentifier: user.ownerIdentifier,
+    ownerIdentifiers: user.ownerIdentifiers,
   })
 
   return (
