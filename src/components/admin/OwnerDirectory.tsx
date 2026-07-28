@@ -15,6 +15,7 @@ import {
   addableOwners,
   type AdminUserRow,
   type AdminOwnerLink,
+  type UngeocodedLocation,
 } from "@/lib/owner-directory/admin-view"
 import { isEffectiveLinkSource } from "@/lib/owner-directory/link"
 
@@ -45,11 +46,13 @@ export function OwnerDirectory({
   users,
   owners,
   multiLinkCount,
+  ungeocoded,
 }: {
   directory: DirectoryRow[]
   users: AdminUserRow[]
   owners: Owner[]
   multiLinkCount: number
+  ungeocoded: UngeocodedLocation[]
 }) {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -110,6 +113,41 @@ export function OwnerDirectory({
         >
           {notice}
         </div>
+      )}
+
+      {/*
+        Ungeocoded rows are invisible on the /browse map, and nothing else in
+        the product says so — the first report of a missing location came from
+        an owner, not from us. This is the standing signal.
+      */}
+      {ungeocoded.length > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
+          <h2 className="text-sm font-semibold text-amber-900">
+            {ungeocoded.length} location{ungeocoded.length !== 1 ? "s" : ""} missing map
+            coordinates
+          </h2>
+          <p className="mt-1 text-sm text-amber-800">
+            These are hidden from the browse map, which can only plot geocoded locations. They
+            still appear everywhere else. Usually the address needs correcting in Monday — a
+            missing street number, a typo, or only a mall name.
+          </p>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-sm font-medium text-amber-900">
+              Show affected locations
+            </summary>
+            <ul className="mt-2 space-y-1.5">
+              {ungeocoded.map((loc) => (
+                <li key={loc.id} className="text-sm text-amber-800">
+                  <span className="font-medium">{loc.blvdLocationName}</span>
+                  <span className="text-amber-700">
+                    {" — "}
+                    {loc.locationAddress?.trim() ? loc.locationAddress : "no address on file"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </section>
       )}
 
       {/* Manual override panel */}

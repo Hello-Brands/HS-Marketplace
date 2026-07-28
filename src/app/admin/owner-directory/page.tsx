@@ -1,7 +1,7 @@
 import { getOwnerDirectory, listUsersWithLinks, listLinkableOwners } from "@/lib/owner-directory/data"
 import { UNKNOWN_OWNER } from "@/lib/owner-directory/query"
 import { OwnerDirectory } from "@/components/admin/OwnerDirectory"
-import { countMultiLinkUsers } from "@/lib/owner-directory/admin-view"
+import { countMultiLinkUsers, findUngeocodedLocations } from "@/lib/owner-directory/admin-view"
 
 export const metadata = {
   title: "Owner Directory - Admin",
@@ -34,6 +34,7 @@ export default async function OwnerDirectoryAdminPage() {
       users={users}
       owners={owners}
       multiLinkCount={countMultiLinkUsers(users)}
+      ungeocoded={findUngeocodedLocations(rows)}
     />
   )
 }

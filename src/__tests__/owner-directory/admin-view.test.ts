@@ -4,8 +4,57 @@ import {
   linkSourceBadgeVariant,
   countMultiLinkUsers,
   addableOwners,
+  findUngeocodedLocations,
   type AdminUserRow,
 } from "@/lib/owner-directory/admin-view"
+
+describe("findUngeocodedLocations", () => {
+  const row = (over: Partial<Parameters<typeof findUngeocodedLocations>[0][number]> = {}) => ({
+    id: "a",
+    blvdLocationName: "UT Riverton | Mountain View Village 237",
+    locationAddress: "13222 Tree Sparrow Dr, Riverton UT 84096",
+    latitude: 40.5,
+    longitude: -111.9,
+    ...over,
+  })
+
+  it("returns nothing when every row is geocoded", () => {
+    expect(findUngeocodedLocations([row(), row({ id: "b" })])).toEqual([])
+  })
+
+  it("flags a row missing either coordinate", () => {
+    const found = findUngeocodedLocations([
+      row({ id: "no-lat", latitude: null }),
+      row({ id: "no-lng", longitude: null }),
+      row({ id: "fine" }),
+    ])
+    expect(found.map((f) => f.id)).toEqual(["no-lat", "no-lng"])
+  })
+
+  it("carries the name and address through so admins can act on it", () => {
+    expect(findUngeocodedLocations([row({ latitude: null })])).toEqual([
+      {
+        id: "a",
+        blvdLocationName: "UT Riverton | Mountain View Village 237",
+        locationAddress: "13222 Tree Sparrow Dr, Riverton UT 84096",
+      },
+    ])
+  })
+
+  it("keeps a row whose address is missing entirely (the ID Boise | Old case)", () => {
+    expect(
+      findUngeocodedLocations([
+        row({ id: "boise", blvdLocationName: "ID Boise | Old", locationAddress: null, latitude: null }),
+      ])
+    ).toEqual([{ id: "boise", blvdLocationName: "ID Boise | Old", locationAddress: null }])
+  })
+
+  // 0,0 is in the Gulf of Guinea, but it is a real value the geocoder could
+  // return; only null means "never geocoded".
+  it("does not treat zero coordinates as missing", () => {
+    expect(findUngeocodedLocations([row({ latitude: 0, longitude: 0 })])).toEqual([])
+  })
+})
 
 describe("groupUserLinkRows", () => {
   it("collapses a left-joined result into one row per user", () => {
