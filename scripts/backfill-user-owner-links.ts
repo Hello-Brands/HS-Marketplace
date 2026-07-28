@@ -47,8 +47,8 @@ import { ownerLocations } from "../src/db/schema/ownerLocations"
 import { userOwnerLinks } from "../src/db/schema/userOwnerLinks"
 import { planBackfillRows, type BackfillLinkRow } from "../src/lib/owner-directory/backfill"
 import { normalizeEmail } from "../src/lib/owner-directory/email"
+import { UNKNOWN_OWNER } from "../src/lib/owner-directory/constants"
 
-const UNKNOWN_OWNER = "Unknown Owner"
 const DRY_RUN = process.argv.includes("--dry-run")
 
 function errorMessage(err: unknown): string {

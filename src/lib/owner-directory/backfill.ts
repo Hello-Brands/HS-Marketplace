@@ -1,5 +1,5 @@
 import type { OwnerLinkSource } from "@/db/schema"
-import { UNKNOWN_OWNER } from "./query"
+import { UNKNOWN_OWNER } from "./constants"
 
 /**
  * A user's legacy link state, as the old scalar columns recorded it, plus the

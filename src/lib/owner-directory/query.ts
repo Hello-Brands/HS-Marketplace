@@ -12,8 +12,10 @@ const DIRECTORY_SQL = `
   WHERE blvd_location_name IS NOT NULL
   ORDER BY owner_identifier, blvd_location_name`
 
-/** The literal owner_identifier used for closed/unmapped rows. Never linkable. */
-export const UNKNOWN_OWNER = "Unknown Owner"
+// Re-exported so existing `from "./query"` callers keep working. The literal
+// itself lives in ./constants, which carries no `server-only` import and so is
+// reachable from standalone scripts (the backfill).
+export { UNKNOWN_OWNER } from "./constants"
 
 /** A BigQuery DATE arrives as { value: "YYYY-MM-DD" } | "YYYY-MM-DD" | "" | null. */
 type BqDate = { value: string } | string | null | undefined
