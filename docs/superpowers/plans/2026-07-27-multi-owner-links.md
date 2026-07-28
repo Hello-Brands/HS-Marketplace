@@ -1,6 +1,6 @@
 # Multi-Owner Links Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Let one user hold many owner profiles, so owners who appear in the directory under several `owner_identifier` values (Austin Towns, and two others) stop silently losing locations.
 
@@ -78,7 +78,7 @@
 
 The test here guards the hand-authored artifacts, which is where this kind of change actually breaks: a `when` that isn't greater than the last applied one means `npm run db:migrate` silently skips the migration.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/__tests__/db/migration-artifacts.test.ts`:
 
@@ -132,12 +132,12 @@ describe("hand-authored migration artifacts", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/db/migration-artifacts.test.ts`
 Expected: the first three tests PASS (existing chain is valid); `records user_owner_links in the latest snapshot` FAILS with `expected undefined to be defined`.
 
-- [ ] **Step 3: Create the schema module**
+- [x] **Step 3: Create the schema module**
 
 Create `src/db/schema/userOwnerLinks.ts`:
 
@@ -200,7 +200,7 @@ export type UserOwnerLink = typeof userOwnerLinks.$inferSelect
 export type NewUserOwnerLink = typeof userOwnerLinks.$inferInsert
 ```
 
-- [ ] **Step 4: Export it from the schema barrel**
+- [x] **Step 4: Export it from the schema barrel**
 
 In `src/db/schema.ts`, after line 19 (`export * from "./schema/ownerLocations"`), add:
 
@@ -208,7 +208,7 @@ In `src/db/schema.ts`, after line 19 (`export * from "./schema/ownerLocations"`)
 export * from "./schema/userOwnerLinks"
 ```
 
-- [ ] **Step 5: Author the migration SQL**
+- [x] **Step 5: Author the migration SQL**
 
 Create `drizzle/0005_user_owner_links.sql`:
 
@@ -241,7 +241,7 @@ CREATE INDEX "user_owner_links_user_idx" ON "user_owner_links" USING btree ("use
 
 Note the indentation inside `CREATE TABLE` is a literal TAB, matching `drizzle/0004_listing_disclaimer_acknowledgments.sql`.
 
-- [ ] **Step 6: Append the journal entry**
+- [x] **Step 6: Append the journal entry**
 
 In `drizzle/meta/_journal.json`, add this object to the end of `entries` (after the `0004` entry). `when` must exceed the last applied value `1783600000000`; `1785153600000` is 2026-07-27T12:00:00Z:
 
@@ -255,7 +255,7 @@ In `drizzle/meta/_journal.json`, add this object to the end of `entries` (after 
     }
 ```
 
-- [ ] **Step 7: Create the snapshot**
+- [x] **Step 7: Create the snapshot**
 
 Copy `drizzle/meta/0004_snapshot.json` to `drizzle/meta/0005_snapshot.json`, then make exactly three edits:
 
@@ -329,7 +329,7 @@ Copy `drizzle/meta/0004_snapshot.json` to `drizzle/meta/0005_snapshot.json`, the
 
 This matches the key set `0004_snapshot.json` uses for its own tables exactly (`name, schema, columns, indexes, foreignKeys, compositePrimaryKeys, uniqueConstraints, policies, checkConstraints, isRLSEnabled`) — verified 2026-07-27. Do not add or omit keys.
 
-- [ ] **Step 8: Run the tests and typecheck**
+- [x] **Step 8: Run the tests and typecheck**
 
 Run: `npx vitest run src/__tests__/db/migration-artifacts.test.ts`
 Expected: all four tests PASS.
@@ -337,7 +337,7 @@ Expected: all four tests PASS.
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/db/schema/userOwnerLinks.ts src/db/schema.ts drizzle/0005_user_owner_links.sql drizzle/meta/_journal.json drizzle/meta/0005_snapshot.json src/__tests__/db/migration-artifacts.test.ts
@@ -363,7 +363,7 @@ git commit -m "feat(db): add user_owner_links table with hand-authored migration
 
 `decideOwnerLink` and its `OwnerLinkDecision` type are deleted. Nothing outside `login.ts` and the test file imports them (verified by grep), so no other call sites need updating.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Replace the entire contents of `src/__tests__/owner-directory/link.test.ts`:
 
@@ -525,12 +525,12 @@ describe("planOwnerLinks properties", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/owner-directory/link.test.ts`
 Expected: FAIL — `planOwnerLinks` / `isEffectiveLinkSource` are not exported from `@/lib/owner-directory/link`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Replace the entire contents of `src/lib/owner-directory/link.ts`:
 
@@ -621,7 +621,7 @@ export function planOwnerLinks(args: {
 }
 ```
 
-- [ ] **Step 4: Run tests and typecheck**
+- [x] **Step 4: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/owner-directory/link.test.ts`
 Expected: all tests PASS.
@@ -629,7 +629,7 @@ Expected: all tests PASS.
 Run: `npx tsc --noEmit`
 Expected: ONE error, in `src/lib/owner-directory/login.ts` — it still imports the deleted `decideOwnerLink`. Task 3 fixes it. Do not patch it here.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/owner-directory/link.ts src/__tests__/owner-directory/link.test.ts
@@ -651,7 +651,7 @@ git commit -m "feat(owner-links): replace decideOwnerLink with planOwnerLinks se
   - `links.ts`: `async function getEffectiveOwnerIdentifiers(userId: string): Promise<string[]>`, `async function getUserOwnerLinks(userId: string): Promise<ExistingOwnerLink[]>`
   - `login.ts`: `async function linkOwnerAtLogin(userId: string, email: string | null | undefined): Promise<OwnerLinkPlan>` (return type changed from `OwnerLinkDecision`)
 
-- [ ] **Step 1: Create the shared mock-query helper**
+- [x] **Step 1: Create the shared mock-query helper**
 
 Tasks 3, 6 and 9 all need the same chainable Drizzle stub, so it lives in one place. Create `test/helpers/drizzle-mock.ts` (sibling of the existing `test/stubs/server-only.ts`):
 
@@ -682,7 +682,7 @@ export function builder(result: unknown) {
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `src/__tests__/owner-directory/login.test.ts`, importing the helper above:
 
@@ -783,12 +783,12 @@ describe("linkOwnerAtLogin", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/owner-directory/login.test.ts`
 Expected: FAIL — the current `linkOwnerAtLogin` imports the deleted `decideOwnerLink`, so the module fails to load.
 
-- [ ] **Step 3: Create the link query layer**
+- [x] **Step 3: Create the link query layer**
 
 Create `src/lib/owner-directory/links.ts`:
 
@@ -835,7 +835,7 @@ export async function getEffectiveOwnerIdentifiers(userId: string): Promise<stri
 }
 ```
 
-- [ ] **Step 4: Rewrite `linkOwnerAtLogin`**
+- [x] **Step 4: Rewrite `linkOwnerAtLogin`**
 
 Replace the entire contents of `src/lib/owner-directory/login.ts`:
 
@@ -938,7 +938,7 @@ export async function linkOwnerAtLogin(
 }
 ```
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/owner-directory/login.test.ts src/__tests__/owner-directory/link.test.ts`
 Expected: all PASS.
@@ -946,7 +946,7 @@ Expected: all PASS.
 Run: `npx tsc --noEmit`
 Expected: no errors from `link.ts` or `login.ts`. Errors may remain elsewhere only if you touched other files — you should not have.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/owner-directory/links.ts src/lib/owner-directory/login.ts src/__tests__/owner-directory/login.test.ts
@@ -968,7 +968,7 @@ git commit -m "feat(owner-links): reconcile all matching owner profiles at login
 
 The old `session.user.ownerIdentifier` is removed, not deprecated in place. Keeping both would be the dual-source-of-truth this change exists to delete.
 
-- [ ] **Step 1: Update the failing test**
+- [x] **Step 1: Update the failing test**
 
 In `src/__tests__/auth.test.ts`, add this mock alongside the file's existing `vi.mock` calls (near the top, before the `describe` blocks):
 
@@ -1022,12 +1022,12 @@ describe("auth session callback (real src/auth.ts)", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/auth.test.ts`
 Expected: FAIL — `result.user.ownerIdentifiers` is `undefined`.
 
-- [ ] **Step 3: Update the session callback**
+- [x] **Step 3: Update the session callback**
 
 In `src/auth.ts`, add the import next to the existing `linkOwnerAtLogin` import (line 7):
 
@@ -1059,11 +1059,11 @@ Replace the `session` callback (lines 44-52) with:
     },
 ```
 
-- [ ] **Step 4: Update the session types**
+- [x] **Step 4: Update the session types**
 
 In `src/types/next-auth.d.ts`, replace `ownerIdentifier?: string | null` with `ownerIdentifiers?: string[]` in all three places — `interface User` (line 7), `interface Session`'s `user` (line 14), and `interface AdapterUser` (line 23).
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/auth.test.ts`
 Expected: all three new cases PASS.
@@ -1071,7 +1071,7 @@ Expected: all three new cases PASS.
 Run: `npx tsc --noEmit`
 Expected: errors ONLY in the not-yet-migrated consumers — `src/lib/navigation.ts`, `src/components/layout/SiteHeader.tsx`, `src/app/account/locations/[id]/page.tsx`. Tasks 5-7 fix them.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/auth.ts src/types/next-auth.d.ts src/__tests__/auth.test.ts
@@ -1092,7 +1092,7 @@ git commit -m "feat(auth): session carries ownerIdentifiers array"
 - Consumes: `session.user.ownerIdentifiers` (Task 4).
 - Produces: `canOwnerFetchLiveData(rowOwnerIdentifier: string, sessionOwnerIdentifiers: readonly string[] | null | undefined, resolvedBqLocationName: string | null): boolean`; `fetchOwnerLocationKpis({ rowOwnerIdentifier, sessionOwnerIdentifiers, bqLocationName })`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Replace the entire contents of `src/__tests__/kpi/owner-access.test.ts`:
 
@@ -1127,12 +1127,12 @@ describe("canOwnerFetchLiveData", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/kpi/owner-access.test.ts`
 Expected: FAIL — the current signature takes a string, so passing arrays fails to typecheck and the array cases return `false`/`true` wrongly.
 
-- [ ] **Step 3: Update the gate**
+- [x] **Step 3: Update the gate**
 
 In `src/lib/kpi/access.ts`, replace `canOwnerFetchLiveData` (lines 6-22) with:
 
@@ -1161,7 +1161,7 @@ export function canOwnerFetchLiveData(
 }
 ```
 
-- [ ] **Step 4: Update the KPI fetch and its caller**
+- [x] **Step 4: Update the KPI fetch and its caller**
 
 In `src/lib/kpi/fetch.ts`, change the `fetchOwnerLocationKpis` argument type (line 199) from `sessionOwnerIdentifier: string | null` to:
 
@@ -1178,7 +1178,7 @@ In `src/app/account/locations/[id]/page.tsx`, change line 48 from
     sessionOwnerIdentifiers: session.user.ownerIdentifiers ?? [],
 ```
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/kpi/owner-access.test.ts`
 Expected: all PASS.
@@ -1186,7 +1186,7 @@ Expected: all PASS.
 Run: `npx tsc --noEmit`
 Expected: remaining errors ONLY in `src/lib/navigation.ts` and `src/components/layout/SiteHeader.tsx` (Task 7) and `src/lib/owner-directory/data.ts` consumers (Task 6).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/kpi/access.ts src/lib/kpi/fetch.ts src/app/account/locations/[id]/page.tsx src/__tests__/kpi/owner-access.test.ts
@@ -1207,7 +1207,7 @@ git commit -m "feat(kpi): owner live-data gate uses set membership"
 - Consumes: `getEffectiveOwnerIdentifiers` (Task 3), `UNKNOWN_OWNER` (`./query`).
 - Produces: `getMyOwnerLocations(): Promise<{ ownerIdentifiers: string[]; locations: OwnerLocation[] }>` — the field is renamed from `ownerIdentifier` and is always an array.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/__tests__/owner-directory/data.test.ts`. The security property under test is that an empty owner set never reaches the location query. `builder` comes from the shared helper created in Task 3:
 
@@ -1294,12 +1294,12 @@ In `src/__tests__/owner-directory/my-location.test.ts`, change the three `getMyO
     getMyOwnerLocations.mockResolvedValue({ ownerIdentifiers: [], locations: [] })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run src/__tests__/owner-directory/data.test.ts`
 Expected: FAIL — `getMyOwnerLocations` still returns `{ ownerIdentifier, locations }` and still reads `users.ownerIdentifier` from the DB.
 
-- [ ] **Step 3: Rewrite `getMyOwnerLocations`**
+- [x] **Step 3: Rewrite `getMyOwnerLocations`**
 
 In `src/lib/owner-directory/data.ts`, replace the imports and the function (lines 1-40). The `users` import stays — `listUsersWithLinks` still uses it:
 
@@ -1347,14 +1347,14 @@ export async function getMyOwnerLocations(): Promise<{
 }
 ```
 
-- [ ] **Step 4: Update the account page**
+- [x] **Step 4: Update the account page**
 
 In `src/app/account/locations/page.tsx`:
 - Line 26: `const { ownerIdentifiers, locations } = await getMyOwnerLocations()`
 - Line 34: `ownerIdentifiers.length > 0`
 - Line 40: `{ownerIdentifiers.length === 0 || locations.length === 0 ? (`
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/owner-directory/`
 Expected: `data.test.ts`, `my-location.test.ts`, `link.test.ts`, `login.test.ts` all PASS.
@@ -1362,7 +1362,7 @@ Expected: `data.test.ts`, `my-location.test.ts`, `link.test.ts`, `login.test.ts`
 Run: `npx tsc --noEmit`
 Expected: remaining errors ONLY in `src/lib/navigation.ts` and `src/components/layout/SiteHeader.tsx` (Task 7).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/owner-directory/data.ts src/app/account/locations/page.tsx src/__tests__/owner-directory/data.test.ts src/__tests__/owner-directory/my-location.test.ts
@@ -1382,7 +1382,7 @@ git commit -m "feat(account): My Locations merges all linked owner profiles"
 - Consumes: `session.user.ownerIdentifiers` (Task 4).
 - Produces: `SessionUserLike.ownerIdentifiers?: readonly string[] | null`. `deriveCapabilities` stays synchronous and pure; its return shape `{ isAdmin, hasSeller, isOwner }` is unchanged.
 
-- [ ] **Step 1: Update the failing test**
+- [x] **Step 1: Update the failing test**
 
 In `src/__tests__/navigation.test.ts`, replace the `marks owner when ownerIdentifier present` case (lines 19-22) with:
 
@@ -1403,12 +1403,12 @@ In `src/__tests__/navigation.test.ts`, replace the `marks owner when ownerIdenti
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/navigation.test.ts`
 Expected: FAIL — `ownerIdentifiers` is not a property of `SessionUserLike`.
 
-- [ ] **Step 3: Update `navigation.ts`**
+- [x] **Step 3: Update `navigation.ts`**
 
 In `src/lib/navigation.ts`, change line 22 from `ownerIdentifier?: string | null` to:
 
@@ -1422,7 +1422,7 @@ and line 36 from `isOwner: !!user.ownerIdentifier,` to:
     isOwner: !!user.ownerIdentifiers?.length,
 ```
 
-- [ ] **Step 4: Update `SiteHeader.tsx`**
+- [x] **Step 4: Update `SiteHeader.tsx`**
 
 In `src/components/layout/SiteHeader.tsx`, change line 21 from `ownerIdentifier: user.ownerIdentifier,` to:
 
@@ -1430,7 +1430,7 @@ In `src/components/layout/SiteHeader.tsx`, change line 21 from `ownerIdentifier:
     ownerIdentifiers: user.ownerIdentifiers,
 ```
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/navigation.test.ts`
 Expected: all PASS.
@@ -1438,12 +1438,12 @@ Expected: all PASS.
 Run: `npx tsc --noEmit`
 Expected: **no errors at all.** This is the point where the whole app compiles against the new model. If any error remains, fix it before committing.
 
-- [ ] **Step 6: Run the whole suite**
+- [x] **Step 6: Run the whole suite**
 
 Run: `npx vitest run`
 Expected: all tests PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/navigation.ts src/components/layout/SiteHeader.tsx src/__tests__/navigation.test.ts
@@ -1473,7 +1473,7 @@ git commit -m "feat(nav): isOwner derives from the owner link array"
 
 This module exists because the repo has no React component testing — `vitest.config.mts` sets `environment: "node"` and includes only `**/*.test.ts`, and `@testing-library/react` / `jsdom` are not installed. Putting the logic here keeps it tested without adding a test stack as a side effect. `OwnerDirectory.tsx` (Task 9) keeps only rendering.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/__tests__/owner-directory/admin-view.test.ts`:
 
@@ -1598,12 +1598,12 @@ describe("addableOwners", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/owner-directory/admin-view.test.ts`
 Expected: FAIL — module `@/lib/owner-directory/admin-view` not found.
 
-- [ ] **Step 3: Create the view-model module**
+- [x] **Step 3: Create the view-model module**
 
 Create `src/lib/owner-directory/admin-view.ts`. No `server-only` marker — the client component imports it:
 
@@ -1686,7 +1686,7 @@ export function addableOwners<T extends { ownerIdentifier: string }>(
 }
 ```
 
-- [ ] **Step 4: Rewrite `listUsersWithLinks`**
+- [x] **Step 4: Rewrite `listUsersWithLinks`**
 
 In `src/lib/owner-directory/data.ts`, replace `listUsersWithLinks` (lines 84-105) with:
 
@@ -1727,7 +1727,7 @@ import { groupUserLinkRows, type AdminUserRow } from "./admin-view"
 
 (Merge `userOwnerLinks` into the existing `@/db/schema` import line rather than adding a duplicate.)
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/owner-directory/admin-view.test.ts`
 Expected: all PASS.
@@ -1735,7 +1735,7 @@ Expected: all PASS.
 Run: `npx tsc --noEmit`
 Expected: errors ONLY in `src/components/admin/OwnerDirectory.tsx` (its `UserRow` type no longer matches) — Task 9 fixes it.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/owner-directory/admin-view.ts src/lib/owner-directory/data.ts src/__tests__/owner-directory/admin-view.test.ts
@@ -1759,7 +1759,7 @@ git commit -m "feat(admin): pure view-model for multi-link owner rows"
 
 `manuallyLinkUser`, `manuallyUnlinkUser`, and `resetUserLink` are deleted. `refreshOwnerDirectory` is unchanged.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/__tests__/owner-directory/actions.test.ts`. These cover the guards, which are the part worth protecting — a DB-level integration test is out of scope here. `builder` comes from the shared helper created in Task 3:
 
@@ -1854,12 +1854,12 @@ describe("revokeOwnerLink / clearOwnerLink", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/owner-directory/actions.test.ts`
 Expected: FAIL — `addOwnerLink`, `revokeOwnerLink`, `clearOwnerLink` are not exported.
 
-- [ ] **Step 3: Rewrite the actions**
+- [x] **Step 3: Rewrite the actions**
 
 In `src/lib/owner-directory/actions.ts`, replace everything from line 26 to the end (keep `refreshOwnerDirectory` as-is), and update the imports:
 
@@ -1974,7 +1974,7 @@ export async function clearOwnerLink(
 
 `requireAdmin()` (`src/lib/auth-guards.ts:31`) returns the NextAuth `Session["user"]`, whose `id` is optional (`id?: string`), which is why every call site above passes `admin.id ?? null` — `actor_user_id` is a nullable column, so a missing id records as null rather than failing the write.
 
-- [ ] **Step 4: Run tests and typecheck**
+- [x] **Step 4: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/owner-directory/actions.test.ts`
 Expected: all PASS.
@@ -1982,7 +1982,7 @@ Expected: all PASS.
 Run: `npx tsc --noEmit`
 Expected: errors ONLY in `src/components/admin/OwnerDirectory.tsx` (still importing the deleted action names) — Task 10 fixes it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/owner-directory/actions.ts src/__tests__/owner-directory/actions.test.ts
@@ -2003,7 +2003,7 @@ git commit -m "feat(admin): per-link add/revoke/clear owner actions"
 
 There is no component test harness in this repo (see Task 8), so this task's gates are `tsc` plus the manual check in Step 5. Do not add `@testing-library/react` or switch the vitest environment.
 
-- [ ] **Step 1: Update the imports and types**
+- [x] **Step 1: Update the imports and types**
 
 In `src/components/admin/OwnerDirectory.tsx`, replace the action import (lines 7-12) with:
 
@@ -2039,7 +2039,7 @@ export function OwnerDirectory({
 }) {
 ```
 
-- [ ] **Step 2: Update the override panel header and table head**
+- [x] **Step 2: Update the override panel header and table head**
 
 Replace the panel's heading and description (lines 116-120) with:
 
@@ -2069,7 +2069,7 @@ Replace the four `<th>` cells (lines 125-128) with three:
                 <th className="text-left font-semibold px-4 py-2.5">Add</th>
 ```
 
-- [ ] **Step 3: Rewrite `UserLinkRow`**
+- [x] **Step 3: Rewrite `UserLinkRow`**
 
 Replace the whole `UserLinkRow` function (lines 197-273) with:
 
@@ -2216,7 +2216,7 @@ function LinkChip({
 }
 ```
 
-- [ ] **Step 4: Pass the count from the page**
+- [x] **Step 4: Pass the count from the page**
 
 In `src/app/admin/owner-directory/page.tsx`, add the import:
 
@@ -2237,7 +2237,7 @@ and change the final return (line 30) to:
   )
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `npx tsc --noEmit`
 Expected: **no errors anywhere.**
@@ -2247,7 +2247,7 @@ Expected: all tests PASS.
 
 Then read `src/components/admin/OwnerDirectory.tsx` end-to-end once and confirm by inspection: `useMemo` and `useState` are both imported (line 3 already imports both), no reference to `user.ownerIdentifier` or `user.ownerLinkSource` remains anywhere in the file, and no import of `manuallyLinkUser` / `manuallyUnlinkUser` / `resetUserLink` remains. Report that you did this — do not start a dev server to check.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/admin/OwnerDirectory.tsx src/app/admin/owner-directory/page.tsx
@@ -2272,7 +2272,7 @@ git commit -m "feat(admin): render owner links as per-link chips with revoke/und
 
 The third case below is the one that matters: `manuallyUnlinkUser` wrote `ownerIdentifier: null, ownerLinkSource: "manual"`, which means "deliberately unlinked, do not re-link me" — not "no link". Dropping it would auto-link a deliberately-unlinked user on their next sign-in, silently reversing an admin decision.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/__tests__/owner-directory/backfill.test.ts`:
 
@@ -2366,12 +2366,12 @@ describe("planBackfillRows", () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run src/__tests__/owner-directory/backfill.test.ts`
 Expected: FAIL — module `@/lib/owner-directory/backfill` not found.
 
-- [ ] **Step 3: Write the pure mapping**
+- [x] **Step 3: Write the pure mapping**
 
 Create `src/lib/owner-directory/backfill.ts`:
 
@@ -2437,7 +2437,7 @@ export function planBackfillRows(state: LegacyLinkState): BackfillLinkRow[] {
 }
 ```
 
-- [ ] **Step 4: Write the script**
+- [x] **Step 4: Write the script**
 
 Create `scripts/backfill-user-owner-links.ts`, following the `scripts/geocode-owner-locations.ts` pattern (dotenv first, own drizzle client, `--dry-run` flag, idempotent):
 
@@ -2544,7 +2544,7 @@ main().catch((e) => {
 })
 ```
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx vitest run src/__tests__/owner-directory/backfill.test.ts`
 Expected: all PASS.
@@ -2554,7 +2554,7 @@ Expected: no errors.
 
 Do NOT execute the script. Applying the migration and running the backfill is the user's decision.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/owner-directory/backfill.ts scripts/backfill-user-owner-links.ts src/__tests__/owner-directory/backfill.test.ts
@@ -2567,7 +2567,7 @@ git commit -m "feat(owner-links): backfill script mapping legacy scalars to link
 
 **Files:** none modified.
 
-- [ ] **Step 1: Full gates**
+- [x] **Step 1: Full gates**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
@@ -2575,7 +2575,7 @@ Expected: no errors.
 Run: `npx vitest run`
 Expected: all tests PASS. Record the pass/fail counts.
 
-- [ ] **Step 2: Confirm no legacy reads remain**
+- [x] **Step 2: Confirm no legacy reads remain**
 
 Run: `git grep -n "ownerLinkSource\|manuallyLinkUser\|manuallyUnlinkUser\|resetUserLink\|decideOwnerLink" -- src scripts`
 Expected: matches ONLY in these four files, all intentional —
@@ -2587,7 +2587,7 @@ legacy state on purpose). Any other match is an unmigrated call site — fix it.
 Run: `git grep -n "user\.ownerIdentifier\|session\.user\.ownerIdentifier\b" -- src`
 Expected: no matches.
 
-- [ ] **Step 3: Report and stop**
+- [x] **Step 3: Report and stop**
 
 Summarize for the user: tests passing, the two artifacts they must apply themselves (`npm run db:migrate`, then `npx tsx scripts/backfill-user-owner-links.ts --dry-run` before a live run), and that PR 2 is deliberately deferred.
 
