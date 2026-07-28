@@ -18,34 +18,53 @@ import { drizzle } from "drizzle-orm/neon-http"
 import { neon } from "@neondatabase/serverless"
 import { isNull, eq } from "drizzle-orm"
 import { ownerLocations } from "../src/db/schema/ownerLocations"
-import { cleanAddress } from "../src/lib/geocode/address"
+import { buildGeocodeQueries, parseUsAddressTail } from "../src/lib/geocode/address"
+import {
+  isAcceptableMatch,
+  toCandidate,
+  type GeocodeCandidate,
+  type MapTilerFeature,
+} from "../src/lib/geocode/match"
 
-const RELEVANCE_THRESHOLD = 0.8
 const THROTTLE_MS = 300
 const DRY_RUN = process.argv.includes("--dry-run")
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-interface GeocodeResult {
-  lat: number
-  lng: number
-  relevance: number
-  placeName: string
-}
-
-async function geocode(query: string, apiKey: string): Promise<GeocodeResult | null> {
+async function fetchTop(query: string, apiKey: string): Promise<GeocodeCandidate | null> {
   const url = `https://api.maptiler.com/geocoding/${encodeURIComponent(
     query
   )}.json?key=${apiKey}&country=us&limit=1`
   const res = await fetch(url)
   if (!res.ok) throw new Error(`MapTiler ${res.status} ${res.statusText}`)
-  const data = (await res.json()) as {
-    features?: { center?: [number, number]; relevance?: number; place_name?: string }[]
+  const data = (await res.json()) as { features?: MapTilerFeature[] }
+  return toCandidate(data.features?.[0])
+}
+
+/**
+ * Try the query ladder and return the first acceptable match, plus the best
+ * rejected candidate so the report can explain WHY a row was left alone.
+ * The accept rule is shared with src/lib/geocode/geocode.ts.
+ */
+async function geocodeWithLadder(
+  address: string,
+  apiKey: string
+): Promise<{
+  accepted: (GeocodeCandidate & { query: string }) | null
+  best: (GeocodeCandidate & { query: string }) | null
+}> {
+  const expectedZip = parseUsAddressTail(address)?.zipCode ?? null
+  let best: (GeocodeCandidate & { query: string }) | null = null
+
+  for (const query of buildGeocodeQueries(address)) {
+    const candidate = await fetchTop(query, apiKey)
+    if (candidate) {
+      if (!best || candidate.relevance > best.relevance) best = { ...candidate, query }
+      if (isAcceptableMatch(candidate, expectedZip)) return { accepted: { ...candidate, query }, best }
+    }
+    await sleep(THROTTLE_MS)
   }
-  const top = data.features?.[0]
-  if (!top?.center) return null
-  const [lng, lat] = top.center
-  return { lat, lng, relevance: top.relevance ?? 0, placeName: top.place_name ?? "" }
+  return { accepted: null, best }
 }
 
 async function main() {
@@ -86,36 +105,33 @@ async function main() {
       skipped.push({ name: row.name, reason: "no address" })
       continue
     }
-    const query = cleanAddress(row.address)
-    if (!query) {
+    if (buildGeocodeQueries(row.address).length === 0) {
       skipped.push({ name: row.name, reason: "empty after cleaning" })
       continue
     }
 
     try {
-      const result = await geocode(query, apiKey)
-      if (!result) {
-        failed.push({ name: row.name, error: "no geocoding result" })
-      } else if (result.relevance < RELEVANCE_THRESHOLD) {
-        lowConfidence.push({ name: row.name, query, relevance: result.relevance })
-      } else {
+      const { accepted, best } = await geocodeWithLadder(row.address, apiKey)
+      if (accepted) {
         console.log(
-          `✓ ${row.name} -> ${result.lat.toFixed(5)}, ${result.lng.toFixed(5)} ` +
-            `(relevance ${result.relevance.toFixed(2)}) [${result.placeName}]`
+          `✓ ${row.name} -> ${accepted.lat.toFixed(5)}, ${accepted.lng.toFixed(5)} ` +
+            `(relevance ${accepted.relevance.toFixed(2)}) [${accepted.placeName}] via "${accepted.query}"`
         )
         if (!DRY_RUN) {
           await db
             .update(ownerLocations)
-            .set({ latitude: result.lat, longitude: result.lng, geocodedAt: new Date() })
+            .set({ latitude: accepted.lat, longitude: accepted.lng, geocodedAt: new Date() })
             .where(eq(ownerLocations.id, row.id))
         }
         updated++
+      } else if (best) {
+        lowConfidence.push({ name: row.name, query: best.query, relevance: best.relevance })
+      } else {
+        failed.push({ name: row.name, error: "no geocoding result" })
       }
     } catch (err) {
       failed.push({ name: row.name, error: err instanceof Error ? err.message : String(err) })
     }
-
-    await sleep(THROTTLE_MS)
   }
 
   console.log(`\n${"=".repeat(50)}`)
