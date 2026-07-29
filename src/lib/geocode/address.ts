@@ -92,28 +92,45 @@ export function cleanAddress(address: string): string {
 export function buildGeocodeQueries(address: string): string[] {
   const queries = [cleanAddress(address)]
 
-  const tail = parseUsAddressTail(address)
-  if (tail) {
-    const segments = address.split(",").map((s) => s.trim()).filter(Boolean)
-    const street = cleanAddress(segments.slice(0, -1).join(", "))
+  const parsed = splitUsAddressTail(address)
+  if (parsed) {
+    const street = cleanAddress(parsed.streetSegments.join(", "))
     if (street) {
-      queries.push(`${street}, ${tail.zipCode}`)
-      queries.push(`${street}, ${tail.city} ${tail.state}`)
+      queries.push(`${street}, ${parsed.tail.zipCode}`)
+      // A city glued to the street can't be separated out, so there is no
+      // distinct city rung to add — the full-address query already covers it.
+      if (parsed.tail.city) queries.push(`${street}, ${parsed.tail.city} ${parsed.tail.state}`)
     }
   }
 
   return [...new Set(queries.filter((q) => q.length > 0))]
 }
 
+export type UsAddressTail = { city: string | null; state: string; zipCode: string }
+
 /**
  * Parse the trailing "City ST 12345" of a US address. The directory stores a
  * single combined address string, so this recovers the structured city/state/zip
  * for display (and gives the two-letter state abbreviation, which the geocoder
- * does not return — it gives the full state name).
+ * does not return — it gives the full state name). `city` is null when the
+ * address has no comma between street and city ("... Blvd Matthews, NC 28105"):
+ * the city can't be told apart from the street, but the state and ZIP are still
+ * good — and the ZIP is what validates a sub-0.8 geocoder match.
  */
-export function parseUsAddressTail(
+export function parseUsAddressTail(address: string): UsAddressTail | null {
+  return splitUsAddressTail(address)?.tail ?? null
+}
+
+/**
+ * The tail plus the comma segments BEFORE it (street, suite, plaza...). The
+ * query ladder needs the street without the city, and only the parse knows how
+ * many trailing segments the tail actually spanned — guessing with a fixed
+ * slice left the city inside the "street + ZIP" rung whenever the city was its
+ * own segment, which is exactly the shape that rung exists to avoid.
+ */
+function splitUsAddressTail(
   address: string,
-): { city: string; state: string; zipCode: string } | null {
+): { tail: UsAddressTail; streetSegments: string[] } | null {
   const segments = address
     .split(",")
     .map((s) => s.trim())
@@ -127,19 +144,31 @@ export function parseUsAddressTail(
 
   const last = segments[segments.length - 1]
   const direct = attempt(last)
-  if (direct) return direct
+  if (direct) return { tail: direct, streetSegments: segments.slice(0, -1) }
 
-  // "777 Grassland Drive, American Fork, UT 84003" — the city is its own
-  // segment, so the last one is just "ST ZIP" and doesn't match on its own.
-  // This is common in the directory, and missing it cost both the map dot's
-  // city/state label and the ZIP used to validate a geocoder match.
-  //
-  // Only join when the previous segment looks like a city: in "12823 N Dale
-  // Mabry Hwy #6 Tampa, FL 33618" it is the whole street, and joining would
-  // report that as the city. Rejecting on a digit keeps the old null there.
   if (segments.length >= 2) {
     const previous = segments[segments.length - 2]
-    if (!/\d/.test(previous)) return attempt(`${previous} ${last}`)
+
+    // "777 Grassland Drive, American Fork, UT 84003" — the city is its own
+    // segment, so the last one is just "ST ZIP" and doesn't match on its own.
+    // Only join when the previous segment looks like a city: a digit means it
+    // is (or contains) the street, and joining would report that as the city.
+    if (!/\d/.test(previous)) {
+      const joined = attempt(`${previous} ${last}`)
+      if (joined) return { tail: joined, streetSegments: segments.slice(0, -2) }
+    }
+
+    // "9949 E. Independence Blvd Matthews, NC 28105" — no comma between street
+    // and city. The city is unrecoverable, but the isolated "ST ZIP" tail is
+    // not; without it these rows could never pass ZIP-validated acceptance and
+    // stayed ungeocoded forever.
+    const bare = last.match(/^([A-Za-z]{2})\s+(\d{5})(?:-\d{4})?$/)
+    if (bare) {
+      return {
+        tail: { city: null, state: bare[1].toUpperCase(), zipCode: bare[2] },
+        streetSegments: segments.slice(0, -1),
+      }
+    }
   }
 
   return null
