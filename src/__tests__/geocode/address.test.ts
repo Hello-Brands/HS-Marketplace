@@ -155,6 +155,28 @@ describe("buildGeocodeQueries", () => {
     ])
   })
 
+  // MN St Louis Park sat ungeocoded because the city rode along in the "drop
+  // the city, keep the ZIP" rung: "1675 Park Pl Blvd, St Louis Park, 55416"
+  // pulls Missouri place centroids (0.568), while the intended
+  // "1675 Park Pl Blvd, 55416" is a 1.000 street-level hit with a matching ZIP.
+  it("drops a stand-alone city segment from the fallback rungs", () => {
+    expect(buildGeocodeQueries("1675 Park Pl Blvd, Suite 30, St Louis Park, MN 55416")).toEqual([
+      "1675 Park Pl Blvd, St Louis Park, MN 55416",
+      "1675 Park Pl Blvd, 55416",
+      "1675 Park Pl Blvd, St Louis Park MN",
+    ])
+  })
+
+  // NC Matthews: no comma between street and city, so the city can't be
+  // separated from the street. The ZIP rung still helps; a city rung would
+  // just repeat the glued form, so it is omitted.
+  it("adds a ZIP rung but no city rung when the city is glued to the street", () => {
+    expect(buildGeocodeQueries("9949 E. Independence Blvd Matthews, NC 28105")).toEqual([
+      "9949 E. Independence Blvd Matthews, NC 28105",
+      "9949 E. Independence Blvd Matthews, 28105",
+    ])
+  })
+
   it("de-duplicates when the variants collapse to the same string", () => {
     const queries = buildGeocodeQueries("100 First St, Denver CO 80202")
     expect(new Set(queries).size).toBe(queries.length)
@@ -213,8 +235,31 @@ describe("parseUsAddressTail", () => {
     })
 
     it("does NOT report a street as the city", () => {
-      // Joining here would give city "12823 N Dale Mabry Hwy #6 Tampa".
-      expect(parseUsAddressTail("12823 N Dale Mabry Hwy #6 Tampa, FL 33618")).toBeNull()
+      // Joining here would give city "12823 N Dale Mabry Hwy #6 Tampa". The
+      // state and ZIP are still cleanly isolated, so those are recovered — the
+      // ZIP is what lets a 0.7-relevance geocoder match be accepted.
+      expect(parseUsAddressTail("12823 N Dale Mabry Hwy #6 Tampa, FL 33618")).toEqual({
+        city: null,
+        state: "FL",
+        zipCode: "33618",
+      })
+    })
+
+    // Four live directory rows (Matthews, Wilmington, Cherry Hill, Houston)
+    // failed to geocode solely because this shape parsed to null: no expected
+    // ZIP meant the ZIP-validated acceptance path could never run, even though
+    // the geocoder's top hit already carried the correct ZIP at 0.73-0.80.
+    it("recovers state and ZIP when the city is glued to the street", () => {
+      expect(parseUsAddressTail("9949 E. Independence Blvd Matthews, NC 28105")).toEqual({
+        city: null,
+        state: "NC",
+        zipCode: "28105",
+      })
+      expect(parseUsAddressTail("404 S 51st St Wilmington, NC 28403")).toEqual({
+        city: null,
+        state: "NC",
+        zipCode: "28403",
+      })
     })
 
     it("still prefers a self-contained tail when there is one", () => {
