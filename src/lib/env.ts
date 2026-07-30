@@ -28,6 +28,10 @@ const validatedEnv = createEnv({
     GCP_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
     BIGQUERY_CREDENTIALS: z.string().min(1).optional(),
     GOOGLE_APPLICATION_CREDENTIALS: z.string().min(1).optional(),
+    // Fine-grained PAT for Hello-Brands/competitor-monitor repository_dispatch
+    // (read by src/lib/brand-requests/dispatch.ts). Optional: when unset,
+    // dispatches fail soft and admins retry from the request detail view.
+    GITHUB_DISPATCH_TOKEN: z.string().min(1).optional(),
     // Internal KPI API (read by src/lib/kpi/fetch.ts).
     HS_INTERNAL_API_URL: z.string().url().optional(),
     HS_INTERNAL_API_TOKEN: z.string().min(1).optional(),

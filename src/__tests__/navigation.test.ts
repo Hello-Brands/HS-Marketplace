@@ -48,6 +48,7 @@ describe("visibleNavItems (marketplace)", () => {
       "Browse",
       "Saved",
       "My Alerts",
+      "Brand Requests",
     ])
   })
   it("shows My Listings to sellers", () => {
@@ -58,7 +59,7 @@ describe("visibleNavItems (marketplace)", () => {
 })
 
 describe("visibleNavItems (admin)", () => {
-  it("returns all seven admin sections regardless of caps", () => {
+  it("returns all eight admin sections regardless of caps", () => {
     const labels = visibleNavItems("admin", {
       isAdmin: true,
       hasSeller: true,
@@ -68,6 +69,7 @@ describe("visibleNavItems (admin)", () => {
       "Queue",
       "Listings",
       "Inquiries",
+      "Brand Requests",
       "Users",
       "Analytics",
       "Data",
