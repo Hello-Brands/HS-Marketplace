@@ -41,6 +41,7 @@ export const MARKETPLACE_NAV: NavItem[] = [
   { label: "Browse", href: "/browse", match: ["/browse", "/listings"] },
   { label: "Saved", href: "/account/favorites" },
   { label: "My Alerts", href: "/account/alerts" },
+  { label: "Brand Requests", href: "/account/brand-requests" },
   { label: "My Listings", href: "/seller/listings", match: ["/seller"], requires: "seller" },
 ]
 
@@ -48,6 +49,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Queue", href: "/admin/queue" },
   { label: "Listings", href: "/admin/listings" },
   { label: "Inquiries", href: "/admin/inquiries" },
+  { label: "Brand Requests", href: "/admin/brand-requests" },
   { label: "Users", href: "/admin/users" },
   { label: "Analytics", href: "/admin/analytics" },
   { label: "Data", href: "/admin/data" },

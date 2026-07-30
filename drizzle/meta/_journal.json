@@ -43,6 +43,13 @@
       "when": 1785153600000,
       "tag": "0005_user_owner_links",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785369600000,
+      "tag": "0006_brand_requests",
+      "breakpoints": true
     }
   ]
 }
