@@ -15,7 +15,7 @@ export const monitoredBrands = pgTable("monitored_brands", {
   brandId: text("brand_id").primaryKey(), // monitor-assigned, e.g. 'ewc'
   name: text("name").notNull(),
   domain: text("domain").notNull(), // bare host, lowercase, no www — matches brand_requests.normalized_domain
-  locationsCount: integer("locations_count").notNull().default(0),
+  locationsCount: integer("locations_count").default(0), // null until first scrape counts them
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
