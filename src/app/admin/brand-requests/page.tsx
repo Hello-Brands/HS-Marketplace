@@ -25,11 +25,8 @@ export const dynamic = "force-dynamic"
 const STATUS_FILTERS: { value: BrandRequestStatus | ""; label: string }[] = [
   { value: "", label: "All" },
   { value: "submitted", label: "Submitted" },
-  { value: "recon_running", label: "Recon running" },
-  { value: "recon_complete", label: "Recon complete" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
-  { value: "building", label: "Building" },
   { value: "live", label: "Live" },
   { value: "needs_human", label: "Needs human" },
 ]
