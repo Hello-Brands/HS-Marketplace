@@ -128,7 +128,7 @@ today's behavior (mapping confirmed, coords unchanged until next sync).
 ### 5. Schema + migration
 
 - `owner_locations.coord_source` — nullable `text`, values `'monday'` |
-  `'maptiler'`. Hand-authored migration `0007_owner_locations_coord_source.sql`
+  `'maptiler'`. Hand-authored migration `0008_owner_locations_coord_source.sql`
   (`ALTER TABLE ... ADD COLUMN`), applied per the guarded-migrations workflow.
   No backfill of the column for existing rows: the first sync stamps every
   covered row `'monday'`, and old MapTiler rows read as NULL (unknown) until
@@ -138,7 +138,7 @@ today's behavior (mapping confirmed, coords unchanged until next sync).
 
 ### 6. Rollout
 
-1. Merge + deploy (migration 0007 applied first).
+1. Merge + deploy (migration 0008 applied first).
 2. Trigger one owner-directory sync (admin button) — this backfills both
    layers, including the 5 never-geocoded owner dots.
 3. Verify `/browse`: dots for #045/#218/#241/#015/#259 appear; spot-check a
