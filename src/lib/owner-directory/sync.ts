@@ -2,8 +2,9 @@ import "server-only"
 import { inArray, sql, isNull, eq } from "drizzle-orm"
 import { db } from "@/db"
 import { ownerLocations } from "@/db/schema"
-import { listLocationNames } from "@/lib/bigquery/queries"
+import { listLocationNames, getMondayCoordsByLocationNumber } from "@/lib/bigquery/queries"
 import { fetchOwnerDirectory, parseBqDate, type DirectoryRow } from "./query"
+import { resolveOwnerRowCoords } from "./monday-coords"
 import { resolveBlvdLocationName, type BlvdMatchMethod } from "./resolve"
 import { normalizeEmail } from "./email"
 import { geocodeAddress } from "@/lib/geocode/geocode"
@@ -16,6 +17,7 @@ export type SyncResult = {
   deletedStale: number
   preserved: number
   geocoded: number
+  mondayCoordsApplied: number
   byMethod: Record<BlvdMatchMethod, number>
   bqNamesAvailable: boolean
 }
@@ -37,14 +39,20 @@ const keyOf = (ownerIdentifier: string, blvdLocationName: string) =>
  * rather than silently truncating the table.
  */
 export async function syncOwnerLocations(): Promise<SyncResult> {
-  const rows = await fetchOwnerDirectory()
+  const [rows, bqNames, mondayCoords] = await Promise.all([
+    fetchOwnerDirectory(),
+    listLocationNames(),
+    getMondayCoordsByLocationNumber(),
+  ])
   if (rows === null) {
     throw new Error(
       "owner-directory sync: BigQuery returned no result (check GCP_SERVICE_ACCOUNT_JSON / BIGQUERY_PROJECT_ID / view permissions)"
     )
   }
-
-  const bqNames = await listLocationNames()
+  if (mondayCoords === null) {
+    // Sync must not block on the coords source; rows behave as "not covered".
+    console.warn("owner-directory sync: Monday coords unavailable — coords not applied this run")
+  }
   const bqNamesList = bqNames ?? []
 
   // Dedupe incoming by natural key (keep first; ON CONFLICT cannot touch a row twice).
@@ -72,6 +80,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
       latitude: ownerLocations.latitude,
       longitude: ownerLocations.longitude,
       geocodedAt: ownerLocations.geocodedAt,
+      coordSource: ownerLocations.coordSource,
     })
     .from(ownerLocations)
   const existingByKey = new Map(
@@ -86,6 +95,8 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
     name_fuzzy: 0,
     unmatched: 0,
   }
+
+  let mondayCoordsApplied = 0
 
   const values = deduped.map((r) => {
     const prior = existingByKey.get(keyOf(r.owner_identifier, r.blvd_location_name))
@@ -123,10 +134,18 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
       blvdMatchMethod: method,
       blvdMatchConfidence: confidence,
       syncedAt: now,
-      // Preserve geocoded coords across the full-refresh (like resolvedBqLocationName).
-      latitude: prior?.latitude ?? null,
-      longitude: prior?.longitude ?? null,
-      geocodedAt: prior?.geocodedAt ?? null,
+      // Monday view coords are the source of truth (stamped every sync);
+      // uncovered rows preserve prior coords like resolvedBqLocationName.
+      ...(() => {
+        const coordFields = resolveOwnerRowCoords(
+          r.blvd_location_number || null,
+          prior ?? null,
+          mondayCoords,
+          now
+        )
+        if (coordFields.coordSource === "monday") mondayCoordsApplied++
+        return coordFields
+      })(),
     }
   })
 
@@ -162,6 +181,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
               latitude: sql`excluded.latitude`,
               longitude: sql`excluded.longitude`,
               geocodedAt: sql`excluded.geocoded_at`,
+              coordSource: sql`excluded.coord_source`,
             },
           })
       : null
@@ -195,7 +215,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
           if (!geo) continue
           await db
             .update(ownerLocations)
-            .set({ latitude: geo.lat, longitude: geo.lng, geocodedAt: new Date() })
+            .set({ latitude: geo.lat, longitude: geo.lng, geocodedAt: new Date(), coordSource: "maptiler" })
             .where(eq(ownerLocations.id, m.id))
           geocoded++
         } catch (err) {
@@ -221,6 +241,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
     deletedStale: staleIds.length,
     preserved,
     geocoded,
+    mondayCoordsApplied,
     byMethod,
     bqNamesAvailable: bqNames !== null,
   }
