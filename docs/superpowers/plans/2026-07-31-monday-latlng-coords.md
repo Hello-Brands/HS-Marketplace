@@ -417,18 +417,23 @@ In the returned object of `values = deduped.map((r) => { ... })`, replace the th
 with:
 
 ```ts
+      // (hoisted above the returned object literal, next to the
+      // resolvedBqLocationName block:)
       // Monday view coords are the source of truth (stamped every sync);
       // uncovered rows preserve prior coords like resolvedBqLocationName.
-      ...(() => {
-        const coordFields = resolveOwnerRowCoords(
-          r.blvd_location_number || null,
-          prior ?? null,
-          mondayCoords,
-          now
-        )
-        if (coordFields.coordSource === "monday") mondayCoordsApplied++
-        return coordFields
-      })(),
+      const coordFields = resolveOwnerRowCoords(
+        r.blvd_location_number || null,
+        prior ?? null,
+        mondayCoords,
+        now
+      )
+      // Count only rows stamped THIS run. Identity check is exact: the
+      // resolver returns the sync's `now` instance only on a Monday hit —
+      // a preserved prior geocodedAt is a different Date instance. (Counting
+      // coordSource === "monday" would over-count preserved rows and report
+      // the full historical count on a BQ-failure run.)
+      if (coordFields.geocodedAt === now) mondayCoordsApplied++
+      // ...then `...coordFields` is spread into the returned object literal.
 ```
 
 (`CoordFields` keys — `latitude`, `longitude`, `geocodedAt`, `coordSource` — spread directly into the insert value; `prior` is structurally a `CoordFields` since Step 3.)
