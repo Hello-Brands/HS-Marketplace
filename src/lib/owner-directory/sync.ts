@@ -4,7 +4,7 @@ import { db } from "@/db"
 import { ownerLocations } from "@/db/schema"
 import { listLocationNames, getMondayCoordsByLocationNumber } from "@/lib/bigquery/queries"
 import { fetchOwnerDirectory, parseBqDate, type DirectoryRow } from "./query"
-import { resolveOwnerRowCoords } from "./monday-coords"
+import { resolveOwnerRowCoords, applyMondayCoordsToListings } from "./monday-coords"
 import { resolveBlvdLocationName, type BlvdMatchMethod } from "./resolve"
 import { normalizeEmail } from "./email"
 import { geocodeAddress } from "@/lib/geocode/geocode"
@@ -18,6 +18,7 @@ export type SyncResult = {
   preserved: number
   geocoded: number
   mondayCoordsApplied: number
+  listingCoordsApplied: number
   byMethod: Record<BlvdMatchMethod, number>
   bqNamesAvailable: boolean
 }
@@ -203,6 +204,20 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
   else if (upsert) await db.batch([upsert])
   else if (del) await db.batch([del])
 
+  // Bridge Monday coords onto confirmed listing locations. Best-effort like
+  // the geocode backfill: the directory upsert above is already committed.
+  let listingCoordsApplied = 0
+  if (mondayCoords) {
+    try {
+      listingCoordsApplied = await applyMondayCoordsToListings(mondayCoords, now)
+    } catch (err) {
+      console.error(
+        "owner-directory sync: listing coords bridge failed (directory sync already committed)",
+        err
+      )
+    }
+  }
+
   // Best-effort geocode of rows still missing coords (new locations, or rows
   // that failed a prior geocode). Rows covered by the Monday view are re-stamped
   // from Monday on every sync, so this only ever reaches rows Monday does not
@@ -251,6 +266,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
     preserved,
     geocoded,
     mondayCoordsApplied,
+    listingCoordsApplied,
     byMethod,
     bqNamesAvailable: bqNames !== null,
   }
