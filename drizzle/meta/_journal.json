@@ -57,6 +57,13 @@
       "when": 1785412800000,
       "tag": "0007_monitored_brands_nullable_count",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785499200000,
+      "tag": "0008_owner_locations_coord_source",
+      "breakpoints": true
     }
   ]
 }

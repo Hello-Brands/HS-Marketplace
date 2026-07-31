@@ -21,6 +21,8 @@ import {
   getMcrByLocation,
   getMcrTrendByLocation,
   getReviewSummaryByLocation,
+  rowsToMondayCoords,
+  getMondayCoordsByLocationNumber,
 } from "@/lib/bigquery/queries"
 
 describe("rowsToNetSalesByLocation", () => {
@@ -169,5 +171,52 @@ describe("cached BQ fetchers: failure vs empty (DEBT-005)", () => {
     expect(await getMcrByLocation()).toBeInstanceOf(Map)
     expect(await getMcrTrendByLocation()).toBeInstanceOf(Map)
     expect(await getReviewSummaryByLocation()).toBeInstanceOf(Map)
+  })
+})
+
+describe("rowsToMondayCoords", () => {
+  it("maps trimmed numbers to finite lat/lng", () => {
+    const map = rowsToMondayCoords([
+      { num: " 284 ", lat: "40.691574", lng: "-73.988771" },
+      { num: "057", lat: 35.595646, lng: -82.556625 },
+    ])
+    expect(map.get("284")).toEqual({ lat: 40.691574, lng: -73.988771 })
+    expect(map.get("057")).toEqual({ lat: 35.595646, lng: -82.556625 })
+  })
+
+  it("skips null/empty numbers and keeps the first row on duplicates", () => {
+    const map = rowsToMondayCoords([
+      { num: null, lat: 1, lng: 2 },
+      { num: "  ", lat: 1, lng: 2 },
+      { num: "100", lat: 39.889683, lng: -74.925992 },
+      { num: "100", lat: 0, lng: 0 },
+    ])
+    expect(map.size).toBe(1)
+    expect(map.get("100")).toEqual({ lat: 39.889683, lng: -74.925992 })
+  })
+
+  it("drops rows whose coords do not coerce to finite numbers", () => {
+    const map = rowsToMondayCoords([
+      { num: "1", lat: null, lng: -74 },
+      { num: "2", lat: "abc", lng: -74 },
+      { num: "3", lat: { toString: () => "41.5" }, lng: { toString: () => "-87.6" } },
+    ])
+    expect(map.size).toBe(1)
+    expect(map.get("3")).toEqual({ lat: 41.5, lng: -87.6 })
+  })
+})
+
+describe("getMondayCoordsByLocationNumber", () => {
+  beforeEach(() => runQuery.mockReset())
+
+  it("returns null when the query fails (never a partial/empty map)", async () => {
+    runQuery.mockResolvedValue(null)
+    expect(await getMondayCoordsByLocationNumber()).toBeNull()
+  })
+
+  it("returns the converted map on success", async () => {
+    runQuery.mockResolvedValue([{ num: "284", lat: "40.69", lng: "-73.98" }])
+    const map = await getMondayCoordsByLocationNumber()
+    expect(map?.get("284")).toEqual({ lat: 40.69, lng: -73.98 })
   })
 })

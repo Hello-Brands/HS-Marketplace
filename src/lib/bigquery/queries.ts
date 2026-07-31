@@ -186,6 +186,61 @@ export async function listLocationNames(): Promise<string[] | null> {
   return rows.map((r) => r.LOCATION_NAME).filter((n): n is string => !!n)
 }
 
+// ---- Monday coordinates (source of truth for map pins) --------------------
+
+/**
+ * Per-location coordinates maintained in the Monday board. Keyed by the
+ * trimmed BLVD location number — the view's Name/BLVD Location Name columns
+ * are entirely NULL, so the number is the only usable join key.
+ *
+ * The source table is a partitioned snapshot loaded from Snowflake; GROUP BY
+ * dedupes defensively in case it ever returns more than one snapshot.
+ */
+const MONDAY_COORDS_SQL = `
+  SELECT TRIM(\`BLVD Location #\`) AS num,
+         ANY_VALUE(CAST(Latitude AS FLOAT64))  AS lat,
+         ANY_VALUE(CAST(Longitude AS FLOAT64)) AS lng
+  FROM \`even-affinity-388602.snowflake_data.vw_custom_monday_data_raw\`
+  WHERE Latitude IS NOT NULL AND Longitude IS NOT NULL
+    AND TRIM(\`BLVD Location #\`) != ''
+  GROUP BY num`
+
+type MondayCoordsRow = { num: string | null; lat: Numeric; lng: Numeric }
+export type MondayCoords = Map<string, { lat: number; lng: number }>
+
+/** Coerce to a finite number or null — unlike toNumber, never fabricates 0. */
+function toFiniteNumber(v: Numeric): number | null {
+  if (v === null || v === undefined) return null
+  const n = typeof v === "number" ? v : Number(v.toString())
+  return Number.isFinite(n) ? n : null
+}
+
+/** Pure: rows → number-keyed coords map (first row wins on duplicates). Exported for tests. */
+export function rowsToMondayCoords(rows: MondayCoordsRow[]): MondayCoords {
+  const map: MondayCoords = new Map()
+  for (const r of rows) {
+    const num = r.num?.trim()
+    if (!num || map.has(num)) continue
+    const lat = toFiniteNumber(r.lat)
+    const lng = toFiniteNumber(r.lng)
+    if (lat === null || lng === null) continue
+    map.set(num, { lat, lng })
+  }
+  return map
+}
+
+/**
+ * Coordinates from the Monday view, or null when the query fails.
+ * Deliberately UNCACHED: only sync/confirm paths call this, and a stale or
+ * empty cached map must never poison a sync (cf. the unstable_cache
+ * empty-result incident in the KPI queries above).
+ */
+export async function getMondayCoordsByLocationNumber(): Promise<MondayCoords | null> {
+  const rows = await runQuery<MondayCoordsRow>(MONDAY_COORDS_SQL)
+  if (rows === null) return null
+  return rowsToMondayCoords(rows)
+}
+
 // ---- Reviews -------------------------------------------------------------
 
 export type FeaturedReview = {

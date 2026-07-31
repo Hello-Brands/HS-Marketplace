@@ -61,6 +61,10 @@ export const ownerLocations = pgTable(
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
     geocodedAt: timestamp("geocoded_at"),
+    // Which system produced latitude/longitude: 'monday' (BigQuery Monday
+    // view — the source of truth) or 'maptiler' (geocoder fallback).
+    // NULL = geocoded before this column existed (unknown provenance).
+    coordSource: text("coord_source"),
   },
   (table) => [
     // Natural key: blvd_location_number is nullable in the source, so key on

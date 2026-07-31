@@ -16,6 +16,7 @@ const CHAINED_METHODS = [
   "where",
   "orderBy",
   "leftJoin",
+  "innerJoin",
   "limit",
   "values",
   "set",
