@@ -34,6 +34,8 @@ const keyOf = (ownerIdentifier: string, blvdLocationName: string) =>
  *    (re)resolves only new or still-unmatched rows.
  *  - Upserts every row and deletes rows no longer in the directory, atomically
  *    (single neon-http batch = one transaction).
+ *  - Treats the Monday view's lat/lng as authoritative: every covered
+ *    blvd_location_number gets Monday's coords stamped on every sync.
  *
  * Throws if BigQuery is unreachable, so the caller can surface a clear error
  * rather than silently truncating the table.
@@ -118,6 +120,22 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
     }
     byMethod[method]++
 
+    // Monday view coords are the source of truth (stamped every sync);
+    // uncovered rows preserve prior coords like resolvedBqLocationName.
+    const coordFields = resolveOwnerRowCoords(
+      r.blvd_location_number || null,
+      prior ?? null,
+      mondayCoords,
+      now
+    )
+    // Count only coords stamped THIS run. The identity check is exact: the
+    // resolver returns this sync's `now` instance solely on a Monday hit, while
+    // a preserved prior geocodedAt is always a different Date instance (even if
+    // it happens to carry an equal time). Testing coordSource === "monday"
+    // instead would over-count rows covered on a previous run but not this one —
+    // and would report the full historical count when mondayCoords is null.
+    if (coordFields.geocodedAt === now) mondayCoordsApplied++
+
     return {
       ownerIdentifier: r.owner_identifier,
       ownerName: r.owner_name,
@@ -134,18 +152,7 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
       blvdMatchMethod: method,
       blvdMatchConfidence: confidence,
       syncedAt: now,
-      // Monday view coords are the source of truth (stamped every sync);
-      // uncovered rows preserve prior coords like resolvedBqLocationName.
-      ...(() => {
-        const coordFields = resolveOwnerRowCoords(
-          r.blvd_location_number || null,
-          prior ?? null,
-          mondayCoords,
-          now
-        )
-        if (coordFields.coordSource === "monday") mondayCoordsApplied++
-        return coordFields
-      })(),
+      ...coordFields,
     }
   })
 
@@ -197,9 +204,11 @@ export async function syncOwnerLocations(): Promise<SyncResult> {
   else if (del) await db.batch([del])
 
   // Best-effort geocode of rows still missing coords (new locations, or rows
-  // that failed a prior geocode). Coords are preserved across the full-refresh,
-  // so an existing row whose address later changes keeps its old coords until
-  // manually cleared (re-geocode-on-address-change is a possible follow-up).
+  // that failed a prior geocode). Rows covered by the Monday view are re-stamped
+  // from Monday on every sync, so this only ever reaches rows Monday does not
+  // cover — and those preserve their prior coords across the full-refresh, so an
+  // uncovered row whose address later changes keeps its old coords until manually
+  // cleared (re-geocode-on-address-change is a possible follow-up).
   // Never blocks the sync; silent when no MapTiler key.
   let geocoded = 0
   if (env.MAPTILER_API_KEY) {
