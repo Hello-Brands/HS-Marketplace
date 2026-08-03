@@ -34,7 +34,12 @@ export const authConfig: NextAuthConfig = {
         (p) => pathname === p || pathname.startsWith(`${p}/`),
       )
       if (isPublic) return true
-      return !!auth
+      // Check for a real user, not just a truthy `auth` object. The Auth.js
+      // advisory cleared by the next-auth beta.32 bump was precisely that a
+      // configuration error can populate `auth` with an error payload, so an
+      // existence-only check (`!!auth`) fails OPEN. Requiring `auth.user` fails
+      // closed regardless of the library version.
+      return !!auth?.user
     },
   },
 }

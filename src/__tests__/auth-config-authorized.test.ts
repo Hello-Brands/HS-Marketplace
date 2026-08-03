@@ -66,6 +66,33 @@ describe("authorized callback: everything else requires a session", () => {
   })
 })
 
+// The Auth.js advisory cleared by the next-auth beta.32 bump was that a config
+// error can populate `auth` with an error payload rather than a session, so an
+// existence-only check (`!!auth`) fails OPEN. The gate requires `auth.user`.
+describe("authorized callback: a session-shaped object without a user fails closed", () => {
+  const authorizedRaw = authConfig.callbacks!.authorized as unknown as (params: {
+    request: { nextUrl: { pathname: string } }
+    auth: unknown
+  }) => boolean
+
+  function allowedWith(auth: unknown): boolean {
+    return authorizedRaw({ request: { nextUrl: { pathname: "/admin/users" } }, auth })
+  }
+
+  it.each([
+    ["an empty object", {}],
+    ["an error payload", { error: "Configuration" }],
+    ["a null user", { user: null }],
+    ["an undefined user", { user: undefined }],
+  ])("rejects %s on a protected path", (_label, auth) => {
+    expect(allowedWith(auth)).toBe(false)
+  })
+
+  it("still allows a real session", () => {
+    expect(allowedWith({ user: { id: "u1" } })).toBe(true)
+  })
+})
+
 describe("authorized callback: prefix matching does not over-match", () => {
   // A public prefix must only match exactly or at a "/" boundary — lookalike
   // sibling paths must stay gated.
