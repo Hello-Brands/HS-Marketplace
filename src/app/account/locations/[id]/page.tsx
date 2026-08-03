@@ -9,6 +9,7 @@ import { LocationKpiCards } from "@/components/kpi/LocationKpiCards"
 import { LocationReviewsPanel } from "@/components/kpi/LocationReviewsPanel"
 import { Badge } from "@/components/ui/Badge"
 import { SiteHeader } from "@/components/layout/SiteHeader"
+import { WatchAreaButton } from "@/components/alerts/WatchAreaButton"
 
 export const metadata = {
   title: "Location Details - Hello Sugar Marketplace",
@@ -90,6 +91,13 @@ export default async function OwnerLocationDetailPage({
             {openedSince != null && (
               <span className="text-xs text-gray-400">Open since {openedSince}</span>
             )}
+            <div className="ml-auto">
+              <WatchAreaButton
+                locationName={loc.blvdLocationName}
+                latitude={loc.latitude}
+                longitude={loc.longitude}
+              />
+            </div>
           </div>
         </section>
 
