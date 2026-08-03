@@ -31,6 +31,65 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
+// The mock factory closes over a single sendFn, so any instance exposes the same
+// spy — that's how we assert which address actually got the mail.
+import { Resend } from "resend"
+type SendSpy = ReturnType<typeof vi.fn>
+const sendSpy = new (Resend as unknown as new (k?: string) => {
+  emails: { send: SendSpy }
+})("k").emails.send
+
+// Regression: EMAIL_OVERRIDE must NEVER reroute production mail. The send path
+// read `override || to` with no environment gate while EMAIL_OVERRIDE was set in
+// the production environment, so every seller reminder, buyer inquiry reply and
+// alert email went to one inbox instead of the intended recipient.
+describe("Email - EMAIL_OVERRIDE recipient routing", () => {
+  beforeEach(() => {
+    sendSpy.mockClear()
+  })
+
+  it("delivers to the real recipient in production even when EMAIL_OVERRIDE is set", async () => {
+    vi.stubEnv("VERCEL_ENV", "production")
+    vi.stubEnv("EMAIL_OVERRIDE", "override@hellosugar.salon")
+
+    await sendEmail({ to: "seller@example.com", subject: "Reminder", html: "<p>hi</p>" })
+
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+    const payload = sendSpy.mock.calls[0][0]
+    expect(payload.to).toBe("seller@example.com")
+    // No "[to: …]" prefix in production — the subject is untouched.
+    expect(payload.subject).toBe("Reminder")
+  })
+
+  it("redirects to the override inbox on a preview deployment", async () => {
+    // NODE_ENV is "production" on preview builds, which is why the gate keys on
+    // VERCEL_ENV instead.
+    vi.stubEnv("VERCEL_ENV", "preview")
+    vi.stubEnv("EMAIL_OVERRIDE", "override@hellosugar.salon")
+
+    await sendEmail({ to: "seller@example.com", subject: "Reminder", html: "<p>hi</p>" })
+
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+    const payload = sendSpy.mock.calls[0][0]
+    expect(payload.to).toBe("override@hellosugar.salon")
+    expect(payload.subject).toBe("[to: seller@example.com] Reminder")
+  })
+
+  it("skips sending outside production when no override is configured", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview")
+    vi.stubEnv("EMAIL_OVERRIDE", "")
+
+    const result = await sendEmail({
+      to: "seller@example.com",
+      subject: "Reminder",
+      html: "<p>hi</p>",
+    })
+
+    expect(result).toMatchObject({ success: false, skipped: true })
+    expect(sendSpy).not.toHaveBeenCalled()
+  })
+})
+
 describe("Email - Base sendEmail function", () => {
   it("exports sendEmail function", () => {
     expect(sendEmail).toBeDefined()
