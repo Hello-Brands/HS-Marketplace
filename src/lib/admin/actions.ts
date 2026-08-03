@@ -11,6 +11,7 @@ import { nextListedAt } from '@/lib/analytics/helpers'
 import { unresolvedSalonLocations } from '@/lib/data/mapping'
 import { triggerAlertMatching } from '@/lib/alerts/matching'
 import { buildListingUpdate } from '@/lib/listings/build-update'
+import { parseListingPatch } from '@/lib/listings/schemas'
 import { buildLocationSync, buildPhotoSync } from '@/lib/listings/persist'
 import type { ListingStatus, ListingFormData } from '@/lib/listings/types'
 import { requireAdmin } from '@/lib/auth-guards'
@@ -170,8 +171,13 @@ export async function rejectListing(listingId: string, reason: string, notes?: s
   return { success: true }
 }
 
-export async function adminUpdateListing(listingId: string, data: Partial<ListingFormData>) {
+export async function adminUpdateListing(listingId: string, input: Partial<ListingFormData>) {
   await requireAdmin()
+
+  // Validate server-side — same gap as the seller path: the zod schemas were wired
+  // only into the client resolver, so nothing enforced types, ranges or max lengths
+  // on a direct action invocation. Parsed output strips unknown keys.
+  const data = parseListingPatch(input)
 
   const listing = await db.query.listings.findFirst({
     where: eq(listings.id, listingId),
