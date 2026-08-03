@@ -27,8 +27,16 @@ export interface OwnerAlertPlan {
   toDelete: string[]
 }
 
+/**
+ * U+0000, spelled with fromCharCode so no control byte is embedded in this
+ * source file. A space would be ambiguous: owner identifiers can contain
+ * spaces (e.g. "Unknown Owner"), so ("a", "b c") would collide with
+ * ("a b", "c"). These keys never cross a module boundary.
+ */
+const PAIR_SEPARATOR = String.fromCharCode(0)
+
 const pairKey = (ownerIdentifier: string, locationName: string) =>
-  `${ownerIdentifier} ${locationName}`
+  `${ownerIdentifier}${PAIR_SEPARATOR}${locationName}`
 
 export function planOwnerAutoAlerts(
   owned: OwnedLocationInput[],
@@ -53,6 +61,13 @@ export function planOwnerAutoAlerts(
       toDelete.push(a.id) // no longer effectively owned (revoked / removed)
       continue
     }
+    // Duplicate rows for one pair are possible: `alerts` has no unique index on
+    // (user_id, owner_identifier, owner_location_name) and neon-http has no
+    // transactions, so two concurrent reconciles can each create one. Keep the
+    // last row seen and delete the incumbent — otherwise the extra row would be
+    // absent from the plan forever and keep emailing the owner.
+    const incumbent = existingByKey.get(k)
+    if (incumbent) toDelete.push(incumbent.id)
     existingByKey.set(k, a)
   }
 

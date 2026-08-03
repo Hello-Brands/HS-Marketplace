@@ -52,6 +52,33 @@ describe("planOwnerAutoAlerts", () => {
     expect(plan.toDelete).toEqual(["a1"])
   })
 
+  it("deletes duplicate rows for one pair and reconciles the survivor", () => {
+    const plan = planOwnerAutoAlerts(
+      [loc("own1", "Sugar House", 40.9, -111.9)],
+      [
+        alertRow("dupe", "own1", "Sugar House", 40.725, -111.86),
+        alertRow("keep", "own1", "Sugar House", 40.725, -111.86),
+      ]
+    )
+    expect(plan.toDelete).toEqual(["dupe"])
+    expect(plan.toCreate).toEqual([])
+    // the survivor is still reconciled: drifted coords get refreshed
+    expect(plan.toUpdate).toEqual([
+      { id: "keep", latitude: 40.9, longitude: -111.9, locationName: "Sugar House" },
+    ])
+  })
+
+  it("does not confuse pairs whose owner identifier contains a space", () => {
+    const plan = planOwnerAutoAlerts(
+      [loc("Unknown Owner", "Sugar House", 40.725, -111.86)],
+      [alertRow("a1", "Unknown", "Owner Sugar House", 40.725, -111.86)]
+    )
+    expect(plan.toDelete).toEqual(["a1"])
+    expect(plan.toCreate).toEqual([
+      { ownerIdentifier: "Unknown Owner", locationName: "Sugar House", latitude: 40.725, longitude: -111.86 },
+    ])
+  })
+
   it("deletes malformed owner-auto rows missing their soft reference", () => {
     const plan = planOwnerAutoAlerts(
       [loc("own1", "Sugar House", 40.725, -111.86)],
