@@ -20,6 +20,12 @@ const {
 
 vi.mock("@/auth", () => ({ auth: mockAuth }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+// persist.ts re-derives ttmRevenue/mcr from BigQuery instead of trusting the
+// client payload; stub the cached maps so write-path tests stay offline.
+vi.mock("@/lib/bigquery/queries", () => ({
+  getNetSalesByLocation: vi.fn().mockResolvedValue(new Map()),
+  getMcrByLocation: vi.fn().mockResolvedValue(new Map()),
+}))
 vi.mock("@/lib/email", () => ({ sendStatusChangeEmail: vi.fn().mockResolvedValue(undefined) }))
 vi.mock("@/lib/alert-actions", () => ({ triggerAlertMatching: vi.fn().mockResolvedValue(undefined) }))
 vi.mock("@/db", () => ({

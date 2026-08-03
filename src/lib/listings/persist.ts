@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import type { ListingFormData } from './types'
 import { getMyOwnerLocations } from '@/lib/owner-directory/data'
+import { getNetSalesByLocation, getMcrByLocation } from '@/lib/bigquery/queries'
 import { normalizeName } from '@/lib/data/match'
 import { parseUsAddressTail } from '@/lib/geocode/address'
 import { geocodeAddress } from '@/lib/geocode/geocode'
@@ -110,7 +111,20 @@ export async function buildLocationInserts(
   // the normalized name (the financial join key; it survives the edit round-trip,
   // unlike the listing_locations row id) and the directory is scoped to this
   // owner, so only locations they actually own can map.
-  const { locations: ownerLocs } = await getMyOwnerLocations()
+  // The financial KPIs are re-derived from BigQuery for the same reason as the
+  // join key: `ttmRevenue` and `mcr` are display-only in the wizard (rendered by
+  // LocationSelector/FinancialsStep, never typed by the seller), but they still
+  // round-trip through client form state, so trusting the submitted values let a
+  // seller — or anyone POSTing the action directly — attach arbitrary "verified"
+  // revenue and conversion figures to a listing. These are the numbers the
+  // listing card presents as verified from Hello Sugar's own reporting, so they
+  // are read here from the same cached BigQuery maps `getSellerLocations` uses
+  // and the client's values are ignored entirely.
+  const [{ locations: ownerLocs }, netSales, mcrPctByName] = await Promise.all([
+    getMyOwnerLocations(),
+    getNetSalesByLocation(),
+    getMcrByLocation(),
+  ])
   const directoryByName = new Map(
     ownerLocs.map((o) => [normalizeName(o.blvdLocationName), o]),
   )
@@ -137,6 +151,15 @@ export async function buildLocationInserts(
           ? 'confirmed'
           : 'unconfirmed'
     }
+    // Financials follow the resolved join key, so a preserved admin mapping is
+    // honoured too. No key (or no BigQuery row) means no verified figures —
+    // null, never the client's number. BigQuery reports MCR as a percentage
+    // (e.g. 34.5); the column stores a fraction, matching getSellerLocations.
+    const netSalesRow = bqLocationName ? netSales.get(bqLocationName) : undefined
+    const mcrPct = bqLocationName ? mcrPctByName.get(bqLocationName) : undefined
+    const ttmRevenue = netSalesRow?.totalCents ?? null
+    const mcr = mcrPct !== undefined ? mcrPct / 100 : null
+
     // Auto-fill address components (display) and coordinates (map) — best-effort.
     // This is the only place external I/O (MapTiler) happens; it runs BEFORE the
     // batch and never throws (geocodeAddress returns null on failure), so a
@@ -155,8 +178,8 @@ export async function buildLocationInserts(
         zipCode: geo.zipCode,
         squareFootage: loc.squareFootage,
         openingDate: loc.openingDate,
-        ttmRevenue: loc.ttmRevenue,
-        mcr: loc.mcr,
+        ttmRevenue,
+        mcr,
         bqLocationName,
         dataMappingStatus,
         latitude: geo.latitude,
