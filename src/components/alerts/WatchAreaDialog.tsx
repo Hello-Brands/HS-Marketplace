@@ -36,6 +36,10 @@ export function WatchAreaDialog({ location, onClose }: WatchAreaDialogProps) {
   const [error, setError] = useState<string | null>(null)
 
   // Reset per location so a second open doesn't leak the previous salon's state.
+  // Depend on the primitives, not the object: parents build `location` as a fresh
+  // literal every render, so a `[location]` dep would wipe in-progress input on any
+  // unrelated parent re-render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (location) {
       setRadius(WATCH_DEFAULT_RADIUS_MILES)
@@ -44,7 +48,20 @@ export function WatchAreaDialog({ location, onClose }: WatchAreaDialogProps) {
       setSavedName(null)
       setError(null)
     }
-  }, [location])
+  }, [location?.name, location?.latitude, location?.longitude])
+
+  /**
+   * The dialog stays mounted after the parent clears `location`, so the success
+   * state must be cleared here — otherwise the confirmation overlay re-renders
+   * forever and traps the page.
+   */
+  function handleClose() {
+    setSavedName(null)
+    // Reopening the same salon no longer re-runs the reset effect (stable deps),
+    // so a stale error banner would otherwise reappear.
+    setError(null)
+    onClose()
+  }
 
   if (!location && !savedName) return null
 
@@ -75,7 +92,7 @@ export function WatchAreaDialog({ location, onClose }: WatchAreaDialogProps) {
   // Success confirmation state (location may already be cleared by the parent).
   if (savedName) {
     return (
-      <AlertModal open onClose={onClose} title="Search saved">
+      <AlertModal open onClose={handleClose} title="Search saved">
         <p className="text-sm text-gray-700">
           <span className="font-semibold">{savedName}</span> is saved. We&apos;ll email you when
           something new appears in that area.
@@ -84,7 +101,7 @@ export function WatchAreaDialog({ location, onClose }: WatchAreaDialogProps) {
           <Link href="/account/alerts" className="text-sm font-medium text-hs-red-600 hover:text-hs-red-700">
             View in My Alerts →
           </Link>
-          <button type="button" onClick={onClose} className="min-h-[40px] px-4 rounded-lg bg-gray-900 text-white text-sm font-semibold">
+          <button type="button" onClick={handleClose} className="min-h-[40px] px-4 rounded-lg bg-gray-900 text-white text-sm font-semibold">
             Done
           </button>
         </div>
@@ -93,7 +110,7 @@ export function WatchAreaDialog({ location, onClose }: WatchAreaDialogProps) {
   }
 
   return (
-    <AlertModal open onClose={onClose} title={`Watch the area around ${location!.name}`}>
+    <AlertModal open onClose={handleClose} title={`Watch the area around ${location!.name}`}>
       <div className="space-y-4">
         <div>
           <label htmlFor="watch-radius" className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 block">
@@ -128,7 +145,7 @@ export function WatchAreaDialog({ location, onClose }: WatchAreaDialogProps) {
         </div>
         {error && <p className="text-xs text-hs-red-600">{error}</p>}
         <div className="flex items-center justify-end gap-3">
-          <button type="button" onClick={onClose} className="min-h-[40px] px-3 text-sm text-gray-500 hover:text-gray-700">
+          <button type="button" onClick={handleClose} className="min-h-[40px] px-3 text-sm text-gray-500 hover:text-gray-700">
             Cancel
           </button>
           <button
