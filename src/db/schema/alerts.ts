@@ -22,6 +22,15 @@ export const alerts = pgTable("alerts", {
   centerLng: doublePrecision("center_lng"),
   radiusMiles: integer("radius_miles"),
   centerLabel: text("center_label"),
+  // Provenance: 'user' = saved manually from browse / watch-area; 'owner-auto' =
+  // created by the opt-in reconciler around an owned salon (3-mile default,
+  // permanent closures only in the cron, no delete button in My Alerts).
+  origin: text("origin", { enum: ["user", "owner-auto"] }).default("user").notNull(),
+  // Soft reference to owner_locations (owner_identifier + blvd_location_name).
+  // NOT an FK: that table full-refresh syncs and its row ids churn — same
+  // precedent as user_owner_links. Set only when origin = 'owner-auto'.
+  ownerIdentifier: text("owner_identifier"),
+  ownerLocationName: text("owner_location_name"),
   // Per-search email toggle
   notifyEnabled: boolean("notify_enabled").default(true).notNull(),
   // Layer toggles captured from the browse filter bar; gate which alerts fire.
