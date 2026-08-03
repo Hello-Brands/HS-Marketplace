@@ -7,6 +7,8 @@ import { getUnlistedHsLocations } from "@/lib/hs-locations-query"
 import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
 import { getMyMapOwnership } from "@/lib/owner-map/data"
 import { getFavoriteListingIds } from "@/lib/favorites-actions"
+import { getMyOwnerLocations } from "@/lib/owner-directory/data"
+import { annotateAndSortCompetitors, toOwnerPoints } from "@/lib/competitor-sort"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { BrowseHeaderSearch } from "@/components/browse/BrowseHeaderSearch"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
@@ -69,26 +71,45 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   // resilient (returns [] if the scraper table is empty/unavailable), so it
   // never blocks the page.
   const filters = parseFilters(searchParams)
-  const [{ items: initialListings }, competitorClosures, savedCompetitorIds, hsLocations, mapOwnership, favoriteIds] =
-    await Promise.all([
-      getListings(filters),
-      getCompetitorClosures({
-        centerLat: filters.centerLat,
-        centerLng: filters.centerLng,
-        radiusMiles: filters.radiusMiles,
-        states: filters.states,
-      }),
-      getSavedCompetitorPlaceIds(),
-      getUnlistedHsLocations({
-        centerLat: filters.centerLat,
-        centerLng: filters.centerLng,
-        radiusMiles: filters.radiusMiles,
-        states: filters.states,
-      }),
-      getMyMapOwnership(),
-      getFavoriteListingIds(),
-    ])
+  const [
+    { items: initialListings },
+    competitorClosures,
+    savedCompetitorIds,
+    hsLocations,
+    mapOwnership,
+    favoriteIds,
+    myOwnership,
+  ] = await Promise.all([
+    getListings(filters),
+    getCompetitorClosures({
+      centerLat: filters.centerLat,
+      centerLng: filters.centerLng,
+      radiusMiles: filters.radiusMiles,
+      states: filters.states,
+    }),
+    getSavedCompetitorPlaceIds(),
+    getUnlistedHsLocations({
+      centerLat: filters.centerLat,
+      centerLng: filters.centerLng,
+      radiusMiles: filters.radiusMiles,
+      states: filters.states,
+    }),
+    getMyMapOwnership(),
+    getFavoriteListingIds(),
+    getMyOwnerLocations(),
+  ])
   const count = initialListings.length
+
+  // Sort competitors by the searched center, else by the viewer's nearest owned
+  // salon, else opportunities-first + newest. Per-request on purpose: owner
+  // coordinates must never enter the shared owner-agnostic caches (DEBT-024).
+  const sortedCompetitors = annotateAndSortCompetitors(competitorClosures, {
+    searchCenter:
+      filters.centerLat != null && filters.centerLng != null
+        ? { lat: filters.centerLat, lng: filters.centerLng }
+        : null,
+    ownerPoints: toOwnerPoints(myOwnership.locations),
+  })
 
   return (
     // Viewport-pinned shell: header + browse content are clamped to the window
@@ -103,7 +124,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
       />
       <BrowsePage
         initialListings={initialListings}
-        competitorClosures={competitorClosures}
+        competitorClosures={sortedCompetitors}
         savedCompetitorIds={savedCompetitorIds}
         hsLocations={hsLocations}
         mapOwnership={mapOwnership}
