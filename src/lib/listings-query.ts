@@ -6,6 +6,7 @@ import { and, desc, asc, lt, gt, inArray, gte, lte, eq, ilike, or, sql } from "d
 import { alias } from "drizzle-orm/pg-core"
 import { z } from "zod"
 import { EARTH_RADIUS_MILES, boundingBox } from "@/lib/geo"
+import { requireSession } from "@/lib/auth-guards"
 
 const PAGE_SIZE = 12
 
@@ -55,6 +56,12 @@ const radiusParamsSchema = z.object({
 })
 
 export async function getListings(filters: ListingFilters): Promise<ListingsResult> {
+  // This module is "use server", so this function is a reachable POST endpoint
+  // and its action id ships in the client bundle. The `auth()` guard on
+  // /browse does NOT cover a direct action invocation, so authenticate here or
+  // the whole active-listing set (asking prices, locations) is world-readable.
+  await requireSession()
+
   const { types, states, minPrice, maxPrice, cursor, query, minYearsOpen, inventoryIncluded } = filters
 
   // --- Resolve the optional radius search ---------------------------------
