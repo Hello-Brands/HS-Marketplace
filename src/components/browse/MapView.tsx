@@ -599,6 +599,12 @@ export function MapView({
           offset: 24,
           closeButton: false,
           maxWidth: "220px",
+          // These popups open on HOVER. focusAfterOpen defaults to true, which
+          // would pull keyboard focus onto the owned variant's "View location"
+          // button on every hover and dump focus back to <body> when the popup
+          // is removed — shredding tab order for anyone passing the cursor over
+          // the map.
+          focusAfterOpen: false,
         })
           .setLngLat([loc.longitude, loc.latitude])
           .setHTML(hsLocationPopupHtml(loc, isMine))
@@ -619,10 +625,16 @@ export function MapView({
         // All HS dots pin the popup on click; owned popups carry View/Watch action
         // buttons (wired below). stopPropagation keeps the map's closeOnClick from
         // immediately dismissing a pinned popup.
+        //
+        // addTo() on an ALREADY-OPEN popup re-adds it: MapLibre's addTo starts
+        // with `if (this._map) this.remove()`, and remove() fires "close" — which
+        // would flip `pinned` straight back to false (the popup is already open
+        // from mouseenter on desktop). So: only add when closed, and set `pinned`
+        // AFTER, where no close event can clear it.
         el.addEventListener("click", (e) => {
           e.stopPropagation()
+          if (!popup.isOpen()) popup.addTo(m)
           pinned = true
-          popup.addTo(m)
         })
         popup.on("close", () => {
           pinned = false
