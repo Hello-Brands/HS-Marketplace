@@ -7,21 +7,17 @@
  * Alerts match on listing.state being in alert.states array.
  * Type and price filters are NOT part of alert criteria.
  *
- * PHASE 2 INTEGRATION REQUIRED:
- * The `triggerAlertMatching` function must be called from the listing
- * approval Server Action (when admin approves a listing and status
- * changes to 'active'). This is the point where alert emails are sent.
+ * Alert matching + email fan-out on approval lives in
+ * `src/lib/alerts/matching.ts` (deliberately not a "use server" module — see
+ * the note at the bottom of this file).
  */
 
 import { auth } from "@/auth"
 import { db } from "@/db"
 import { alerts, type NewAlert } from "@/db/schema/alerts"
-import { users } from "@/db/schema/auth"
 import { eq, desc } from "drizzle-orm"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
-import { sendAlertMatchEmail } from "@/lib/email"
-import { listingMatchesAlert } from "@/lib/alert-match"
 import { getCompetitorClosures } from "@/lib/competitor-query"
 import { scopeIsBounded } from "@/lib/competitor-filter"
 import { recordCompetitorAlerts } from "@/lib/competitor-alert-log"
@@ -192,78 +188,8 @@ export async function getMyAlerts() {
   })
 }
 
-type MatchLocation = {
-  state: string | null
-  latitude: number | null
-  longitude: number | null
-  territoryLat: number | null
-  territoryLng: number | null
-  openingDate: Date | null
-}
-
-type MatchListing = {
-  id: string
-  type: string
-  city: string | null
-  state: string | null
-  askingPrice: number | null
-  inventoryIncluded?: boolean
-  locationName: string | null
-  locations?: MatchLocation[]
-}
-
-/**
- * Trigger alert matching for a newly approved listing.
- *
- * INTEGRATION POINT: This function should be called from the listing
- * approval action when a listing status changes to 'active'.
- *
- * Matching logic ANDs across all set criteria:
- * - notifyEnabled: skip if false
- * - states: listing.state must be in alert.states (empty = any)
- * - listingTypes: listing.type must be in alert.listingTypes (empty = any)
- * - minPrice/maxPrice: listing.askingPrice (cents) must be in range
- * - minYearsOpen: at least one location open long enough
- * - radius: at least one location within radiusMiles of centerLat/centerLng
- * - query and sort are intentionally NOT matched
- *
- * @param listing - The listing that was just approved
- * @returns Object with count of matched alerts
- */
-export async function triggerAlertMatching(listing: MatchListing) {
-  const locations = listing.locations ?? []
-
-  const allAlerts = await db
-    .select({ alert: alerts, user: users })
-    .from(alerts)
-    .innerJoin(users, eq(alerts.userId, users.id))
-
-  const now = new Date()
-  const matchingAlerts = allAlerts.filter(({ alert }) =>
-    listingMatchesAlert(alert, listing, locations, now)
-  )
-
-  const sendResults = await Promise.all(
-    matchingAlerts.map(({ user }) =>
-      sendAlertMatchEmail({
-        buyerEmail: user.email!,
-        buyerName: user.name || "Hello Sugar Buyer",
-        listingTitle: listing.locationName || `${listing.city}, ${listing.state}`,
-        listingId: listing.id,
-        listingType: listing.type,
-        city: listing.city || "",
-        state: listing.state || "",
-        askingPrice: listing.askingPrice ?? 0,
-      }),
-    ),
-  )
-
-  const failed = sendResults.filter((r) => !r.success).length
-  if (failed > 0) {
-    console.error(
-      `[alerts] ${failed}/${sendResults.length} alert emails failed for listing ${listing.id}`
-    )
-  }
-
-  return { matched: matchingAlerts.length, sent: sendResults.length - failed, failed }
-}
+// `triggerAlertMatching` used to live here. It moved to
+// `src/lib/alerts/matching.ts` — a plain module, NOT a "use server" one —
+// because every export of a "use server" file is reachable as an
+// unauthenticated POST endpoint, and this one sends an unbounded email
+// fan-out. Do not re-export it from here; that would recreate the endpoint.

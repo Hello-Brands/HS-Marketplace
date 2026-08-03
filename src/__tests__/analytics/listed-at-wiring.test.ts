@@ -21,7 +21,7 @@ const {
 vi.mock("@/auth", () => ({ auth: mockAuth }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
 vi.mock("@/lib/email", () => ({ sendStatusChangeEmail: vi.fn().mockResolvedValue(undefined) }))
-vi.mock("@/lib/alert-actions", () => ({ triggerAlertMatching: vi.fn().mockResolvedValue(undefined) }))
+vi.mock("@/lib/alerts/matching", () => ({ triggerAlertMatching: vi.fn().mockResolvedValue(undefined) }))
 vi.mock("@/db", () => ({
   db: {
     select: () => ({ from: () => ({ where: mockSelect }) }),
