@@ -55,6 +55,7 @@ vi.mock("@/lib/competitor-query", () => ({
 vi.mock("@/lib/competitor-alert-log", () => ({
   getLoggedCompetitorPlaceIds: vi.fn().mockResolvedValue(new Set()),
   recordCompetitorAlerts: vi.fn().mockResolvedValue(undefined),
+  seedCompetitorLedger: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Import after mocks are set up

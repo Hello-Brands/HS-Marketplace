@@ -6,6 +6,7 @@ import { users, accounts, sessions, verificationTokens, allowlist } from "@/db/s
 import { authConfig } from "./auth.config"
 import { linkOwnerAtLogin } from "@/lib/owner-directory/login"
 import { getEffectiveOwnerIdentifiers } from "@/lib/owner-directory/links"
+import { reconcileOwnerAutoAlerts } from "@/lib/owner-alerts/reconcile"
 import { recordLogin } from "@/lib/analytics/logins"
 import { env } from "@/lib/env"
 
@@ -69,6 +70,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user }) {
       if (user.id) {
         await linkOwnerAtLogin(user.id, user.email)
+        // Runs after the link step so freshly linked owners reconcile on the
+        // same sign-in. Never throws.
+        await reconcileOwnerAutoAlerts(user.id)
         // Never let a tracking failure block login.
         try {
           await recordLogin(user.id)

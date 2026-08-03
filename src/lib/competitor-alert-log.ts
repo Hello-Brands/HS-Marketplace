@@ -2,6 +2,8 @@ import "server-only"
 import { db } from "@/db"
 import { competitorAlertLog } from "@/db/schema/competitorAlertLog"
 import { eq } from "drizzle-orm"
+import { getCompetitorClosures } from "./competitor-query"
+import { scopeIsBounded, type CompetitorScope } from "./competitor-filter"
 
 /** Place IDs already logged (emailed or baseline-seeded) for a saved search. */
 export async function getLoggedCompetitorPlaceIds(alertId: string): Promise<Set<string>> {
@@ -22,4 +24,15 @@ export async function recordCompetitorAlerts(
     .insert(competitorAlertLog)
     .values(googlePlaceIds.map((googlePlaceId) => ({ alertId, googlePlaceId })))
     .onConflictDoNothing()
+}
+
+/**
+ * Baseline-seed a saved search's ledger with every closure currently in scope,
+ * WITHOUT emailing — so the first weekly run never blasts pre-existing
+ * closures. No-op when the scope can't narrow competitors.
+ */
+export async function seedCompetitorLedger(alertId: string, scope: CompetitorScope): Promise<void> {
+  if (!scopeIsBounded(scope)) return
+  const inScope = await getCompetitorClosures(scope)
+  await recordCompetitorAlerts(alertId, inScope.map((c) => c.googlePlaceId))
 }
