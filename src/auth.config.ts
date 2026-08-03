@@ -6,6 +6,7 @@ import Google from "next-auth/providers/google"
 // jobs via CRON_SECRET, no-login email action links via ACTION_TOKEN_SECRET).
 // Gating them would break sign-in, the cron emails, and the action links.
 const PUBLIC_PATHS = [
+  "/", // logged-out marketing landing (src/app/page.tsx sends authed users to /browse)
   "/login",
   "/access-denied",
   "/action-complete", // no-login email action landing page
@@ -28,6 +29,10 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     // Full-gate: every route requires a session except the public paths above.
     // Runs in the edge middleware, so it must stay free of DB / Node-only deps.
+    //
+    // Note on "/": the prefix test below is `pathname === p || startsWith(p + "/")`,
+    // so "/" would only ever prefix-match "//…" — it matches the root exactly and
+    // does NOT make every route public.
     authorized({ request, auth }) {
       const { pathname } = request.nextUrl
       const isPublic = PUBLIC_PATHS.some(
