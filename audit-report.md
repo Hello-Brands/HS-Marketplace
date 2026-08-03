@@ -1,26 +1,98 @@
 # HS-Marketplace — Pre-Launch Audit Report
 
-- **Target:** https://marketplace.hellosugar.salon/
-- **Auditor:** pre-launch-audit v0.2 (4 parallel auditors — security on Opus-high, UI/UX + code-quality + brand on Sonnet)
-- **Date:** 2026-07-06
-- **Session:** Behavioral checks ran with a **valid admin + seller session** (Parker Fellows) and working Playwright/Chromium — so the full authenticated surface was exercised this run, unlike the 2026-07-02 audit (dead cookie, no browser).
+- **Target:** https://marketplace.hellosugar.salon/ (live production)
+- **Commit:** `56766d5` — the live production deployment matches HEAD exactly (verified via Vercel)
+- **Rubric:** hs-pre-launch-audit v0.2 (62 checks across four pillars)
+- **Auditor:** pre-launch-audit orchestrator (Fable 5) + four pillar auditors
+- **Date:** 2026-08-03
+- **Supersedes:** the 2026-07-06 audit report in this repo
 - **Verdict:** 🔴 **NO-GO**
 
 ---
 
-## Verdict: NO-GO
+## Verdict: NO-GO — 4 open Blockers
 
-**2 open Blockers.** Huge progress since 2026-07-02 — the entire security pillar flipped from 4 blockers to zero, and the brand pillar went from 2/11 to 9/14 passing — but two things still hard-block launch: the **core seller flow can't be completed through the UI**, and **production schema drift** persists with no migration record.
+Two of the four Blockers are new findings that the 2026-07-06 audit did not report; one is a
+four-week-old Blocker that is still open and is **worse** than its own documentation says.
 
-### Blocking items (fix these first)
+### Blocking items, most severe first
 
-1. **Seller listing wizard is broken — cannot create a listing** *(UI/UX · Blocker · CONFIRMED live)*
-   On `/seller/listings/new`, entering a valid Asking Price and clicking **Next** never advances past the Financials step, and shows no error. Root cause: `listingSchema` is a Zod `.and()` intersection of all three steps, so `methods.trigger([...financials fields])` can't field-scope it and re-validates the whole schema — including Step 3's `photos.min(1)`, which is empty at Step 2. Validation silently fails and `setStep(3)` never runs. The one task the seller product exists for is impossible via the UI.
-   → Give each wizard step its own `z.object()` (or use `.pick()`/`superRefine` per step) instead of slicing an intersection, and surface any validation error on every step. *(`ListingWizard.tsx:65-76`, `schemas.ts:89-103`)*
+**1. An unauthenticated Server Action executes against production** *(Security · Blocker · CONFIRMED live by the orchestrator)*
 
-2. **Production schema drift — tables and a column rename never migrated** *(Code Quality · Blocker · CONFIRMED)*
-   `drizzle/` has 5 clean migrations, but four **live** tables (`owner_locations`, `login_events`, `listing_views`, `competitor_alert_log`) have **no CREATE TABLE anywhere in migration history**, and `0001`'s `boulevard_*` columns were renamed to `bq_location_name`/`data_mapping_status` in the schema with no migration capturing it. `db:push` isn't in the build/CI (confirmed), so these reached prod only via a human running `drizzle-kit push`. The prod schema is unauditable, and the 5 performance indexes (DEBT-010) are in the same boat.
-   → `drizzle-kit generate` a reconciliation migration (tables + column rename + the 5 indexes), diff it against the live DB before applying, commit as `0005_*.sql`; ban `db:push` outside local; add a CI drift detector.
+A `POST` carrying `Next-Action: 403f8aed…` with **no session cookie at all** returns `200 OK`
+and the action's real return value:
+
+```
+0:{"a":"$@1","f":"","b":"UPlxK5KEHfqYwdcsiDT9D"}
+1:{"items":[],"nextCursor":null}
+```
+
+`getListings` (`src/lib/listings-query.ts:57`) never calls `requireSession()`. The result set is
+empty *only* because no listing is currently in `active` status — **every active listing, asking
+price and location becomes world-readable the moment a listing is approved.** A second action,
+`triggerAlertMatching` (`src/lib/alert-actions.ts:233`), is also unguarded and fans out email to
+every matching alert subscriber; it was not executed because that would send real mail.
+
+→ Add `await requireSession()` as the first statement of every exported function in a
+`"use server"` module, or move query helpers out of those modules so they aren't addressable
+as endpoints.
+
+**2. Production deployment does not match intent — three ways** *(Security · Blocker · all three CONFIRMED)*
+
+- **Every production email is being redirected.** `EMAIL_OVERRIDE` is set for Production, and
+  `src/lib/email.ts:94` reads `const recipient = override || to` with **no environment gate** —
+  directly contradicting the comment six lines above it ("In production, always send to the real
+  recipient"). Seller reminders, buyer inquiry replies, alert matches and brand-request mail all
+  land in one inbox, which also accumulates other people's PII and live 72-hour `markSold` action
+  tokens that are not single-use.
+- **Middleware has never run in production.** `middleware.ts` sits at the repo root while the app
+  lives in `src/app`; Next requires `src/middleware.ts` when a `src` directory is used, so the file
+  is silently ignored. Two independent proofs: the production build's route table lists all 42
+  routes with **no `ƒ Middleware` entry**, and unauthenticated GETs of nonexistent paths return
+  **404 instead of the 307-to-`/login`** that `authorized()` would force (`/admin/zzz-nope` → 404).
+  `src/auth.config.ts:31-38` is dead code and `PUBLIC_PATHS` is fiction.
+- **Preview shares the production database.** `DATABASE_URL` is provisioned for Preview as well as
+  Production, so preview deployments read and write live data.
+
+→ Remove `EMAIL_OVERRIDE` from Production *and* make the code fail safe. Move `middleware.ts` to
+`src/middleware.ts` — but re-verify carefully, because switching it on will start enforcing rules
+that have never run (note `/` and `/browse` are **not** in `PUBLIC_PATHS` yet are reachable today).
+Point Preview at its own branch database.
+
+> **Nothing is exposed by the middleware gap today** — every protected surface happens to carry its
+> own `auth()` guard (admin and seller via `layout.tsx`, `/account/*` per page, all nine API routes;
+> two of them even comment *"Defense-in-depth"*, showing the author believed middleware was primary).
+> The defect is the complete loss of defense-in-depth: any page or route added tomorrow without an
+> explicit guard ships **public by default**.
+
+**3. Schema migrations are broken, not merely drifted** *(Code Quality · Blocker · CONFIRMED, worse than documented)*
+
+Four tables live in production and in `src/db/schema/**` with **no `CREATE TABLE` in any
+migration**: `owner_locations`, `login_events`, `listing_views`, `competitor_alert_log`. The
+`listing_locations` column rename and five declared indexes are likewise unmigrated. Critically,
+`drizzle/0008_owner_locations_coord_source.sql:1` runs `ALTER TABLE "owner_locations"` against a
+table no migration creates — so **`npm run db:migrate` against a fresh database fails at 0008**.
+Disaster recovery and standing up any new environment are broken right now.
+
+`drizzle/RECONCILE.md` still reads *"Status: OPEN — must be completed before launch."* Its
+prescribed `0005_reconcile_drift` was never written (that slot went to `0005_user_owner_links`), and
+its prescribed CI drift detector was never added. **This is the same Blocker raised on 2026-07-06.**
+
+→ Follow RECONCILE.md's own procedure, and make sure the reconciliation migration sorts **before**
+0008 (or make 0008 idempotent), or fresh migrates still fail.
+
+**4. Server Actions neither re-check auth nor validate input** *(Security · escalated High → Blocker per gate rule 2)*
+
+- The zod schemas in `src/lib/listings/schemas.ts` are wired **only** into the client
+  react-hook-form resolver. Neither `saveDraft`, nor `adminUpdateListing`, nor the API wrapper
+  (`src/app/api/listings/draft/route.ts:16-17`, which passes `await request.json()` straight
+  through) ever calls `parse`/`safeParse`. Every constraint is bypassed by posting directly.
+- **Verified financials are mass-assignable.** `src/lib/listings/persist.ts:158-159` writes
+  `ttmRevenue` and `mcr` verbatim from the client payload — contradicting that function's own
+  header comment (*"a seller must not be able to attach a higher-performing location's
+  financials"*). Server-side re-derivation was implemented for `bqLocationName` but not for these
+  two, which are exactly the numbers the listing card presents as verified from Hello Sugar's own
+  reporting.
 
 ---
 
@@ -28,74 +100,120 @@
 
 | Pillar | Pass | Fail | N/A | Open Blockers | Open High |
 | :---- | :----: | :----: | :----: | :----: | :----: |
-| UI/UX & Functional QA | 4 | 9 | 1 | 1 | 4 |
-| Security & Deployment | 14 | 1 | 3 | 0 | 1 |
-| Code Quality & Tech Debt | 4 | 12 | 0 | 1 | 3 |
-| Brand Conformance | 9 | 5 | 0 | 0 | 2 |
-| **Total** | **31** | **27** | **4** | **2** | **10** |
+| UI/UX & Functional QA | 8 | 2 | 4 | 0 | 1 |
+| Security & Deployment | 9 | 7 | 2 | 3 | 3 |
+| Code Quality & Tech Debt | 9 | 7 | 0 | 1 | 1 |
+| Brand Conformance | 11 | 3 | 0 | 0 | 1 |
+| **TOTAL** | **37** | **19** | **6** | **4** | **6** |
 
-**Gate application:**
-1. Zero open Blockers → **FAILED** (2 open).
-2. Auto-escalation (auth / authz / secrets / prod-deploy / DB-conn / migrations → Blocker) → applied; only migrations triggered it this run (security had zero fails in those categories).
-3. All open High items have a tracked ticket + owner + date → **not met** (10 open High).
-
----
-
-## Failures by Severity
-
-### 🔴 Blockers (2)
-| Pillar | Check |
-| :-- | :-- |
-| UI/UX | Core flows complete end-to-end — seller listing wizard stuck at Financials |
-| Code Quality | Schema changes go through tracked migrations — prod drift, 4 tables + rename unmigrated |
-
-### 🟠 High (10)
-| Pillar | Check |
-| :-- | :-- |
-| UI/UX | No dead interactions — React #418 hydration error on `/admin/listings` (naive date TZ) |
-| UI/UX | No race conditions — favorite toggle shows stale state vs. server |
-| UI/UX | Navigation never a dead end — home page shows logged-out chrome to signed-in users |
-| UI/UX | Intuitive on first contact — compound of the above two |
-| Security | Error monitoring wired before launch — no Sentry/APM (logs only) |
-| Code Quality | No performance debt — 5 indexes only in TS schema, unverifiable in prod |
-| Code Quality | Multi-step writes safe — listing **edit** path is 3 non-atomic writes (create path is fine) |
-| Code Quality | Config/env centralized — ~24 raw `process.env` reads bypass `env.ts`; `NEXT_PUBLIC_APP_URL` undeclared |
-| Brand | Colors from tokens — many inline `#ED1845` hex literals bypass the palette variables |
-| Brand | Contrast limits — 14px/600 white-on-crimson button narrowly fails AA |
-
-### 🟡 Medium (11)
-UI/UX: favorites gives no click feedback (missing `revalidatePath`); axe violations on 6/6 pages (contrast, geocoder button-name, nested-interactive ×58, star-rating aria, no `<main>`); offline delete fails silently; naive date formatting. Code Quality: dead code (incl. the public `/preview/kpi` route that says "delete before prod"); duplicated fetch+auth block across 4 listing pages; no Playwright e2e smoke suite; stock create-next-app README; two map stacks shipped. Brand: HeaderNav nav items have no brand focus ring (+ ring uses `-500` not `-600`); token files hand-ported, not vendored/wired to `generate.py`.
-
-### ⚪ Low (4)
-Code Quality: eslint config crashes (`ERR_MODULE_NOT_FOUND`), never in CI; `console.log` in the prod upload route; never-wired `email-templates.tsx` LLM scaffold. Brand: stock Next.js favicon instead of the drop mark.
-
-*(Full structured payloads — evidence, `file:line`, proposed fix, reproduce command for each of the 27 failures — are in `audit-report.json`.)*
+**Gate:** Rule 1 (zero Blockers) **FAILED** — 4 open. Rule 2 (auto-escalation) applied to
+authentication, production deployment, schema migrations, and the Server-Action boundary. Rule 3
+(High items ticketed with owner + date) **not met** — 6 open High, untracked.
 
 ---
 
-## What changed since 2026-07-02
+## Open High items
 
-**Resolved (all 3 security-side blockers + the framework CVE):**
-- `next` bumped to **15.5.20** — the RSC/segment-prefetch and `x-middleware-subrequest` auth bypasses were **re-verified closed live** (protected routes return an empty flight payload / 307, not admin data).
-- **IDOR fixed** — the unauth `/api/kpi/[locationId]` route was deleted (404), and ownership checks now hold across listing/alert/favorites paths (static trace clean).
-- **Production config** — prod serves over HTTPS with a full security-header set (HSTS preload, CSP, X-Frame-Options DENY, nosniff); the debug KPI route is gone.
+| # | Pillar | Item |
+| :-: | :---- | :---- |
+| 1 | Security | **Dependencies** — 2 critical + 5 high. `next-auth@5.0.0-beta.31` carries the Auth.js *"config errors can cause existence-based auth checks to fail open"* advisory, and `src/auth.config.ts:37` is exactly such a check (`return !!auth`). |
+| 2 | Security | **Session endpoint leaks PII and the session token** — `/api/auth/session` returns the raw DB session + user row, including `sessionToken` in cleartext, defeating HttpOnly for token theft (paired with `script-src 'unsafe-inline'`). Cause: `src/auth.ts:62` returns `session` wholesale instead of a projection. |
+| 3 | Security | **No error monitoring in production** — Sentry is fully wired in code but no DSN exists in Vercel Production, so every init is skipped and day-one failures are captured by nothing. |
+| 4 | Code Quality | **Env access bypasses the validated module** — `auth.config.ts:20-21` reads `process.env.AUTH_GOOGLE_ID!`/`SECRET!` directly; four map components read `NEXT_PUBLIC_MAPTILER_API_KEY` directly. |
+| 5 | UI/UX | **Brand-request form has no real validation** — `/account/brand-requests/new` shows no app-styled inline errors (native tooltips only) and the Website field is `type="text"` with no pattern, so `not-a-url` passes. |
+| 6 | Brand | **Contrast violation on `/login`** — blush `#F7DCDA` on crimson `#ED1845` at 14px/600 measures **~3.34:1**, below the 4.5:1 needed at that size. |
 
-**Still open from prior:** schema-migration discipline (Blocker #2 above).
+### Notable Medium — accessibility contrast fails app-wide
 
-**New this run** (only findable with a real session, which 2026-07-02 lacked): the seller-wizard Blocker, the admin hydration error, the favorites feedback/race bug, the logged-out home-page chrome, and silent offline handling.
+Worth calling out because it's systemic rather than incidental. An authenticated axe scan of 9 routes
+found **exactly one rule firing — `color-contrast` — but on all 10 page-states, 116 nodes.** Every
+other clause of the check passes cleanly: zero `label`, `image-alt`, `link-name`, `button-name` or
+`aria-*` violations, every `<img>` has alt text, real Tab traversal reaches every control with a
+visible focus ring, and there are no click-handler `<div>`s or positive `tabindex`. The failures
+trace to **design tokens, not one-off mistakes**:
+
+| Ratio | Needs | Pair | Where |
+| :-: | :-: | :---- | :---- |
+| **2.14** | 4.5 | `#B0988D` on `#EEE2DA` | `.divider-text > span` "Authorized users only" (`globals.css:894`) |
+| **2.71** | 4.5 | `#B0988D` on white | `text-gray-400` body copy — `--gray-400` (`globals.css:82`) is used in **71 places across 39 files** |
+| **2.92** | 4.5 | `#B9772E` on `#F3E4D0` | warning chip, `CompetitorList.tsx:73-74` |
+| **3.72** | 4.5 | `#FDE8EC` on `#ED1845` | inactive header pills — 19 nodes, `HeaderNav.tsx:96` |
+| **4.35** | 4.5 | `#ED1845` ↔ white | the brand primary itself (`globals.css:38`) — active nav pill, `<h1>`, every primary button (~27 nodes) |
+
+The last row is a near-miss the whole design system rests on: darkening `--hs-red-600` a few percent
+clears ~27 nodes at once. The `gray-400` and amber cases are not near-misses and need real value
+changes. This also **supersedes and widens the Brand contrast High** above, which had found only the
+single 3.36:1 login-hero instance.
+
+Performance, by contrast, passes: **CLS is 0.000–0.029 on every run**, desktop Performance 85–90 with
+FCP 0.4 s / LCP 1.0 s / TBT 230–320 ms, server response 50–70 ms, page weight under 482 KiB. Mobile
+medians are acceptable (~80–88, LCP 3.0–4.3 s). Two catastrophic mobile samples carried Lighthouse's
+own "tested device has a slower CPU than expected" warning and are host noise, not the app.
+
+Remaining Medium and Low findings (abuse protection, duplicate middleware files, dead code, redundant
+deps, token-file drift, root-level scratch docs, lint ratchet, rejected-badge status color) are
+itemised with evidence and fixes in `audit-report.json`.
 
 ---
 
-## ⚠️ Read before trusting the columns
+## Audit caveats — read before trusting the coverage
 
-- **Lighthouse (UI perf) is N/A** — the audit machine's C: drive hit **0 bytes free** mid-run (`ENOSPC`); no Core Web Vitals captured. Manual crawl showed no obvious jank, but this check is unverified.
-- **`gitleaks` / `semgrep` couldn't run** on this Windows host (no npx-resolvable binary). Secrets and injection were covered by a git-tracked scan + live/local **bundle secret scan** (both clean) + manual review — but install native binaries for a proper scan before launch.
-- **`knip` crashed** (native oxc-parser buffer error); dead-code findings came from `ts-prune` + hand-verification. Re-run knip in a normal CI runner.
-- **Two Security checks N/A for missing inputs:** session-invalidation/logout (no pre/post-logout cookie pair; DB-session design supports it) and service-account least-privilege (needs GCP console). Domain-restricted sign-in **passed** (personal Gmail correctly rejected, user-confirmed + static).
-- **Data hygiene:** reproducing the seller Blocker created **~12 `$0` draft test listings** under parker.fellows@hellosugar.salon on the **live prod DB**, and there's no seller-facing delete-draft action to remove them — needs a UI affordance or a DB cleanup pass.
+1. **This ran against live production with real business data.** All state-changing writes were
+   withheld. Checks that can only be proven by a destructive write are marked N/A or graded from
+   source, with the reproduce command recorded as **not run**. Nothing in this report was verified
+   by mutating production.
+2. **The supplied session cookie stopped authenticating partway through.** At merge time that
+   cookie returns 307→`/login` on `/admin` and 401 on `/api/listings`. Authenticated findings were
+   captured while it was valid, so **authenticated-surface coverage is capped** — re-audit with a
+   fresh cookie.
+3. **User A was an admin**, so object-level authorization (IDOR) could not be graded; an admin
+   legitimately reads org-wide. No User B resource IDs were supplied and none existed to discover.
+   Static review found no ownership gap, but this needs a re-run with a non-admin cookie.
+4. **Personal-Gmail sign-in was not reported back**, so company-domain restriction is graded from
+   source only (`src/auth.ts:22-44` rejects non-Google, requires `email_verified`, allows the
+   workspace domain else an allowlist row).
+5. **Accessibility and Lighthouse were recovered** after the initial axe run died on a
+   ChromeDriver/Chrome version mismatch. A second pass drove Playwright's own bundled Chromium with
+   `@axe-core/playwright` and scanned **9 routes authenticated** (verified as real gated renders, not
+   login redirects). Results are in the two rows below and in `audit-report.json`. The one gap left:
+   there is **no valid Lighthouse measurement of authenticated `/browse`** — the single run that
+   reached it landed on an error boundary (a `--disable-gpu` flag killed WebGL2), and the session
+   died before it could be redone. `/browse` carries the WebGL map and is the likeliest place jank
+   would live, so the performance Pass should be re-confirmed there with a fresh token.
+6. **One auditor claim was refuted.** The security auditor concluded root `middleware.ts` was live,
+   inferring it from `/action-complete` → 200; that inference does not distinguish "middleware
+   allows it" from "no middleware at all". The orchestrator's build-output and 404 evidence
+   established the latter, and the report reflects the correction.
+
+### Previously-blocking item now fixed
+
+The 2026-07-06 Blocker *"seller wizard cannot advance past Financials"* **appears fixed in source** —
+`stepSchemas` plus per-step `safeParse` replaced the `.and()` intersection
+(`src/lib/listings/schemas.ts:96`, `src/components/listings/ListingWizard.tsx:70-88`). It was not
+confirmed end-to-end live because that requires a real write, so it should be the first thing
+re-tested on staging.
 
 ---
 
-## Headline read
+## Out-of-scope observations
 
-The security turnaround is real and verified — the app that was live-exploitable on July 2 now holds up under authenticated probing. What's left blocking launch is one **functional** defect (a form-validation bug that makes the primary seller task impossible) and one **process** defect (prod schema managed by `push`, not migrations). Both are well-scoped: the wizard is a schema-shape fix in one component, and the migration drift is a `generate` + reconcile + guardrail. The 10 High items are mostly a coherent cluster — naive date/TZ handling (hydration + display), the `useOptimistic`-without-revalidation favorites pattern, and env/token centralization — each fixable in a focused pass. Clear those two Blockers and ticket the Highs and this is close.
+Context for follow-up, not graded findings.
+
+- **UI/UX** — Generic `<title>` on several inner pages; deprecated MapTiler style `Streets Default v2`
+  warns on `/browse`; `/seller/listings` skips the index for single-listing sellers; `/` and
+  `/browse` return 200 logged out and flash the skeleton before redirecting. **The map does not
+  degrade gracefully:** with WebGL2 unavailable it throws and takes the *entire* `/browse` page down
+  to a "Something went wrong" boundary rather than falling back to the list view.
+- **Security** — The GitHub repo is **public** for an internal tool (no secrets tracked, so not a
+  leak, but worth a deliberate decision); all 24 server-action ids ship in the public bundle;
+  gitleaks/trufflehog could not be installed so secret scanning used secretlint plus regex sweeps
+  of the live chunks and full git history (clean); two harness probes returned false results and
+  need tightening.
+- **Code Quality** — `neon-http` has no `db.transaction`, so multi-table writes depend on
+  `db.batch`; DEBT-025, DEBT-028 and DEBT-017 are all still open in code comments.
+- **Brand** — All logos are raster PNG though a vector `hs-logo.svg` ships unused; the login focus
+  ring uses `#EF3059` rather than the exact `#ED1845` focus token; the script font is never loaded.
+
+---
+
+**Go / No-Go:** 🔴 **NO-GO** · **Auditor:** pre-launch-audit v0.2 (Fable 5 orchestrator) · **Date:** 2026-08-03
