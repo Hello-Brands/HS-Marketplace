@@ -11,6 +11,7 @@ import { RadiusSearchHint, shouldShowRadiusHint } from "./RadiusSearchHint"
 import { SaveSearchButton } from "./SaveSearchButton"
 import { MapLegend } from "./MapLegend"
 import { MobileMapLayers } from "./MobileMapLayers"
+import { WatchAreaDialog, type WatchAreaLocation } from "@/components/alerts/WatchAreaDialog"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
@@ -158,6 +159,13 @@ export function BrowsePage({
     },
     [router]
   )
+
+  // "Watch this area" on an owned dot's popup → radius-alert dialog centered on
+  // that salon. null closes the dialog.
+  const [watchLocation, setWatchLocation] = useState<WatchAreaLocation | null>(null)
+  const handleWatchArea = useCallback((loc: UnlistedHsLocation) => {
+    setWatchLocation({ name: loc.name, latitude: loc.latitude, longitude: loc.longitude })
+  }, [])
 
   // Clicking a competitor card selects it on the map (fly-to + popup). Switch to
   // the map view first if we're in the full-width list so the map is visible.
@@ -461,6 +469,7 @@ export function BrowsePage({
                 ownedHsLocationIds={mapOwnership.ownedHsLocationIds}
                 showMyLocations={showMyLocations}
                 onHsLocationClick={handleHsLocationClick}
+                onWatchArea={handleWatchArea}
               />
 
               {/* Desktop keeps the always-available legend panel; mobile gets
@@ -521,6 +530,9 @@ export function BrowsePage({
           })}
         </div>
       </BottomSheet>
+
+      {/* Watch-this-area dialog, opened from an owned HS dot's map popup */}
+      <WatchAreaDialog location={watchLocation} onClose={() => setWatchLocation(null)} />
     </main>
   )
 }
