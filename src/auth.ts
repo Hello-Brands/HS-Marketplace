@@ -19,7 +19,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   callbacks: {
-    ...authConfig.callbacks,
+    // authConfig carries no callbacks of its own — see the note in
+    // auth.config.ts on why `authorized` deliberately does not live there.
     async signIn({ account, profile }) {
       if (account?.provider !== "google") return false
       if (!profile?.email_verified) return false
