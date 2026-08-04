@@ -46,8 +46,11 @@ header line was considered and **rejected** for this change.
 Add to `src/lib/closure-recency.ts`:
 
 ```ts
-export function formatClosureDetected(closedAt: string | null): string | null
+export function formatClosureDetected(closedAt: string | Date | null): string | null
 ```
+
+`Date` is accepted alongside `string` because the favorites page holds a `Date`
+straight from the Drizzle driver while the browse surfaces hold an ISO string.
 
 - `null` or an unparseable string → returns `null`, and the caller omits the
   line entirely.
@@ -177,8 +180,14 @@ helper, below the address, server-side.
 - No component tests are possible in this repo (vitest runs in a node env with a
   `.ts`-only glob, and `MapView.tsx` cannot even be imported). The three render
   sites get manual browser confirmation instead.
-- Migration applied by hand and verified with a direct query; `npm run db:migrate`
-  from scratch is known to fail at 0008 and is not a usable gate here.
+- Migration applied with `npm run db:migrate` and verified by direct query.
+  The database's `drizzle.__drizzle_migrations` table already records 0000-0009,
+  so this run applies only 0010. (The known "fails at 0008" problem applies to
+  replaying the whole folder against an empty database, not to this incremental
+  run.) The `_journal.json` entry AND `meta/0010_snapshot.json` are both
+  hand-authored because `drizzle-kit generate` is broken — the snapshot is
+  required by the `migration-artifacts.test.ts` gate, which reads one per
+  journal entry.
 
 ## Branch
 

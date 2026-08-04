@@ -414,7 +414,7 @@ In `drizzle/meta/_journal.json`, append to the `entries` array — after the `00
 
 `when` must be greater than `0009`'s `1786060800000`; these values are hand-picked in this repo and only need to preserve ordering.
 
-Do **not** create `drizzle/meta/0010_snapshot.json`. Snapshots are consumed by `drizzle-kit generate`, which is already broken by snapshot drift, and a hand-written snapshot (requiring fresh `id`/`prevId` UUIDs) would add risk with no benefit to the migrator.
+**Also create `drizzle/meta/0010_snapshot.json`.** This is mandatory, not optional: the pre-existing gate test `src/__tests__/db/migration-artifacts.test.ts` reads a snapshot for every `_journal.json` entry (lines 22-33) and asserts against the latest one (lines 35-46), so a journal entry without a matching snapshot fails the suite on a missing-file throw. Build it the low-risk mechanical way, exactly as 0005-0009 were built: copy `0009_snapshot.json`, give it a fresh `id`, set `prevId` to 0009's `id`, and insert only the new `closed_at` column into the `saved_competitors` table entry (after `maps_url`, before `created_at`) as `{"name":"closed_at","type":"timestamp with time zone","primaryKey":false,"notNull":false}`. Leave the table set otherwise identical.
 
 - [ ] **Step 3: Apply the migration**
 
