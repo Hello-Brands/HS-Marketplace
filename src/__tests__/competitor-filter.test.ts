@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   competitorInScope,
+  eligibleClosuresForAlert,
   filterCompetitorsByScope,
   scopeIsBounded,
   selectUnloggedCompetitors,
@@ -57,5 +58,18 @@ describe("selectUnloggedCompetitors", () => {
   it("returns only competitors not in the logged set", () => {
     const out = selectUnloggedCompetitors([phx, dallas], new Set(["phx"]))
     expect(out.map((c) => c.googlePlaceId)).toEqual(["dal"])
+  })
+})
+
+const perm = { businessStatus: "CLOSED_PERMANENTLY" }
+const temp = { businessStatus: "CLOSED_TEMPORARILY" }
+
+describe("eligibleClosuresForAlert", () => {
+  it("owner-auto alerts only see permanent closures", () => {
+    expect(eligibleClosuresForAlert({ origin: "owner-auto" }, [perm, temp])).toEqual([perm])
+  })
+  it("regular saved searches keep both closure types", () => {
+    expect(eligibleClosuresForAlert({ origin: "user" }, [perm, temp])).toEqual([perm, temp])
+    expect(eligibleClosuresForAlert({ origin: null }, [perm, temp])).toEqual([perm, temp])
   })
 })

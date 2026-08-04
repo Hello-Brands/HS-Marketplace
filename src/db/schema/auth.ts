@@ -20,6 +20,9 @@ export const users = pgTable("users", {
   // the automatic email match.
   ownerIdentifier: text("owner_identifier"),
   ownerLinkSource: text("owner_link_source", { enum: ["auto", "manual"] }),
+  // Owner closure alerts one-time prompt: null = never asked; 'enabled' also
+  // means the login reconciler maintains this user's owner-auto alerts.
+  ownerAlertsChoice: text("owner_alerts_choice", { enum: ["enabled", "declined"] }),
 }, (table) => [
   index("users_owner_identifier_idx").on(table.ownerIdentifier),
 ])

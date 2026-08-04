@@ -18,9 +18,9 @@ import { alerts, type NewAlert } from "@/db/schema/alerts"
 import { eq, desc } from "drizzle-orm"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
-import { getCompetitorClosures } from "@/lib/competitor-query"
-import { scopeIsBounded } from "@/lib/competitor-filter"
-import { recordCompetitorAlerts } from "@/lib/competitor-alert-log"
+import { seedCompetitorLedger } from "@/lib/competitor-alert-log"
+import { isOwnerAutoAlert } from "@/lib/owner-alerts/constants"
+import { hasAnyRealFilter } from "@/lib/save-search-validation"
 
 const alertSchema = z.object({
   name: z.string().max(120).optional().nullable(),
@@ -86,20 +86,6 @@ function toRow(data: AlertInput) {
   return row as unknown as Omit<NewAlert, "id" | "userId" | "createdAt" | "updatedAt">
 }
 
-/**
- * Seed the competitor ledger with all competitors currently in a saved search's
- * scope, WITHOUT emailing — so the first weekly cron run doesn't blast every
- * pre-existing closure. No-op when the scope can't narrow competitors.
- */
-async function seedCompetitorLog(
-  alertId: string,
-  scope: { centerLat: number | null; centerLng: number | null; radiusMiles: number | null; states: string[] }
-) {
-  if (!scopeIsBounded(scope)) return
-  const inScope = await getCompetitorClosures(scope)
-  await recordCompetitorAlerts(alertId, inScope.map((c) => c.googlePlaceId))
-}
-
 export async function createAlert(data: AlertInput) {
   const session = await auth()
   if (!session?.user) return { error: "Not authenticated" }
@@ -107,13 +93,19 @@ export async function createAlert(data: AlertInput) {
   const parsed = alertSchema.safeParse(data)
   if (!parsed.success) return { error: "Invalid data" }
 
+  // Server-side mirror of the client guard: an unfiltered alert would email on
+  // every approved listing. The helper's field is `types`, ours is `listingTypes`.
+  if (!hasAnyRealFilter({ ...parsed.data, types: parsed.data.listingTypes })) {
+    return { error: "Add at least one filter before saving a search." }
+  }
+
   const [alert] = await db
     .insert(alerts)
     .values({ userId: session.user.id!, ...toRow(parsed.data) })
     .returning()
 
   if (alert.includeCompetitors) {
-    await seedCompetitorLog(alert.id, {
+    await seedCompetitorLedger(alert.id, {
       centerLat: alert.centerLat,
       centerLng: alert.centerLng,
       radiusMiles: alert.radiusMiles,
@@ -149,12 +141,18 @@ export async function updateAlert(id: string, data: AlertInput) {
   const turnedCompetitorsOn =
     existing.includeCompetitors === false && patch.includeCompetitors === true
   if (turnedCompetitorsOn) {
-    await seedCompetitorLog(id, {
-      centerLat: (patch.centerLat as number | null | undefined) ?? existing.centerLat,
-      centerLng: (patch.centerLng as number | null | undefined) ?? existing.centerLng,
-      radiusMiles: (patch.radiusMiles as number | null | undefined) ?? existing.radiusMiles,
-      states: ((patch.states as string[] | undefined) ?? existing.states) ?? [],
-    })
+    // Pass the alert's origin so owner-auto searches seed permanent-only,
+    // matching the cron's eligibility filter.
+    await seedCompetitorLedger(
+      id,
+      {
+        centerLat: (patch.centerLat as number | null | undefined) ?? existing.centerLat,
+        centerLng: (patch.centerLng as number | null | undefined) ?? existing.centerLng,
+        radiusMiles: (patch.radiusMiles as number | null | undefined) ?? existing.radiusMiles,
+        states: ((patch.states as string[] | undefined) ?? existing.states) ?? [],
+      },
+      { origin: existing.origin }
+    )
   }
 
   revalidatePath("/account/alerts")
@@ -170,6 +168,10 @@ export async function deleteAlert(id: string) {
   })
   if (!existing || existing.userId !== session.user.id) {
     return { error: "Alert not found" }
+  }
+
+  if (isOwnerAutoAlert(existing)) {
+    return { error: "This alert is managed from your owned locations. Turn off Notify to silence it." }
   }
 
   await db.delete(alerts).where(eq(alerts.id, id))

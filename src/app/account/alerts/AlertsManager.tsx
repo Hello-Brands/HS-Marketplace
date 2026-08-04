@@ -5,6 +5,7 @@ import Link from "next/link"
 import type { Alert } from "@/db/schema/alerts"
 import { updateAlert, deleteAlert } from "@/lib/alert-actions"
 import { SavedSearchCard } from "@/components/alerts/SavedSearchCard"
+import { isOwnerAutoAlert } from "@/lib/owner-alerts/constants"
 
 export function AlertsManager({ initialAlerts }: { initialAlerts: Alert[] }) {
   const [alerts, setAlerts] = useState<Alert[]>(initialAlerts)
@@ -27,6 +28,17 @@ export function AlertsManager({ initialAlerts }: { initialAlerts: Alert[] }) {
       const result = await updateAlert(id, { notifyEnabled: enabled })
       if (result.error) setError(result.error)
       else setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, notifyEnabled: enabled } : a)))
+    } catch {
+      setError("Couldn't update — check your connection and try again.")
+    }
+  }
+
+  async function handleRadiusChange(id: string, radiusMiles: number) {
+    setError(null)
+    try {
+      const result = await updateAlert(id, { radiusMiles })
+      if (result.error) setError(result.error)
+      else setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, radiusMiles } : a)))
     } catch {
       setError("Couldn't update — check your connection and try again.")
     }
@@ -55,20 +67,49 @@ export function AlertsManager({ initialAlerts }: { initialAlerts: Alert[] }) {
     )
   }
 
+  const ownerAuto = alerts.filter((a) => isOwnerAutoAlert(a))
+  const manual = alerts.filter((a) => !isOwnerAutoAlert(a))
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {error && (
         <div role="alert" className="bg-hs-red-50 border border-hs-red-200 text-hs-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
       )}
-      {alerts.map((alert) => (
-        <SavedSearchCard
-          key={alert.id}
-          alert={alert}
-          onRename={handleRename}
-          onDelete={handleDelete}
-          onToggleNotify={handleToggleNotify}
-        />
-      ))}
+      {ownerAuto.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Your locations</h3>
+          <div className="space-y-4">
+            {ownerAuto.map((alert) => (
+              <SavedSearchCard
+                key={alert.id}
+                alert={alert}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onToggleNotify={handleToggleNotify}
+                onRadiusChange={handleRadiusChange}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      {manual.length > 0 && (
+        <div>
+          {ownerAuto.length > 0 && (
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Saved searches</h3>
+          )}
+          <div className="space-y-4">
+            {manual.map((alert) => (
+              <SavedSearchCard
+                key={alert.id}
+                alert={alert}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onToggleNotify={handleToggleNotify}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

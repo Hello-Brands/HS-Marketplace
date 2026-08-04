@@ -9,6 +9,8 @@ import { getMyMapOwnership } from "@/lib/owner-map/data"
 import { getFavoriteListingIds } from "@/lib/favorites-actions"
 import { getMyOwnerLocations } from "@/lib/owner-directory/data"
 import { annotateAndSortCompetitors, toOwnerPoints } from "@/lib/competitor-sort"
+import { shouldShowOwnerAlertsPrompt } from "@/lib/owner-alerts/prompt"
+import { OwnerAlertsPrompt } from "@/components/alerts/OwnerAlertsPrompt"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { BrowseHeaderSearch } from "@/components/browse/BrowseHeaderSearch"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
@@ -79,6 +81,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
     mapOwnership,
     favoriteIds,
     myOwnership,
+    showOwnerPrompt,
   ] = await Promise.all([
     getListings(filters),
     getCompetitorClosures({
@@ -97,6 +100,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
     getMyMapOwnership(),
     getFavoriteListingIds(),
     getMyOwnerLocations(),
+    shouldShowOwnerAlertsPrompt(),
   ])
   const count = initialListings.length
 
@@ -122,6 +126,11 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         subtitle={`${count} active listing${count !== 1 ? "s" : ""}`}
         mobileSearch={<BrowseHeaderSearch />}
       />
+      {showOwnerPrompt && (
+        <div className="shrink-0 px-4 pt-3 max-w-7xl mx-auto w-full">
+          <OwnerAlertsPrompt />
+        </div>
+      )}
       <BrowsePage
         initialListings={initialListings}
         competitorClosures={sortedCompetitors}

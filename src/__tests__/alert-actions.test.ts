@@ -55,6 +55,7 @@ vi.mock("@/lib/competitor-query", () => ({
 vi.mock("@/lib/competitor-alert-log", () => ({
   getLoggedCompetitorPlaceIds: vi.fn().mockResolvedValue(new Set()),
   recordCompetitorAlerts: vi.fn().mockResolvedValue(undefined),
+  seedCompetitorLedger: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Import after mocks are set up
@@ -229,6 +230,22 @@ describe("deleteAlert", () => {
 
     expect(mockDelete).toHaveBeenCalled()
     expect(result).toEqual({ success: true })
+  })
+
+  it("refuses to delete an owner-auto alert", async () => {
+    mockSession()
+    mockFindFirst.mockResolvedValue({
+      id: "auto-alert-id",
+      userId: MOCK_USER_ID,
+      states: ["TX"],
+      origin: "owner-auto",
+    })
+    mockDelete.mockReturnValue(makeDeleteChain())
+
+    const result = await deleteAlert("auto-alert-id")
+
+    expect(result.error).toMatch(/managed from your owned locations/)
+    expect(mockDelete).not.toHaveBeenCalled()
   })
 })
 

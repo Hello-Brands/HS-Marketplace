@@ -17,7 +17,12 @@ const { mockAuth, mockSelect } = vi.hoisted(() => ({
 }))
 
 vi.mock("@/auth", () => ({ auth: mockAuth }))
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+// Pass-through unstable_cache: persist.ts now transitively loads
+// src/lib/bigquery/queries.ts, which wraps its fetchers at module scope.
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+  unstable_cache: (fn: unknown) => fn,
+}))
 vi.mock("@/db", () => ({
   db: {
     select: () => ({ from: () => ({ where: mockSelect }) }),

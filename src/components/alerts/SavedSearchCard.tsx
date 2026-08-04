@@ -4,22 +4,28 @@ import { useState } from "react"
 import Link from "next/link"
 import type { Alert } from "@/db/schema/alerts"
 import { describeSavedSearch, savedSearchToBrowseParams } from "@/lib/saved-search"
+import { isOwnerAutoAlert } from "@/lib/owner-alerts/constants"
+import { RADIUS_MIN_MILES, RADIUS_MAX_MILES } from "@/components/browse/FilterBar"
 
 interface SavedSearchCardProps {
   alert: Alert
   onRename: (id: string, name: string | null) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onToggleNotify: (id: string, enabled: boolean) => Promise<void>
+  onRadiusChange?: (id: string, radiusMiles: number) => Promise<void>
 }
 
-export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify }: SavedSearchCardProps) {
+export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify, onRadiusChange }: SavedSearchCardProps) {
   const summary = describeSavedSearch(alert)
   const title = alert.name?.trim() || summary
   const browseHref = `/browse?${savedSearchToBrowseParams(alert)}`
+  const ownerAuto = isOwnerAutoAlert(alert)
 
   const [renaming, setRenaming] = useState(false)
   const [draftName, setDraftName] = useState(alert.name ?? "")
   const [busy, setBusy] = useState(false)
+  const [draftRadius, setDraftRadius] = useState(alert.radiusMiles ?? 3)
+  const [savingRadius, setSavingRadius] = useState(false)
 
   async function saveName() {
     setBusy(true)
@@ -47,6 +53,11 @@ export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify }: S
             </div>
           ) : (
             <>
+              {ownerAuto && (
+                <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 px-2 py-0.5 rounded-full mb-1">
+                  Your location
+                </span>
+              )}
               <h3 className="text-base font-semibold text-gray-900 truncate">{title}</h3>
               {alert.name?.trim() && <p className="text-xs text-gray-500 truncate mt-0.5">{summary}</p>}
             </>
@@ -75,7 +86,43 @@ export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify }: S
         {!renaming && (
           <button onClick={() => setRenaming(true)} className="inline-flex items-center min-h-[40px] px-2 -mx-2 text-sm font-medium text-gray-600 hover:text-gray-900">Rename</button>
         )}
-        <button onClick={() => onDelete(alert.id)} className="inline-flex items-center min-h-[40px] px-2 -mr-2 text-sm font-medium text-hs-red-600 hover:text-hs-red-700 ml-auto">Delete</button>
+        {ownerAuto && onRadiusChange && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <label htmlFor={`radius-${alert.id}`} className="whitespace-nowrap">Radius</label>
+            <input
+              id={`radius-${alert.id}`}
+              type="number"
+              min={RADIUS_MIN_MILES}
+              max={RADIUS_MAX_MILES}
+              value={draftRadius}
+              onChange={(e) => setDraftRadius(Number(e.target.value))}
+              className="h-9 w-16 rounded-lg border border-gray-300 px-2 text-sm"
+            />
+            <span>mi</span>
+            {draftRadius !== (alert.radiusMiles ?? 3) && (
+              <button
+                type="button"
+                disabled={
+                  savingRadius ||
+                  !Number.isInteger(draftRadius) ||
+                  draftRadius < RADIUS_MIN_MILES ||
+                  draftRadius > RADIUS_MAX_MILES
+                }
+                onClick={async () => {
+                  setSavingRadius(true)
+                  await onRadiusChange(alert.id, draftRadius)
+                  setSavingRadius(false)
+                }}
+                className="text-sm font-semibold text-hs-red-600 hover:text-hs-red-700 disabled:opacity-50"
+              >
+                {savingRadius ? "Saving..." : "Update"}
+              </button>
+            )}
+          </div>
+        )}
+        {!ownerAuto && (
+          <button onClick={() => onDelete(alert.id)} className="inline-flex items-center min-h-[40px] px-2 -mr-2 text-sm font-medium text-hs-red-600 hover:text-hs-red-700 ml-auto">Delete</button>
+        )}
       </div>
     </div>
   )

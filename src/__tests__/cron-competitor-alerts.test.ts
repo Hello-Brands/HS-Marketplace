@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 const {
   mockInnerJoin,
   mockGetCompetitorClosures,
+  mockEligibleClosures,
   mockFilterByScope,
   mockSelectUnlogged,
   mockScopeIsBounded,
@@ -18,6 +19,7 @@ const {
 } = vi.hoisted(() => ({
   mockInnerJoin: vi.fn(),
   mockGetCompetitorClosures: vi.fn(),
+  mockEligibleClosures: vi.fn(),
   mockFilterByScope: vi.fn(),
   mockSelectUnlogged: vi.fn(),
   mockScopeIsBounded: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock("@/db", () => ({
 }))
 vi.mock("@/lib/competitor-query", () => ({ getCompetitorClosures: mockGetCompetitorClosures }))
 vi.mock("@/lib/competitor-filter", () => ({
+  eligibleClosuresForAlert: mockEligibleClosures,
   filterCompetitorsByScope: mockFilterByScope,
   selectUnloggedCompetitors: mockSelectUnlogged,
   scopeIsBounded: mockScopeIsBounded,
@@ -75,6 +78,8 @@ const alertRow = {
     centerLng: -111.7,
     radiusMiles: 25,
     states: [],
+    origin: "user",
+    centerLabel: null,
   },
   user: { id: "u1", email: "buyer@hellosugar.salon", name: "Buyer Bob" },
 }
@@ -85,6 +90,7 @@ beforeEach(() => {
   mockGetCompetitorClosures.mockResolvedValue([competitor])
   mockInnerJoin.mockResolvedValue([])
   mockScopeIsBounded.mockReturnValue(true)
+  mockEligibleClosures.mockImplementation((_alert, closures) => closures)
   mockFilterByScope.mockReturnValue([competitor])
   mockGetLoggedIds.mockResolvedValue(new Set())
   mockSelectUnlogged.mockReturnValue([competitor])
@@ -168,6 +174,34 @@ describe("cron competitor-alerts processing", () => {
     const body = await res.json()
     expect(body.processed).toBe(0)
     expect(mockSendEmail).not.toHaveBeenCalled()
+  })
+
+  it("narrows the closure pool per alert before scope filtering", async () => {
+    mockInnerJoin.mockResolvedValue([alertRow])
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    expect(mockEligibleClosures).toHaveBeenCalledWith(alertRow.alert, [competitor])
+    expect(mockFilterByScope).toHaveBeenCalledWith([competitor], expect.anything())
+  })
+
+  it("sends the saved-search variant for a regular alert", async () => {
+    mockInnerJoin.mockResolvedValue([alertRow])
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ variant: "saved-search", searchName: "Utah watch" })
+    )
+  })
+
+  it("sends the owner-location variant (and center label) for an owner-auto alert", async () => {
+    mockInnerJoin.mockResolvedValue([
+      {
+        ...alertRow,
+        alert: { ...alertRow.alert, name: null, centerLabel: "Sugar House", origin: "owner-auto" },
+      },
+    ])
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ variant: "owner-location", searchName: "Sugar House" })
+    )
   })
 
   it("skips sending when there are no fresh (unlogged) competitors", async () => {
