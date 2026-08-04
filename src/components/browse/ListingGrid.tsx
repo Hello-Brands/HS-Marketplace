@@ -6,6 +6,7 @@ import { getListings } from "@/lib/listings-query"
 import type { ListingCard as ListingCardType, ListingFilters } from "@/lib/listings-query"
 import { ListingCard } from "./ListingCard"
 import { SkeletonCard } from "./SkeletonCard"
+import { LISTINGS_PAGE_SIZE, formatListingCount } from "@/lib/browse/listing-count"
 
 interface ListingGridProps {
   initialListings: ListingCardType[]
@@ -17,14 +18,15 @@ interface ListingGridProps {
   // Stack cards in one column (used by the narrow map-view side panel); the
   // full-width list view keeps the responsive 1–3 column grid.
   singleColumn?: boolean
+  // Reports the live count/hasMore up to a parent (e.g. a collapsed-panel
+  // badge) that can't otherwise see past the initial server-rendered page.
+  onCountChange?: (count: number, hasMore: boolean) => void
 }
 
-const PAGE_SIZE = 12
-
-export function ListingGrid({ initialListings, filters, hoveredId, onHover, favoriteIds = [], singleColumn }: ListingGridProps) {
+export function ListingGrid({ initialListings, filters, hoveredId, onHover, favoriteIds = [], singleColumn, onCountChange }: ListingGridProps) {
   const [listings, setListings] = useState<ListingCardType[]>(initialListings)
   const [cursor, setCursor] = useState<string | null>(() => {
-    if (initialListings.length !== PAGE_SIZE) return null
+    if (initialListings.length !== LISTINGS_PAGE_SIZE) return null
     const last = initialListings[initialListings.length - 1]
     if (!last) return null
     // Distance sort paginates on the numeric distance; other sorts on createdAt.
@@ -34,7 +36,7 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover, favo
         : null
       : last.createdAt.toISOString()
   })
-  const [hasMore, setHasMore] = useState(initialListings.length === PAGE_SIZE)
+  const [hasMore, setHasMore] = useState(initialListings.length === LISTINGS_PAGE_SIZE)
   const [loading, setLoading] = useState(false)
 
   const { ref: sentinelRef, inView } = useInView({ threshold: 0 })
@@ -90,6 +92,13 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover, favo
 
   const totalCount = listings.length
 
+  // Report the live count up to the parent (e.g. the collapsed-panel badge)
+  // whenever it changes — including down to zero, which is why this effect
+  // sits above the early return below rather than after it.
+  useEffect(() => {
+    onCountChange?.(totalCount, hasMore)
+  }, [totalCount, hasMore, onCountChange])
+
   if (!loading && totalCount === 0 && !hasMore) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -103,7 +112,7 @@ export function ListingGrid({ initialListings, filters, hoveredId, onHover, favo
     <div>
       {/* Count header */}
       <p className="text-sm text-gray-500 mb-4">
-        {totalCount > 0 ? `${totalCount}${hasMore ? "+" : ""} listings` : ""}
+        {totalCount > 0 ? `${formatListingCount(totalCount, hasMore)} listings` : ""}
       </p>
 
       {/* Grid */}

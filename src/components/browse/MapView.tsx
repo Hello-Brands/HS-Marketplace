@@ -210,7 +210,8 @@ function competitorMarkerEl(c: CompetitorClosure, isNew: boolean): HTMLDivElemen
   inner.appendChild(diamond)
 
   if (isNew) {
-    // Pulse first so it paints UNDER the star and diamond.
+    // Pulse appended before the star so it paints UNDER the star (it still
+    // paints OVER the diamond, appended earlier above).
     const pulse = document.createElement("div")
     pulse.className = "hs-new-closure-pulse"
     pulse.style.cssText = `
