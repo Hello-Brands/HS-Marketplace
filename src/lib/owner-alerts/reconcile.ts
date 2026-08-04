@@ -56,30 +56,56 @@ export async function reconcileOwnerAutoAlerts(userId: string): Promise<void> {
 
     const plan = planOwnerAutoAlerts(owned, existing)
 
+    // Per-location try/catch: one bad insert/seed must not skip the remaining
+    // creates, the updates, or the deletes. neon-http has no transactions, so
+    // insert-then-seed is two round trips and the window between them is real.
     for (const c of plan.toCreate) {
-      const [row] = await db
-        .insert(alerts)
-        .values({
-          userId,
-          origin: OWNER_AUTO_ORIGIN,
-          ownerIdentifier: c.ownerIdentifier,
-          ownerLocationName: c.locationName,
-          name: c.locationName,
+      let createdId: string | undefined
+      try {
+        const [row] = await db
+          .insert(alerts)
+          .values({
+            userId,
+            origin: OWNER_AUTO_ORIGIN,
+            ownerIdentifier: c.ownerIdentifier,
+            ownerLocationName: c.locationName,
+            name: c.locationName,
+            centerLat: c.latitude,
+            centerLng: c.longitude,
+            radiusMiles: OWNER_AUTO_RADIUS_MILES,
+            centerLabel: c.locationName,
+            includeListings: false,
+            includeCompetitors: true,
+          })
+          .returning({ id: alerts.id })
+        createdId = row.id
+        // Seed so closures that pre-date the opt-in never email.
+        await seedCompetitorLedger(row.id, {
           centerLat: c.latitude,
           centerLng: c.longitude,
           radiusMiles: OWNER_AUTO_RADIUS_MILES,
-          centerLabel: c.locationName,
-          includeListings: false,
-          includeCompetitors: true,
+          states: [],
         })
-        .returning({ id: alerts.id })
-      // Seed so closures that pre-date the opt-in never email.
-      await seedCompetitorLedger(row.id, {
-        centerLat: c.latitude,
-        centerLng: c.longitude,
-        radiusMiles: OWNER_AUTO_RADIUS_MILES,
-        states: [],
-      })
+      } catch (err) {
+        console.warn(
+          `[owner-alerts] create failed for ${c.ownerIdentifier} / ${c.locationName} (non-fatal):`,
+          err
+        )
+        // An alert whose seed never ran is live with an empty ledger, and the
+        // next reconcile would treat it as already existing — so the weekly
+        // cron would email every pre-existing closure in scope. Roll it back;
+        // the next reconcile re-creates and re-seeds it cleanly.
+        if (createdId) {
+          try {
+            await db.delete(alerts).where(eq(alerts.id, createdId))
+          } catch (cleanupErr) {
+            console.error(
+              `[owner-alerts] UNSEEDED alert ${createdId} left behind (cleanup failed):`,
+              cleanupErr
+            )
+          }
+        }
+      }
     }
 
     for (const u of plan.toUpdate) {
