@@ -36,3 +36,36 @@ export function isNewClosure(closedAt: string | null, now: Date): boolean {
   if (Number.isNaN(detected)) return false
   return now.getTime() - detected <= NEW_CLOSURE_WINDOW_DAYS * MS_PER_DAY
 }
+
+/**
+ * Fixed display timezone for detection dates.
+ *
+ * Deliberately NOT the viewer's local zone: a fixed zone makes this formatter
+ * produce identical output on the server and the client, which is what lets the
+ * server-rendered favorites page, the client-rendered browse list, and the map
+ * popup's imperative HTML string all share one implementation without risking a
+ * hydration mismatch.
+ */
+export const CLOSURE_DETECTED_TIMEZONE = "America/Denver"
+
+/**
+ * The card line for when the scraper detected a closure, or null when we have
+ * no usable date — in which case the caller renders NOTHING. 22 of 79
+ * production rows have a null `closedAt`; correct by omission.
+ *
+ * Says "detected", never "closed on": see this module's header.
+ */
+export function formatClosureDetected(
+  closedAt: string | Date | null
+): string | null {
+  if (!closedAt) return null
+  const detected = closedAt instanceof Date ? closedAt : new Date(closedAt)
+  if (Number.isNaN(detected.getTime())) return null
+  const date = detected.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: CLOSURE_DETECTED_TIMEZONE,
+  })
+  return `Closure detected ${date}`
+}
