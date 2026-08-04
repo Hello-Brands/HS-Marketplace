@@ -1,7 +1,7 @@
 'use client'
 
 import type { AnnotatedCompetitor } from "@/lib/competitor-sort"
-import { isNewClosure } from "@/lib/closure-recency"
+import { isNewClosure, formatClosureDetected } from "@/lib/closure-recency"
 import { SaveCompetitorButton } from "./SaveCompetitorButton"
 
 interface CompetitorListProps {
@@ -48,6 +48,7 @@ export function CompetitorList({
           const isHovered = hoveredId === c.googlePlaceId
           const place = [c.city, c.state].filter(Boolean).join(", ")
           const isNew = isNewClosure(c.closedAt, now)
+          const detectedLine = formatClosureDetected(c.closedAt)
           return (
             <div
               key={c.googlePlaceId}
@@ -101,6 +102,9 @@ export function CompetitorList({
                     {c.nearestHsMiles.toFixed(1)} mi from {c.nearestHsName}
                   </p>
                 ) : null}
+                {detectedLine && (
+                  <p className="text-xs text-hs-taupe mt-1">{detectedLine}</p>
+                )}
               </button>
               <div className="flex items-start">
                 <SaveCompetitorButton

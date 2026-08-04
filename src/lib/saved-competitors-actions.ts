@@ -30,6 +30,13 @@ export async function toggleSavedCompetitor(
     return { saved: false }
   }
 
+  // Input is unvalidated client data (this action's other fields are trusted
+  // verbatim — a pre-existing gap). A malformed date must store null, not
+  // reach the driver and throw.
+  const parsedClosedAt = input.closedAt ? new Date(input.closedAt) : null
+  const closedAt =
+    parsedClosedAt && !Number.isNaN(parsedClosedAt.getTime()) ? parsedClosedAt : null
+
   await db.insert(savedCompetitors).values({
     userId,
     placeId: input.placeId,
@@ -42,6 +49,7 @@ export async function toggleSavedCompetitor(
     lng: String(input.lng),
     businessStatus: input.businessStatus,
     mapsUrl: input.mapsUrl,
+    closedAt,
   })
   return { saved: true }
 }

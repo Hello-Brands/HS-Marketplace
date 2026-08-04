@@ -9,6 +9,7 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { EmptyStateIllustrated } from '@/components/ui/EmptyState'
 import { SiteHeader } from '@/components/layout/SiteHeader'
 import { formatUsdCentsCompact } from '@/lib/money'
+import { formatClosureDetected } from '@/lib/closure-recency'
 
 export const metadata = {
   title: 'Saved Listings - Hello Sugar Marketplace',
@@ -187,6 +188,7 @@ export default async function FavoritesPage() {
               {savedComps.map((c) => {
                 const permanent = c.businessStatus === 'CLOSED_PERMANENTLY'
                 const place = [c.city, c.state].filter(Boolean).join(', ')
+                const detectedLine = formatClosureDetected(c.closedAt)
                 return (
                   <div
                     key={c.id}
@@ -205,6 +207,9 @@ export default async function FavoritesPage() {
                     <p className="text-xs text-gray-500 truncate">
                       {c.address}{place ? ` · ${place}` : ''}
                     </p>
+                    {detectedLine && (
+                      <p className="text-xs text-hs-taupe">{detectedLine}</p>
+                    )}
                     {c.mapsUrl && (
                       <a
                         href={c.mapsUrl}

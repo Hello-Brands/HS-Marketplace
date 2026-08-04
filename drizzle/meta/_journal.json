@@ -71,6 +71,13 @@
       "when": 1786060800000,
       "tag": "0009_owner_auto_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786147200000,
+      "tag": "0010_saved_competitors_closed_at",
+      "breakpoints": true
     }
   ]
 }
