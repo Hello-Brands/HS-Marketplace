@@ -9,6 +9,19 @@
  * the on-map key cannot drift from the map again.
  */
 
+/**
+ * Silhouette of the new-closure star, shared by the map marker and the legend
+ * key so the two can never drift into different stars.
+ *
+ * It lives HERE rather than in MapView.tsx for a bundling reason: MapLegend is
+ * imported directly by BrowsePage, while MapView is behind a `dynamic(…, { ssr:
+ * false })` precisely because the MapTiler SDK can't be server-rendered. If the
+ * legend imported this from MapView, the SDK would be dragged back into the SSR
+ * bundle and defeat that dynamic import.
+ */
+export const STAR_PATH =
+  "M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z"
+
 /** The four marker populations the browse map draws. */
 export type MarkerLayer = "competitor" | "forSale" | "owned" | "unlistedHs"
 

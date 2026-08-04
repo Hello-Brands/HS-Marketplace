@@ -13,6 +13,7 @@ import { BRAND } from "@/lib/brand-colors"
 import { isNewClosure } from "@/lib/closure-recency"
 import {
   MARKER_ICON,
+  STAR_PATH,
   type MarkerVariant,
   type MarkerLayer,
   markerVariant,
@@ -147,23 +148,80 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
 // Content-box side of the diamond, per variant. Both variants use a 2px
 // border that sits OUTSIDE this box (no box-sizing), so the rendered footprint
 // is side + 4 — `inner` is sized to that footprint to keep the marker's overall
-// size, and therefore MapTiler's centering, exactly as it was before the star
-// was added.
+// size, and therefore MapTiler's centering, exactly as it was before.
 const COMP_DIAMOND_SIDE = { opportunity: 11.3, plain: 12 } as const
 const COMP_BORDER = 2
 
-// Build the diamond marker element for a competitor closure. `isNew` adds the
-// gold star + pulse ring for a recently detected closure.
+// A newly detected closure REPLACES its diamond with a gold star for the
+// recency window, so it reads as new at a glance instead of carrying a fleck of
+// gold in one corner. Sized a little larger than the diamonds' 16px
+// point-to-point so the star's silhouette is legible at low zoom.
+const COMP_STAR_SIZE = 20
+
+// The pulse ring, shared by both marker shapes.
+function newClosurePulseEl(inset: number): HTMLDivElement {
+  const pulse = document.createElement("div")
+  pulse.className = "hs-new-closure-pulse"
+  pulse.style.cssText = `
+    position: absolute;
+    inset: -${inset}px;
+    border-radius: 999px;
+    border: 2px solid ${BRAND.gold};
+    pointer-events: none;
+  `
+  return pulse
+}
+
+// Build the marker element for a competitor closure.
+//
+// `isNew` swaps the whole shape: a closure detected inside the recency window
+// renders as a pulsing gold star, and only reverts to a diamond once the window
+// lapses. The star is deliberately UNIFORM — a new opportunity and a new plain
+// closure look identical — because newness outranks the opportunity flag for
+// those two weeks. The distinction is still carried by the popup and the list
+// card's chips, and the diamond's caramel/hollow fill returns afterwards.
 function competitorMarkerEl(c: CompetitorClosure, isNew: boolean): HTMLDivElement {
   const el = document.createElement("div")
   el.dataset.competitorId = c.googlePlaceId
 
-  const side = c.isOpportunity ? COMP_DIAMOND_SIDE.opportunity : COMP_DIAMOND_SIDE.plain
-  const footprint = side + COMP_BORDER * 2
-
   // `inner` carries ONLY the hover scale. MapTiler rewrites the OUTER
   // element's transform every frame, so we must never touch that one.
   const inner = document.createElement("div")
+
+  if (isNew) {
+    inner.style.cssText = `
+      position: relative;
+      width: ${COMP_STAR_SIZE}px;
+      height: ${COMP_STAR_SIZE}px;
+      transform-origin: center;
+      transition: transform 0.15s ease;
+    `
+    // Pulse first so it paints under the star.
+    inner.appendChild(newClosurePulseEl(4))
+
+    // No rotation anywhere on this shape — a star is drawn upright, so unlike
+    // the diamond branch there is nothing here that `inner`'s hover scale could
+    // fight with. The white stroke keeps the gold legible on pale map tiles.
+    const star = document.createElement("div")
+    star.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: ${COMP_STAR_SIZE}px;
+      height: ${COMP_STAR_SIZE}px;
+      cursor: pointer;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+    `
+    star.innerHTML = `<svg width="${COMP_STAR_SIZE}" height="${COMP_STAR_SIZE}" viewBox="0 0 24 24" fill="${BRAND.gold}" stroke="white" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`
+    inner.appendChild(star)
+
+    el.appendChild(inner)
+    return el
+  }
+
+  const side = c.isOpportunity ? COMP_DIAMOND_SIDE.opportunity : COMP_DIAMOND_SIDE.plain
+  const footprint = side + COMP_BORDER * 2
+
   inner.style.cssText = `
     position: relative;
     width: ${footprint}px;
@@ -172,8 +230,8 @@ function competitorMarkerEl(c: CompetitorClosure, isNew: boolean): HTMLDivElemen
     transition: transform 0.15s ease;
   `
 
-  // The 45° rotation lives HERE, not on `inner`, so the star can sit beside the
-  // diamond without being tilted with it.
+  // The 45° rotation lives HERE, not on `inner` — `inner` owns the hover scale,
+  // and combining the two on one element is what forced this split.
   const diamond = document.createElement("div")
   if (c.isOpportunity) {
     // 11.3px box → ~16px point-to-point once rotated 45° (16 / √2), matching
@@ -208,38 +266,6 @@ function competitorMarkerEl(c: CompetitorClosure, isNew: boolean): HTMLDivElemen
     `
   }
   inner.appendChild(diamond)
-
-  if (isNew) {
-    // Pulse appended before the star so it paints UNDER the star (it still
-    // paints OVER the diamond, appended earlier above).
-    const pulse = document.createElement("div")
-    pulse.className = "hs-new-closure-pulse"
-    pulse.style.cssText = `
-      position: absolute;
-      inset: -5px;
-      border-radius: 999px;
-      border: 2px solid ${BRAND.gold};
-      pointer-events: none;
-    `
-    inner.appendChild(pulse)
-
-    // Unrotated: a sibling of `diamond`, so it does not inherit rotate(45deg).
-    // The white stroke is not decoration -- gold on the caramel opportunity
-    // diamond is only ~1.5:1, so the outline is what makes the star readable
-    // there and on pale map tiles alike.
-    const star = document.createElement("div")
-    star.style.cssText = `
-      position: absolute;
-      top: -7px;
-      right: -8px;
-      width: 11px;
-      height: 11px;
-      pointer-events: none;
-      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35));
-    `
-    star.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="${BRAND.gold}" stroke="white" stroke-width="2.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z"/></svg>`
-    inner.appendChild(star)
-  }
 
   el.appendChild(inner)
   return el
@@ -747,7 +773,15 @@ export function MapView({
     runWhenMapReady(m, mapReady.current, focus)
   }, [selectedCompetitor, competitors])
 
+  // `isolate` (isolation: isolate) is load-bearing, not cosmetic. Marker
+  // z-indexes run 10–45 (see @/lib/browse/map-markers), and this container is
+  // otherwise not a stacking context — so those values would escape into the
+  // ROOT stacking context and compete with page chrome directly, beating the
+  // map key (z-10), the floating view toggle (z-20), the mobile tab bar (z-30)
+  // and the sticky header + its hamburger drawer (z-40). Isolating here keeps
+  // every marker's z-index scoped to the map, so the bands still order markers
+  // against each other while no marker can ever paint over app chrome.
   return (
-    <div ref={mapContainer} className="h-full w-full" />
+    <div ref={mapContainer} className="isolate h-full w-full" />
   )
 }
