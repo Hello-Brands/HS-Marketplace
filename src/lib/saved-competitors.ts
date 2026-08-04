@@ -15,6 +15,7 @@ export interface SavedCompetitorInput {
   lng: number
   businessStatus: string
   mapsUrl: string | null
+  closedAt: string | null // ISO string; when the scraper detected the closure
 }
 
 export function competitorToSnapshot(c: CompetitorClosure): SavedCompetitorInput {
@@ -28,5 +29,6 @@ export function competitorToSnapshot(c: CompetitorClosure): SavedCompetitorInput
     lng: c.longitude,
     businessStatus: c.businessStatus,
     mapsUrl: c.mapsUrl,
+    closedAt: c.closedAt,
   }
 }

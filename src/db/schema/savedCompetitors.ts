@@ -26,6 +26,9 @@ export const savedCompetitors = pgTable(
     lng: numeric("lng", { precision: 10, scale: 7 }).notNull(),
     businessStatus: text("business_status").notNull(),
     mapsUrl: text("maps_url"),
+    // Detection timestamp snapshotted from competitor_opportunities.closed_at.
+    // timestamptz (unlike created_at below) so the source instant survives.
+    closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

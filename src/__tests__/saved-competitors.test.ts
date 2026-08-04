@@ -31,10 +31,16 @@ describe("competitorToSnapshot", () => {
       lng: -111.6585,
       businessStatus: "CLOSED_PERMANENTLY",
       mapsUrl: "https://maps.google.com/?cid=1",
+      closedAt: "2026-05-01T00:00:00.000Z",
     })
   })
 
   it("preserves a null mapsUrl", () => {
     expect(competitorToSnapshot({ ...closure, mapsUrl: null }).mapsUrl).toBeNull()
+  })
+
+  it("preserves a null closedAt", () => {
+    // 22 of 79 production rows have no closed_at; the snapshot must not invent one.
+    expect(competitorToSnapshot({ ...closure, closedAt: null }).closedAt).toBeNull()
   })
 })
