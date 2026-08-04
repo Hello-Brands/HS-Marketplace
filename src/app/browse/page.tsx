@@ -7,6 +7,8 @@ import { getUnlistedHsLocations } from "@/lib/hs-locations-query"
 import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
 import { getMyMapOwnership } from "@/lib/owner-map/data"
 import { getFavoriteListingIds } from "@/lib/favorites-actions"
+import { shouldShowOwnerAlertsPrompt } from "@/lib/owner-alerts/prompt"
+import { OwnerAlertsPrompt } from "@/components/alerts/OwnerAlertsPrompt"
 import { BrowsePage } from "@/components/browse/BrowsePage"
 import { BrowseHeaderSearch } from "@/components/browse/BrowseHeaderSearch"
 import { SkeletonCard } from "@/components/browse/SkeletonCard"
@@ -69,25 +71,33 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   // resilient (returns [] if the scraper table is empty/unavailable), so it
   // never blocks the page.
   const filters = parseFilters(searchParams)
-  const [{ items: initialListings }, competitorClosures, savedCompetitorIds, hsLocations, mapOwnership, favoriteIds] =
-    await Promise.all([
-      getListings(filters),
-      getCompetitorClosures({
-        centerLat: filters.centerLat,
-        centerLng: filters.centerLng,
-        radiusMiles: filters.radiusMiles,
-        states: filters.states,
-      }),
-      getSavedCompetitorPlaceIds(),
-      getUnlistedHsLocations({
-        centerLat: filters.centerLat,
-        centerLng: filters.centerLng,
-        radiusMiles: filters.radiusMiles,
-        states: filters.states,
-      }),
-      getMyMapOwnership(),
-      getFavoriteListingIds(),
-    ])
+  const [
+    { items: initialListings },
+    competitorClosures,
+    savedCompetitorIds,
+    hsLocations,
+    mapOwnership,
+    favoriteIds,
+    showOwnerPrompt,
+  ] = await Promise.all([
+    getListings(filters),
+    getCompetitorClosures({
+      centerLat: filters.centerLat,
+      centerLng: filters.centerLng,
+      radiusMiles: filters.radiusMiles,
+      states: filters.states,
+    }),
+    getSavedCompetitorPlaceIds(),
+    getUnlistedHsLocations({
+      centerLat: filters.centerLat,
+      centerLng: filters.centerLng,
+      radiusMiles: filters.radiusMiles,
+      states: filters.states,
+    }),
+    getMyMapOwnership(),
+    getFavoriteListingIds(),
+    shouldShowOwnerAlertsPrompt(),
+  ])
   const count = initialListings.length
 
   return (
@@ -101,6 +111,11 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
         subtitle={`${count} active listing${count !== 1 ? "s" : ""}`}
         mobileSearch={<BrowseHeaderSearch />}
       />
+      {showOwnerPrompt && (
+        <div className="shrink-0 px-4 pt-3 max-w-7xl mx-auto w-full">
+          <OwnerAlertsPrompt />
+        </div>
+      )}
       <BrowsePage
         initialListings={initialListings}
         competitorClosures={competitorClosures}
