@@ -5,8 +5,9 @@ import { escapeHtml } from "@/lib/escape-html"
  * Brand-styled hover card for an open Hello Sugar location.
  * NON-PII ONLY: name, city/state (or nothing), and "Open since {year}".
  * The `owned` variant swaps the "not for sale" badge for a "Your location"
- * badge and adds a details CTA — still non-PII, it only reflects what the
- * signed-in owner already knows about their own location.
+ * badge and adds View / Watch-this-area action buttons (wired up by MapView via
+ * the `data-hs-popup-action` attributes) — still non-PII, it only reflects what
+ * the signed-in owner already knows about their own location.
  */
 export function hsLocationPopupHtml(loc: UnlistedHsLocation, owned = false): string {
   const place = [loc.city, loc.state]
@@ -28,7 +29,10 @@ export function hsLocationPopupHtml(loc: UnlistedHsLocation, owned = false): str
       : ""
 
   const cta = owned
-    ? `<div style="margin-top:8px;font-size:13px;color:#3F7D5B;font-weight:500;">Click to view details →</div>`
+    ? `<div style="margin-top:10px;display:flex;gap:8px;">
+      <button type="button" data-hs-popup-action="view" style="flex:1;font-family:inherit;font-size:12px;font-weight:600;color:#3F7D5B;background:#fff;border:1px solid #DBEBE1;border-radius:8px;padding:6px 8px;cursor:pointer;">View location</button>
+      <button type="button" data-hs-popup-action="watch" style="flex:1;font-family:inherit;font-size:12px;font-weight:600;color:#fff;background:#3F7D5B;border:none;border-radius:8px;padding:6px 8px;cursor:pointer;">Watch this area</button>
+    </div>`
     : ""
 
   return `

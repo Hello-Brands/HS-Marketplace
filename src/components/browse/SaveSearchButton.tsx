@@ -3,6 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import { createAlert } from "@/lib/alert-actions"
+import { AlertScopeFields } from "@/components/alerts/AlertScopeFields"
+import { AlertModal } from "@/components/alerts/AlertModal"
+import { hasAnyRealFilter, scopeSelected, type AlertScope } from "@/lib/save-search-validation"
 
 export interface SaveSearchInput {
   query?: string | null
@@ -22,31 +25,38 @@ export interface SaveSearchInput {
 }
 
 export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
+  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [name, setName] = useState("")
+  const [scope, setScope] = useState<AlertScope>({ includeListings: true, includeCompetitors: true })
 
-  // Sort is ordering, not a filter — exclude it. An empty save would create an
-  // "all listings" alert that emails on every approved listing, so require at
-  // least one real filter.
-  const hasAnyFilter =
-    !!(filters.query && filters.query.trim()) ||
-    (filters.types?.length ?? 0) > 0 ||
-    (filters.states?.length ?? 0) > 0 ||
-    filters.minPrice != null ||
-    filters.maxPrice != null ||
-    (filters.minYearsOpen != null && filters.minYearsOpen > 0) ||
-    filters.inventoryIncluded === true ||
-    (filters.centerLat != null && filters.centerLng != null && filters.radiusMiles != null)
-
-  async function handleSaveSearch() {
-    if (!hasAnyFilter) {
+  function handleOpen() {
+    if (!hasAnyRealFilter(filters)) {
       setError("Add at least one filter before saving a search.")
+      return
+    }
+    setError(null)
+    setName("")
+    // Checkbox defaults come from the current map layer toggles — but now the
+    // user SEES and confirms them instead of silently inheriting.
+    setScope({
+      includeListings: filters.includeListings ?? true,
+      includeCompetitors: filters.includeCompetitors ?? true,
+    })
+    setOpen(true)
+  }
+
+  async function handleSave() {
+    if (!scopeSelected(scope)) {
+      setError("Pick at least one thing to be notified about.")
       return
     }
     setSaving(true)
     setError(null)
     const result = await createAlert({
+      name: name.trim() || undefined,
       query: filters.query || undefined,
       states: filters.states && filters.states.length > 0 ? filters.states : undefined,
       listingTypes: filters.types && filters.types.length > 0 ? filters.types : undefined,
@@ -59,12 +69,13 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
       centerLng: filters.centerLng ?? undefined,
       radiusMiles: filters.radiusMiles ?? undefined,
       centerLabel: filters.centerLabel || undefined,
-      includeListings: filters.includeListings,
-      includeCompetitors: filters.includeCompetitors,
+      includeListings: scope.includeListings,
+      includeCompetitors: scope.includeCompetitors,
     })
     setSaving(false)
     if (result.error) setError(result.error)
     else {
+      setOpen(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 4000)
     }
@@ -73,7 +84,7 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <button
-        onClick={handleSaveSearch}
+        onClick={handleOpen}
         disabled={saving || saved}
         className={[
           "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2",
@@ -88,7 +99,40 @@ export function SaveSearchButton({ filters }: { filters: SaveSearchInput }) {
           View in My Alerts →
         </Link>
       )}
-      {error && <p className="text-xs text-hs-red-600">{error}</p>}
+      {error && !open && <p className="text-xs text-hs-red-600">{error}</p>}
+
+      <AlertModal open={open} onClose={() => setOpen(false)} title="Save this search">
+        <div className="space-y-4">
+          <AlertScopeFields value={scope} onChange={setScope} />
+          <div>
+            <label htmlFor="save-search-name" className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 block">
+              Name <span className="font-normal normal-case">(optional)</span>
+            </label>
+            <input
+              id="save-search-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Utah suites under $500k"
+              maxLength={120}
+              className="h-10 w-full rounded-lg border border-gray-300 px-3 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-hs-red-500/20 focus:border-hs-red-500"
+            />
+          </div>
+          {error && <p className="text-xs text-hs-red-600">{error}</p>}
+          <div className="flex items-center justify-end gap-3">
+            <button type="button" onClick={() => setOpen(false)} className="min-h-[40px] px-3 text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="min-h-[40px] px-4 rounded-lg bg-hs-red-600 text-white text-sm font-semibold hover:bg-hs-red-700 disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save search"}
+            </button>
+          </div>
+        </div>
+      </AlertModal>
     </div>
   )
 }
