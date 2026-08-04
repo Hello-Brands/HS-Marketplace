@@ -68,7 +68,10 @@ export function DetailMap({ latitude, longitude, locationName }: DetailMapProps)
           <p className="text-sm font-medium text-gray-700">{locationName}</p>
         </div>
       )}
-      <div ref={containerRef} style={{ height: '200px', width: '100%' }} />
+      {/* `isolate` for the same reason as the browse map: it keeps any map-internal
+         z-index (markers, and the global `.maplibregl-popup { z-index: 50 }` rule)
+         scoped to the map instead of competing with the sticky header (z-40). */}
+      <div ref={containerRef} className="isolate" style={{ height: '200px', width: '100%' }} />
     </div>
   )
 }

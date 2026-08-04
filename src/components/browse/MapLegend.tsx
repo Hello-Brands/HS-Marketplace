@@ -156,7 +156,7 @@ export function MapLayerRows() {
 
       <div className="mt-1.5 border-t border-gray-100 pt-1.5">
         <ToggleRow
-          label="Competitors"
+          label="Recent competitor closures"
           active={compActive}
           onClick={() => setFilters({ showCompetitors: !filters.showCompetitors })}
         />

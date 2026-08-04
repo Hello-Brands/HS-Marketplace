@@ -79,7 +79,14 @@ export const MARKER_Z_BASE: Record<MarkerLayer, number> = {
   unlistedHs: 10,
 }
 
-/** How far a hovered marker lifts. Must stay under the 10-wide band gap. */
+/**
+ * How far a hovered marker lifts. Must stay under the 10-wide band gap.
+ *
+ * NOTE: the highest value these bands can produce (competitor + hover = 45) is
+ * also what `.maplibregl-popup { z-index: 50 }` in globals.css has to clear —
+ * popups ship with no z-index of their own, so they lose to any banded marker.
+ * If a band is ever added above 45, raise that rule with it.
+ */
 const HOVER_LIFT = 5
 
 /**

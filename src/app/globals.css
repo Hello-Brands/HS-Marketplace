@@ -505,6 +505,23 @@ body {
 }
 
 /* ====================================
+   MAP POPUPS ABOVE MARKERS
+   ==================================== */
+
+/* MapLibre/MapTiler ships `.maplibregl-popup` with NO z-index of its own, and
+   `.maplibregl-marker` with none either — so the two used to tie and resolve by
+   DOM order. Once the browse map gave markers explicit bands (10–45, see
+   MARKER_Z_BASE in src/lib/browse/map-markers.ts), every marker started winning,
+   and an open popup was shredded by any pin overlapping it.
+   50 clears the 45 ceiling (competitor hovered). If MARKER_Z_BASE ever gains a
+   higher band, raise this with it.
+   Safe against app chrome because both map containers isolate their stacking
+   context (`isolate` on the container div), so this 50 never escapes the map. */
+.maplibregl-popup {
+  z-index: 50;
+}
+
+/* ====================================
    NEW-CLOSURE MARKER PULSE
    ==================================== */
 
