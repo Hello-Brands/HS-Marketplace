@@ -713,8 +713,10 @@ with:
   The database's `drizzle.__drizzle_migrations` table already records 0000-0009,
   so this run applies only 0010. (The known "fails at 0008" problem applies to
   replaying the whole folder against an empty database, not to this incremental
-  run.) The `_journal.json` entry is hand-authored because `drizzle-kit generate`
-  is broken; no `meta/0010_snapshot.json` is written.
+  run.) The `_journal.json` entry AND `meta/0010_snapshot.json` are both
+  hand-authored because `drizzle-kit generate` is broken — the snapshot is
+  required by the `migration-artifacts.test.ts` gate, which reads one per
+  journal entry.
 ```
 
 - [ ] **Step 2: Note the widened formatter signature**
