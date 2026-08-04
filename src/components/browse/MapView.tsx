@@ -10,7 +10,7 @@ import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { hsLocationPopupHtml } from "./hs-location-popup"
 import { escapeHtml } from "@/lib/escape-html"
 import { BRAND } from "@/lib/brand-colors"
-import { isNewClosure } from "@/lib/closure-recency"
+import { isNewClosure, formatClosureDetected } from "@/lib/closure-recency"
 import {
   MARKER_ICON,
   STAR_PATH,
@@ -88,12 +88,6 @@ const COMP_OPP = BRAND.warning // brand warning (caramel)
 const COMP_OPP_HALO = "rgba(187,130,101,0.35)"
 const COMP_MUTED = BRAND.taupe // brand taupe
 
-function formatClosedDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ""
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "America/Denver" })
-}
-
 function statusLabel(status: string): string {
   if (status === "CLOSED_PERMANENTLY") return "Permanently Closed"
   if (status === "CLOSED_TEMPORARILY") return "Temporarily Closed"
@@ -111,8 +105,9 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
     ? `<div style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:${BRAND.warningLight};color:${BRAND.warning};padding:2px 8px;border-radius:999px;margin-bottom:6px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.26 6.6.7-4.95 4.5 1.4 6.54L12 16.77 6.05 20l1.4-6.54L2.5 8.96l6.6-.7L12 2z"/></svg>Opportunity</div>`
     : ""
 
-  const detected = c.closedAt
-    ? `<div style="font-size:11px;color:${BRAND.mauve};margin-top:6px;">Detected ${escapeHtml(formatClosedDate(c.closedAt))}</div>`
+  const detectedLine = formatClosureDetected(c.closedAt)
+  const detected = detectedLine
+    ? `<div style="font-size:11px;color:${BRAND.mauve};margin-top:6px;">${escapeHtml(detectedLine)}</div>`
     : ""
 
   const nearest =
