@@ -10,6 +10,15 @@ import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { hsLocationPopupHtml } from "./hs-location-popup"
 import { escapeHtml } from "@/lib/escape-html"
 import { BRAND } from "@/lib/brand-colors"
+import { isNewClosure } from "@/lib/closure-recency"
+import {
+  MARKER_ICON,
+  type MarkerVariant,
+  type MarkerLayer,
+  markerVariant,
+  hsMarkerLayer,
+  markerZIndex,
+} from "@/lib/browse/map-markers"
 
 interface MapViewProps {
   listings: ListingCard[]
@@ -135,71 +144,124 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
     </div>`
 }
 
-// Build the diamond marker element for a competitor closure.
-function competitorMarkerEl(c: CompetitorClosure): HTMLDivElement {
+// Content-box side of the diamond, per variant. Both variants use a 2px
+// border that sits OUTSIDE this box (no box-sizing), so the rendered footprint
+// is side + 4 — `inner` is sized to that footprint to keep the marker's overall
+// size, and therefore MapTiler's centering, exactly as it was before the star
+// was added.
+const COMP_DIAMOND_SIDE = { opportunity: 11.3, plain: 12 } as const
+const COMP_BORDER = 2
+
+// Build the diamond marker element for a competitor closure. `isNew` adds the
+// gold star + pulse ring for a recently detected closure.
+function competitorMarkerEl(c: CompetitorClosure, isNew: boolean): HTMLDivElement {
   const el = document.createElement("div")
   el.dataset.competitorId = c.googlePlaceId
 
-  // Inner element carries all visuals + the 45° rotation (MapTiler rewrites the
-  // outer element's transform every frame, so we must not touch it).
+  const side = c.isOpportunity ? COMP_DIAMOND_SIDE.opportunity : COMP_DIAMOND_SIDE.plain
+  const footprint = side + COMP_BORDER * 2
+
+  // `inner` carries ONLY the hover scale. MapTiler rewrites the OUTER
+  // element's transform every frame, so we must never touch that one.
   const inner = document.createElement("div")
+  inner.style.cssText = `
+    position: relative;
+    width: ${footprint}px;
+    height: ${footprint}px;
+    transform-origin: center;
+    transition: transform 0.15s ease;
+  `
+
+  // The 45° rotation lives HERE, not on `inner`, so the star can sit beside the
+  // diamond without being tilted with it.
+  const diamond = document.createElement("div")
   if (c.isOpportunity) {
     // 11.3px box → ~16px point-to-point once rotated 45° (16 / √2), matching
     // the 16px location marks. Halo trimmed to a 2px ring.
-    inner.style.cssText = `
-      width: 11.3px;
-      height: 11.3px;
+    diamond.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: ${side}px;
+      height: ${side}px;
       background-color: ${COMP_OPP};
-      border: 2px solid white;
+      border: ${COMP_BORDER}px solid white;
       border-radius: 3px;
       cursor: pointer;
       box-shadow: 0 0 0 2px ${COMP_OPP_HALO}, 0 2px 4px rgba(0,0,0,0.3);
       transform: rotate(45deg);
-      transition: transform 0.15s ease;
     `
   } else {
-    inner.style.cssText = `
-      width: 12px;
-      height: 12px;
+    diamond.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: ${side}px;
+      height: ${side}px;
       background-color: white;
-      border: 2px solid ${COMP_MUTED};
+      border: ${COMP_BORDER}px solid ${COMP_MUTED};
       border-radius: 2px;
       cursor: pointer;
       opacity: 0.75;
       box-shadow: 0 1px 2px rgba(0,0,0,0.25);
       transform: rotate(45deg);
-      transition: transform 0.15s ease;
     `
   }
+  inner.appendChild(diamond)
+
+  if (isNew) {
+    // Pulse appended before the star so it paints UNDER the star (it still
+    // paints OVER the diamond, appended earlier above).
+    const pulse = document.createElement("div")
+    pulse.className = "hs-new-closure-pulse"
+    pulse.style.cssText = `
+      position: absolute;
+      inset: -5px;
+      border-radius: 999px;
+      border: 2px solid ${BRAND.gold};
+      pointer-events: none;
+    `
+    inner.appendChild(pulse)
+
+    // Unrotated: a sibling of `diamond`, so it does not inherit rotate(45deg).
+    // The white stroke is not decoration -- gold on the caramel opportunity
+    // diamond is only ~1.5:1, so the outline is what makes the star readable
+    // there and on pale map tiles alike.
+    const star = document.createElement("div")
+    star.style.cssText = `
+      position: absolute;
+      top: -7px;
+      right: -8px;
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35));
+    `
+    star.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="${BRAND.gold}" stroke="white" stroke-width="2.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z"/></svg>`
+    inner.appendChild(star)
+  }
+
   el.appendChild(inner)
   return el
 }
 
 // --- Hello Sugar location markers -------------------------------------------
-// The three location layers render brand marks instead of plain colored dots:
-//   color → for-sale listing (swirl)   white → unlisted HS salon (swirl)
-//   owner → owned by viewer (white wordmark badge on the brand-red field)
-const MARKER_ICON = {
-  color: "/markers/hs-marker-color.png",
-  white: "/markers/hs-marker-white.png",
-  owner: "/markers/hs-marker-owner.png",
-} as const
-
-type MarkerVariant = keyof typeof MARKER_ICON
+// The three location layers render brand marks — see @/lib/browse/map-markers
+// for which asset each variant maps to and why.
 
 // Drop-shadows tuned per variant so each mark seats legibly on the light street
-// map. The white (unlisted) mark gets a tighter dark halo so it doesn't
-// dissolve into pale tiles the way a plain white glyph would.
+// map. The unlisted white mark gets a tighter dark halo so it doesn't dissolve
+// into pale tiles the way a plain white glyph would.
 const MARKER_SHADOW: Record<MarkerVariant, string> = {
-  color: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
-  owner: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
-  white: "drop-shadow(0 0 1px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
+  forSale: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+  owned: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+  unlisted: "drop-shadow(0 0 1px rgba(0,0,0,0.55)) drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
 }
 
 const MARKER_SIZE = 16
-// The owner badge is a wide wordmark, not a square glyph — render it wider so
-// it stays legible while matching the swirls' visual weight (24 × ~15.6px).
-const OWNER_BADGE_WIDTH = 24
+// The wordmark badge is wide, not a square glyph — render it wider so it stays
+// legible while matching the swirls' visual weight (24 × ~15.6px).
+const BADGE_WIDTH = 24
 
 // Build a brand-mark marker element. As with the competitor markers, the outer
 // element is positioned by MapTiler (it rewrites `transform` every frame — we
@@ -210,10 +272,10 @@ function hsIconMarkerEl(variant: MarkerVariant): HTMLDivElement {
   inner.src = MARKER_ICON[variant]
   inner.alt = ""
   inner.draggable = false
-  // Badge keeps its own aspect (height: auto) so border-radius clips the
+  // The badge keeps its own aspect (height: auto) so border-radius clips the
   // actual red field instead of a letterboxed square.
-  const size = variant === "owner"
-    ? `width: ${OWNER_BADGE_WIDTH}px; height: auto; border-radius: 3px;`
+  const size = variant === "forSale"
+    ? `width: ${BADGE_WIDTH}px; height: auto; border-radius: 3px;`
     : `width: ${MARKER_SIZE}px; height: ${MARKER_SIZE}px; object-fit: contain;`
   inner.style.cssText = `
     display: block;
@@ -250,7 +312,7 @@ export function MapView({
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maptilersdk.Map | null>(null)
-  const markers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
+  const markers = useRef<{ marker: maptilersdk.Marker; id: string; layer: MarkerLayer }[]>([])
   const competitorMarkers = useRef<{ marker: maptilersdk.Marker; id: string }[]>([])
   // Popup tracked alongside the marker: it isn't attached via setPopup (see the
   // HS-location effect), so marker.remove() won't clean it up for us.
@@ -323,11 +385,11 @@ export function MapView({
         // CSS transition, or markers detach from the map (jump to 0,0 / lag
         // behind while panning). All visuals + hover animation live on `inner`.
         const isMine = showMyLocations && ownedListingSet.has(listing.id)
+        const layer = hsMarkerLayer("listing", isMine)
 
-        // Owned locations show the wordmark badge; everything else for sale
-        // shows the full-color mark.
-        const el = hsIconMarkerEl(isMine ? "owner" : "color")
+        const el = hsIconMarkerEl(markerVariant("listing", isMine))
         el.dataset.listingId = listing.id
+        el.style.zIndex = markerZIndex(layer)
 
         const popup = new maptilersdk.Popup({
           offset: 24,
@@ -365,7 +427,7 @@ export function MapView({
           onListingClickRef.current(listing.id)
         })
 
-        markers.current.push({ marker, id: listing.id })
+        markers.current.push({ marker, id: listing.id, layer })
       }
 
       // Auto-fit bounds to show all markers — but only when the rendered
@@ -384,21 +446,18 @@ export function MapView({
     runWhenMapReady(map.current, mapReady.current, addMarkers)
   }, [listings, onHover, showListings, ownedListingIds.join(","), showMyLocations])
 
-  // Highlight hovered marker
+  // Highlight hovered marker. Note the non-hovered branch restores the marker's
+  // BASE band — resetting zIndex to "" would drop it back to accidental DOM
+  // order and silently undo the layer ordering.
   useEffect(() => {
-    for (const { marker, id } of markers.current) {
+    for (const { marker, id, layer } of markers.current) {
       const el = marker.getElement()
       const inner = el.firstElementChild as HTMLElement | null
       if (!inner) continue
-      if (id === hoveredId) {
-        // Scale the inner element up (MapTiler doesn't touch it).
-        inner.style.transform = "scale(1.3)"
-        // zIndex on the outer element is safe — MapTiler doesn't set it.
-        el.style.zIndex = "10"
-      } else {
-        inner.style.transform = "scale(1)"
-        el.style.zIndex = ""
-      }
+      // Scale the inner element (MapTiler doesn't touch it); zIndex on the
+      // outer element is safe (MapTiler doesn't set it).
+      inner.style.transform = id === hoveredId ? "scale(1.3)" : "scale(1)"
+      el.style.zIndex = markerZIndex(layer, id === hoveredId)
     }
   }, [hoveredId])
 
@@ -408,13 +467,8 @@ export function MapView({
       const el = marker.getElement()
       const inner = el.firstElementChild as HTMLElement | null
       if (!inner) continue
-      if (id === hoveredId) {
-        inner.style.transform = "rotate(45deg) scale(1.35)"
-        el.style.zIndex = "6"
-      } else {
-        inner.style.transform = "rotate(45deg)"
-        el.style.zIndex = ""
-      }
+      inner.style.transform = id === hoveredId ? "scale(1.35)" : "scale(1)"
+      el.style.zIndex = markerZIndex("competitor", id === hoveredId)
     }
   }, [hoveredId])
 
@@ -514,8 +568,12 @@ export function MapView({
         (c) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude)
       )
 
+      // One reading per rebuild so every marker agrees on "now".
+      const now = new Date()
+
       for (const c of valid) {
-        const el = competitorMarkerEl(c)
+        const el = competitorMarkerEl(c, isNewClosure(c.closedAt, now))
+        el.style.zIndex = markerZIndex("competitor")
         const inner = el.firstElementChild as HTMLElement
 
         const popup = new maptilersdk.Popup({
@@ -544,13 +602,13 @@ export function MapView({
         })
 
         el.addEventListener("mouseenter", () => {
-          inner.style.transform = "rotate(45deg) scale(1.25)"
-          el.style.zIndex = "5"
+          inner.style.transform = "scale(1.25)"
+          el.style.zIndex = markerZIndex("competitor", true)
           onHover(c.googlePlaceId)
         })
         el.addEventListener("mouseleave", () => {
-          inner.style.transform = "rotate(45deg)"
-          el.style.zIndex = ""
+          inner.style.transform = "scale(1)"
+          el.style.zIndex = markerZIndex("competitor")
           onHover(null)
         })
 
@@ -589,10 +647,9 @@ export function MapView({
       for (const loc of valid) {
         const isMine = showMyLocations && ownedHsSet.has(loc.id)
 
-        // Owned locations show the wordmark badge; unlisted HS salons show
-        // the white swirl mark.
-        const el = hsIconMarkerEl(isMine ? "owner" : "white")
+        const el = hsIconMarkerEl(markerVariant("hsLocation", isMine))
         el.dataset.hsLocationId = loc.id
+        el.style.zIndex = markerZIndex(hsMarkerLayer("hsLocation", isMine))
         const inner = el.firstElementChild as HTMLElement
 
         const popup = new maptilersdk.Popup({

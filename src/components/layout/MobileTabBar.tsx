@@ -10,9 +10,21 @@ import { tabBarHiddenForPath } from "@/lib/tab-bar"
 // hamburger drawer, so there is no "Menu" tab.
 
 // Short labels for the tight tab layout; falls back to the nav label.
+//
+// Every marketplace tab MUST resolve to a single word here. A two-word label
+// wraps at five tabs on a 390px screen, and because the bar is fixed to the
+// bottom the extra height grows UPWARD over the content — covering the browse
+// map's floating List pill and layers button. This map is tab-bar-only, so the
+// desktop nav and the hamburger drawer keep the full "Brand Requests".
 const TAB_LABELS: Record<string, string> = {
   "/account/alerts": "Alerts",
+  "/account/brand-requests": "Brands",
   "/seller/listings": "Listings",
+}
+
+/** Tab-bar label for a nav href, falling back to the full nav label. */
+export function tabLabel(href: string, fallback: string): string {
+  return TAB_LABELS[href] ?? fallback
 }
 
 const ICON_PROPS = {
@@ -64,12 +76,14 @@ export function MobileTabBar({ items }: { items: NavItem[] }) {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[44px] flex-1 flex-col items-center gap-0.5 pt-1.5 pb-0.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset ${
+              className={`flex min-h-[44px] min-w-0 flex-1 flex-col items-center gap-0.5 pt-1.5 pb-0.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-inset ${
                 active ? "text-hs-red-600" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {TAB_ICONS[item.href] ?? TAB_ICONS["/browse"]}
-              <span>{TAB_LABELS[item.href] ?? item.label}</span>
+              <span className="w-full truncate whitespace-nowrap text-center">
+                {tabLabel(item.href, item.label)}
+              </span>
             </Link>
           )
         })}

@@ -51,7 +51,13 @@ export function HeaderNav({ world, caps, email, title, subtitle, mobileSearch }:
       {/* Top tier — global */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 gap-3">
-          <Logo href={logoHref} />
+          {/* Hidden on mobile only where a search slot claims the row (browse):
+             the wide wordmark plus a full-width search field left the 44px
+             hamburger visually colliding with the input. Austin approved
+             dropping it to make room. Home stays reachable via the Browse tab. */}
+          <div className={mobileSearch ? "hidden md:block" : "block"}>
+            <Logo href={logoHref} />
+          </div>
           {mobileSearch && <div className="flex-1 min-w-0 md:hidden">{mobileSearch}</div>}
           <div className="hidden md:flex items-center gap-3">
             {caps.isAdmin && <WorldSwitcher world={world} />}

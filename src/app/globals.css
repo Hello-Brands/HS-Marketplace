@@ -504,6 +504,34 @@ body {
   }
 }
 
+/* ====================================
+   NEW-CLOSURE MARKER PULSE
+   ==================================== */
+
+/* Ring that breathes outward from a competitor closure detected in the last
+   NEW_CLOSURE_WINDOW_DAYS (see src/lib/closure-recency.ts). Applied to a child
+   of the marker's `inner` element, so it composes with inner's hover scale.
+   Unlayered so it isn't stripped by Tailwind's layer ordering. */
+@keyframes hs-new-closure-pulse {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.hs-new-closure-pulse {
+  animation: hs-new-closure-pulse 2s ease-out infinite;
+}
+
+/* Motion-sensitive users still get the marker flagged — a static ring plus the
+   star glyph carry the meaning without the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .hs-new-closure-pulse {
+    animation: none;
+    opacity: 0.65;
+    transform: scale(1.15);
+  }
+}
+
 /* Mobile map chrome: pitch/compass reset isn't useful on small screens. */
 @media (max-width: 47.9375rem) {
   .maplibregl-ctrl-compass {

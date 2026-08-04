@@ -2,6 +2,12 @@ export interface ListSections {
   listings: boolean
   competitors: boolean
   empty: boolean
+  /**
+   * Whether the listings block may start collapsed. True ONLY when a
+   * competitor block renders alongside it — collapsing the only visible block
+   * would open the page to a header and nothing else.
+   */
+  collapsibleListings: boolean
 }
 
 /**
@@ -16,5 +22,10 @@ export function listSections(
 ): ListSections {
   const listings = showListings
   const competitors = showCompetitors && hasCompetitors
-  return { listings, competitors, empty: !listings && !competitors }
+  return {
+    listings,
+    competitors,
+    empty: !listings && !competitors,
+    collapsibleListings: listings && competitors,
+  }
 }
