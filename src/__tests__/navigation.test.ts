@@ -4,8 +4,10 @@ import {
   visibleNavItems,
   visiblePrimaryAction,
   isActive,
+  MARKETPLACE_NAV,
   type NavItem,
 } from "@/lib/navigation"
+import { tabLabel } from "@/components/layout/MobileTabBar"
 
 describe("deriveCapabilities", () => {
   it("treats role=admin as admin AND seller", () => {
@@ -140,5 +142,26 @@ describe("no admin leakage in marketplace", () => {
       isOwner: true,
     })
     expect(items.every((i) => !i.href.startsWith("/admin"))).toBe(true)
+  })
+})
+
+describe("tabLabel", () => {
+  it("shortens Brand Requests for the tab bar", () => {
+    expect(tabLabel("/account/brand-requests", "Brand Requests")).toBe("Brands")
+  })
+  it("keeps the existing short labels", () => {
+    expect(tabLabel("/account/alerts", "My Alerts")).toBe("Alerts")
+    expect(tabLabel("/seller/listings", "My Listings")).toBe("Listings")
+  })
+  it("falls back to the nav label when there is no override", () => {
+    expect(tabLabel("/browse", "Browse")).toBe("Browse")
+  })
+  it("resolves every marketplace tab to a single word", () => {
+    // A two-word label wraps at five tabs on a 390px screen, which grows the
+    // fixed bar past the 3.5rem .pb-tabbar reserves and pushes it up over the
+    // map's floating controls.
+    for (const item of MARKETPLACE_NAV) {
+      expect(tabLabel(item.href, item.label)).not.toMatch(/\s/)
+    }
   })
 })
