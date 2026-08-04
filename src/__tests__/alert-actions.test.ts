@@ -230,6 +230,22 @@ describe("deleteAlert", () => {
     expect(mockDelete).toHaveBeenCalled()
     expect(result).toEqual({ success: true })
   })
+
+  it("refuses to delete an owner-auto alert", async () => {
+    mockSession()
+    mockFindFirst.mockResolvedValue({
+      id: "auto-alert-id",
+      userId: MOCK_USER_ID,
+      states: ["TX"],
+      origin: "owner-auto",
+    })
+    mockDelete.mockReturnValue(makeDeleteChain())
+
+    const result = await deleteAlert("auto-alert-id")
+
+    expect(result.error).toMatch(/managed from your owned locations/)
+    expect(mockDelete).not.toHaveBeenCalled()
+  })
 })
 
 describe("getMyAlerts", () => {

@@ -23,6 +23,7 @@ import { revalidatePath } from "next/cache"
 import { sendAlertMatchEmail } from "@/lib/email"
 import { listingMatchesAlert } from "@/lib/alert-match"
 import { seedCompetitorLedger } from "@/lib/competitor-alert-log"
+import { isOwnerAutoAlert } from "@/lib/owner-alerts/constants"
 
 const alertSchema = z.object({
   name: z.string().max(120).optional().nullable(),
@@ -158,6 +159,10 @@ export async function deleteAlert(id: string) {
   })
   if (!existing || existing.userId !== session.user.id) {
     return { error: "Alert not found" }
+  }
+
+  if (isOwnerAutoAlert(existing)) {
+    return { error: "This alert is managed from your owned locations. Turn off Notify to silence it." }
   }
 
   await db.delete(alerts).where(eq(alerts.id, id))
