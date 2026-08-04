@@ -20,6 +20,8 @@ export const BRAND = {
   warning: '#B9772E',
   /** --color-warning-light / --color-amber-100 */
   warningLight: '#F3E4D0',
+  /** --color-amber-400 — new-closure star; needs a white stroke on caramel */
+  gold: '#CE9E58',
   /** --color-error — danger status text */
   error: '#C0142F',
   /** --foreground / --gray-900 — brand ink */

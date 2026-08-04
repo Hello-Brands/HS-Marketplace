@@ -1,6 +1,7 @@
 'use client'
 
 import type { AnnotatedCompetitor } from "@/lib/competitor-sort"
+import { isNewClosure } from "@/lib/closure-recency"
 import { SaveCompetitorButton } from "./SaveCompetitorButton"
 
 interface CompetitorListProps {
@@ -35,6 +36,9 @@ export function CompetitorList({
     )
   }
 
+  // One reading per render so every card in the list agrees on "now".
+  const now = new Date()
+
   return (
     <div>
       <p className="text-sm text-gray-500 mb-4">{competitors.length} competitor location{competitors.length !== 1 ? "s" : ""}</p>
@@ -43,6 +47,7 @@ export function CompetitorList({
           const permanent = c.businessStatus === "CLOSED_PERMANENTLY"
           const isHovered = hoveredId === c.googlePlaceId
           const place = [c.city, c.state].filter(Boolean).join(", ")
+          const isNew = isNewClosure(c.closedAt, now)
           return (
             <div
               key={c.googlePlaceId}
@@ -58,6 +63,14 @@ export function CompetitorList({
                 aria-label={`Show ${c.brandName} on map`}
                 className="flex-1 min-w-0 text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 rounded-lg"
               >
+                {isNew && (
+                  <span className="mb-1 mr-1 inline-flex items-center gap-1 rounded-full bg-amber-700 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3" aria-hidden="true">
+                      <path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z" />
+                    </svg>
+                    New
+                  </span>
+                )}
                 {c.isOpportunity && (
                   <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full mb-1">
                     <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3" aria-hidden="true">
