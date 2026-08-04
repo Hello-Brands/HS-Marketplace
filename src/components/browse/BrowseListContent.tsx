@@ -66,7 +66,7 @@ export function BrowseListContent({
     return (
       <div className="py-16 text-center text-sm text-gray-500">
         No results to show. Toggle <span className="font-semibold">Hello Sugar</span> or{" "}
-        <span className="font-semibold">Competitors</span> above.
+        <span className="font-semibold">Recent competitor closures</span> above.
       </div>
     )
   }
@@ -113,7 +113,7 @@ export function BrowseListContent({
       )}
       {sections.competitors && (
         <div>
-          {sections.collapsibleListings && <h2 className={HEADING}>Competitors</h2>}
+          {sections.collapsibleListings && <h2 className={HEADING}>Recent competitor closures</h2>}
           <CompetitorList
             competitors={competitorClosures}
             savedSet={savedSet}
