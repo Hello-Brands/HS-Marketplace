@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { ListingGrid } from "./ListingGrid"
 import { CompetitorList } from "./CompetitorList"
 import { listSections } from "@/lib/browse-list-sections"
@@ -39,6 +40,11 @@ export function BrowseListContent({
 }: BrowseListContentProps) {
   const sections = listSections(showListings, showCompetitors, competitorClosures.length > 0)
   const both = sections.listings && sections.competitors
+  // Collapsed on load so owners land on competitor closures. Deliberately NOT
+  // in the URL or localStorage: it's a reading preference, not shareable state,
+  // and a nuqs flag would ride along in every shared /browse link.
+  const [listingsOpen, setListingsOpen] = useState(false)
+  const listingsCollapsed = sections.collapsibleListings && !listingsOpen
 
   if (sections.empty) {
     return (
@@ -53,15 +59,39 @@ export function BrowseListContent({
     <div className="space-y-6">
       {sections.listings && (
         <div>
-          {both && <h2 className={HEADING}>Hello Sugar listings</h2>}
-          <ListingGrid
-            initialListings={initialListings}
-            filters={filters}
-            hoveredId={hoveredId}
-            onHover={onHover}
-            favoriteIds={favoriteIds}
-            singleColumn={singleColumn}
-          />
+          {both && (
+            <button
+              type="button"
+              onClick={() => setListingsOpen((o) => !o)}
+              aria-expanded={listingsOpen}
+              aria-controls="hs-listings-panel"
+              className={`${HEADING} flex w-full items-center gap-2 rounded-md text-left transition-colors hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2`}
+            >
+              <span>Hello Sugar listings</span>
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gray-200 px-1.5 text-[11px] font-bold tabular-nums text-gray-700">
+                {initialListings.length}
+              </span>
+              <svg
+                className={`h-3.5 w-3.5 transition-transform ${listingsOpen ? "rotate-180" : ""}`}
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+          )}
+          {/* Kept MOUNTED and hidden rather than unmounted: ListingGrid fetches
+             on mount, so unmounting would re-fetch on every expand. `hidden`
+             also removes it from the accessibility tree. */}
+          <div id="hs-listings-panel" hidden={listingsCollapsed}>
+            <ListingGrid
+              initialListings={initialListings}
+              filters={filters}
+              hoveredId={hoveredId}
+              onHover={onHover}
+              favoriteIds={favoriteIds}
+              singleColumn={singleColumn}
+            />
+          </div>
         </div>
       )}
       {sections.competitors && (
