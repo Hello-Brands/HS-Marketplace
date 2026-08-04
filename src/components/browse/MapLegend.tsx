@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useListingFilters } from "./FilterBar"
 import { MARKER_ICON } from "@/lib/browse/map-markers"
+import { NEW_CLOSURE_WINDOW_DAYS } from "@/lib/closure-recency"
 
 // Swirl-mark swatch mirroring the map markers. `halo` gives the white
 // (unlisted) mark a soft dark shadow so it stays visible against the white
@@ -59,6 +60,15 @@ function DiamondHollow() {
       className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px] bg-white"
       style={{ border: "1.5px solid var(--hs-taupe)" }}
     />
+  )
+}
+
+// Gold star matching the new-closure marker overlay. Key entry only.
+function NewStar() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3 text-amber-700" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z" />
+    </svg>
   )
 }
 
@@ -149,6 +159,10 @@ export function MapLayerRows() {
         <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
           <DiamondHollow />
           <span>Closed</span>
+        </div>
+        <div className={`flex items-center gap-2 py-0.5 pl-6 text-xs ${compActive ? "text-gray-500" : "text-gray-300"}`}>
+          <NewStar />
+          <span>New (last {NEW_CLOSURE_WINDOW_DAYS} days)</span>
         </div>
       </div>
     </>

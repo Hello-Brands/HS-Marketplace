@@ -10,6 +10,7 @@ import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { hsLocationPopupHtml } from "./hs-location-popup"
 import { escapeHtml } from "@/lib/escape-html"
 import { BRAND } from "@/lib/brand-colors"
+import { isNewClosure } from "@/lib/closure-recency"
 import {
   MARKER_ICON,
   type MarkerVariant,
@@ -143,42 +144,102 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
     </div>`
 }
 
-// Build the diamond marker element for a competitor closure.
-function competitorMarkerEl(c: CompetitorClosure): HTMLDivElement {
+// Content-box side of the diamond, per variant. Both variants use a 2px
+// border that sits OUTSIDE this box (no box-sizing), so the rendered footprint
+// is side + 4 — `inner` is sized to that footprint to keep the marker's overall
+// size, and therefore MapTiler's centering, exactly as it was before the star
+// was added.
+const COMP_DIAMOND_SIDE = { opportunity: 11.3, plain: 12 } as const
+const COMP_BORDER = 2
+
+// Build the diamond marker element for a competitor closure. `isNew` adds the
+// gold star + pulse ring for a recently detected closure.
+function competitorMarkerEl(c: CompetitorClosure, isNew: boolean): HTMLDivElement {
   const el = document.createElement("div")
   el.dataset.competitorId = c.googlePlaceId
 
-  // Inner element carries all visuals + the 45° rotation (MapTiler rewrites the
-  // outer element's transform every frame, so we must not touch it).
+  const side = c.isOpportunity ? COMP_DIAMOND_SIDE.opportunity : COMP_DIAMOND_SIDE.plain
+  const footprint = side + COMP_BORDER * 2
+
+  // `inner` carries ONLY the hover scale. MapTiler rewrites the OUTER
+  // element's transform every frame, so we must never touch that one.
   const inner = document.createElement("div")
+  inner.style.cssText = `
+    position: relative;
+    width: ${footprint}px;
+    height: ${footprint}px;
+    transform-origin: center;
+    transition: transform 0.15s ease;
+  `
+
+  // The 45° rotation lives HERE, not on `inner`, so the star can sit beside the
+  // diamond without being tilted with it.
+  const diamond = document.createElement("div")
   if (c.isOpportunity) {
     // 11.3px box → ~16px point-to-point once rotated 45° (16 / √2), matching
     // the 16px location marks. Halo trimmed to a 2px ring.
-    inner.style.cssText = `
-      width: 11.3px;
-      height: 11.3px;
+    diamond.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: ${side}px;
+      height: ${side}px;
       background-color: ${COMP_OPP};
-      border: 2px solid white;
+      border: ${COMP_BORDER}px solid white;
       border-radius: 3px;
       cursor: pointer;
       box-shadow: 0 0 0 2px ${COMP_OPP_HALO}, 0 2px 4px rgba(0,0,0,0.3);
       transform: rotate(45deg);
-      transition: transform 0.15s ease;
     `
   } else {
-    inner.style.cssText = `
-      width: 12px;
-      height: 12px;
+    diamond.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: ${side}px;
+      height: ${side}px;
       background-color: white;
-      border: 2px solid ${COMP_MUTED};
+      border: ${COMP_BORDER}px solid ${COMP_MUTED};
       border-radius: 2px;
       cursor: pointer;
       opacity: 0.75;
       box-shadow: 0 1px 2px rgba(0,0,0,0.25);
       transform: rotate(45deg);
-      transition: transform 0.15s ease;
     `
   }
+  inner.appendChild(diamond)
+
+  if (isNew) {
+    // Pulse first so it paints UNDER the star and diamond.
+    const pulse = document.createElement("div")
+    pulse.className = "hs-new-closure-pulse"
+    pulse.style.cssText = `
+      position: absolute;
+      inset: -5px;
+      border-radius: 999px;
+      border: 2px solid ${BRAND.gold};
+      pointer-events: none;
+    `
+    inner.appendChild(pulse)
+
+    // Unrotated: a sibling of `diamond`, so it does not inherit rotate(45deg).
+    // The white stroke is not decoration -- gold on the caramel opportunity
+    // diamond is only ~1.5:1, so the outline is what makes the star readable
+    // there and on pale map tiles alike.
+    const star = document.createElement("div")
+    star.style.cssText = `
+      position: absolute;
+      top: -7px;
+      right: -8px;
+      width: 11px;
+      height: 11px;
+      pointer-events: none;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.35));
+    `
+    star.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="${BRAND.gold}" stroke="white" stroke-width="2.5" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.9 6.26L21.5 9l-4.75 4.64L18 21l-6-3.27L6 21l1.25-7.36L2.5 9l6.6-.74L12 2z"/></svg>`
+    inner.appendChild(star)
+  }
+
   el.appendChild(inner)
   return el
 }
@@ -405,7 +466,7 @@ export function MapView({
       const el = marker.getElement()
       const inner = el.firstElementChild as HTMLElement | null
       if (!inner) continue
-      inner.style.transform = id === hoveredId ? "rotate(45deg) scale(1.35)" : "rotate(45deg)"
+      inner.style.transform = id === hoveredId ? "scale(1.35)" : "scale(1)"
       el.style.zIndex = markerZIndex("competitor", id === hoveredId)
     }
   }, [hoveredId])
@@ -506,8 +567,11 @@ export function MapView({
         (c) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude)
       )
 
+      // One reading per rebuild so every marker agrees on "now".
+      const now = new Date()
+
       for (const c of valid) {
-        const el = competitorMarkerEl(c)
+        const el = competitorMarkerEl(c, isNewClosure(c.closedAt, now))
         el.style.zIndex = markerZIndex("competitor")
         const inner = el.firstElementChild as HTMLElement
 
@@ -537,12 +601,12 @@ export function MapView({
         })
 
         el.addEventListener("mouseenter", () => {
-          inner.style.transform = "rotate(45deg) scale(1.25)"
+          inner.style.transform = "scale(1.25)"
           el.style.zIndex = markerZIndex("competitor", true)
           onHover(c.googlePlaceId)
         })
         el.addEventListener("mouseleave", () => {
-          inner.style.transform = "rotate(45deg)"
+          inner.style.transform = "scale(1)"
           el.style.zIndex = markerZIndex("competitor")
           onHover(null)
         })
