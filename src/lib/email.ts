@@ -86,14 +86,33 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
   }
 
   // Safe-by-default outside production: only deliver to real recipients when an
-  // EMAIL_OVERRIDE inbox is set (point it at your own address to test). In
-  // production, always send to the real recipient.
+  // EMAIL_OVERRIDE inbox is set (point it at your own address to test).
+  //
+  // Production ALWAYS delivers to the real recipient, regardless of override.
+  // This used to read `override || to` unconditionally, and EMAIL_OVERRIDE was in
+  // fact set in the production environment — so every seller reminder, buyer
+  // inquiry reply, alert match and brand-request email was silently redirected to
+  // one inbox, with the intended address only echoed into the subject line.
+  // Sellers never got reminders, buyers never got replies, and that inbox
+  // accumulated other people's PII plus live one-click action tokens.
+  //
+  // The signal is VERCEL_ENV, not NODE_ENV: NODE_ENV is "production" on preview
+  // deployments too, so keying on it would both mislabel previews as production
+  // and (before this) let previews send real mail whenever no override was set.
   const override = env.EMAIL_OVERRIDE?.trim()
-  if (!override && process.env.NODE_ENV !== "production") {
+  const isProduction = process.env.VERCEL_ENV === "production"
+
+  if (isProduction && override) {
+    console.warn(
+      "[email] EMAIL_OVERRIDE is set in production and is being IGNORED — remove it from the production environment",
+    )
+  }
+  if (!override && !isProduction) {
     console.warn(`[email] non-production: skipped "${subject}" to ${to} (set EMAIL_OVERRIDE to test real sends)`)
     return { success: false as const, skipped: true as const }
   }
-  const recipient = override || to
+  const redirect = !isProduction && !!override
+  const recipient = redirect ? override! : to
 
   try {
     // The Resend SDK returns API errors in `error` (it does NOT throw on them),
@@ -101,7 +120,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
     const { data, error } = await resend.emails.send({
       from: FROM_ADDRESS,
       to: recipient,
-      subject: override ? `[to: ${to}] ${subject}` : subject,
+      subject: redirect ? `[to: ${to}] ${subject}` : subject,
       html,
       text,
     })

@@ -35,6 +35,12 @@ const {
 
 vi.mock('@/auth', () => ({ auth: mockAuth }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+// persist.ts re-derives ttmRevenue/mcr from BigQuery instead of trusting the
+// client payload; stub the cached maps so write-path tests stay offline.
+vi.mock('@/lib/bigquery/queries', () => ({
+  getNetSalesByLocation: vi.fn().mockResolvedValue(new Map()),
+  getMcrByLocation: vi.fn().mockResolvedValue(new Map()),
+}))
 // DEBT-022: the create path enforces the seller disclaimer server-side. Mock the
 // helper so create tests can opt in (acknowledged) or assert the guard rejects.
 vi.mock('@/lib/listings/disclaimer', () => ({ hasAcknowledgedCurrentFdd: mockHasAck }))

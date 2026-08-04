@@ -9,6 +9,7 @@ import type { ListingFormData, ListingStatus } from './types'
 import { canTransition } from './status-machine'
 import { nextListedAt } from '@/lib/analytics/helpers'
 import { buildListingUpdate } from './build-update'
+import { parseListingPatch } from './schemas'
 import { requireSellerAccess } from '@/lib/auth-guards'
 import { hasAcknowledgedCurrentFdd } from './disclaimer'
 import {
@@ -18,8 +19,16 @@ import {
   buildPhotoSync,
 } from './persist'
 
-export async function saveDraft(data: Partial<ListingFormData>, listingId?: string) {
+export async function saveDraft(input: Partial<ListingFormData>, listingId?: string) {
   const user = await requireSellerAccess()
+
+  // Validate server-side. The zod schemas were previously wired only into the
+  // client's react-hook-form resolver, so every type, range and max-length
+  // constraint was bypassed by invoking this action directly or by posting to
+  // /api/listings/draft, which passes `await request.json()` straight through.
+  // Using the parsed output also strips unknown keys and turns the JSON route's
+  // ISO date strings into Dates.
+  const data = parseListingPatch(input)
 
   // Determine type: bundle if >1 location, else use explicit type or infer from location
   const type = data.locations && data.locations.length > 1

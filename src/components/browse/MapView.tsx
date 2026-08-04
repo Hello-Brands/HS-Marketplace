@@ -32,9 +32,11 @@ interface MapViewProps {
   ownedHsLocationIds?: string[]
   // Legend toggle: when false, owned dots render exactly like non-owned dots.
   showMyLocations?: boolean
-  // Click handler for OWNED unlisted HS dots only (navigates to the owner
-  // detail page). Non-owned HS dots keep the pin-popup behavior.
+  // Actions offered by the pinned popup on OWNED unlisted HS dots only:
+  // "View location" navigates to the owner detail page, "Watch this area" opens
+  // the watch-area dialog. Non-owned HS dots just pin their preview popup.
   onHsLocationClick?: (id: string) => void
+  onWatchArea?: (loc: UnlistedHsLocation) => void
   savedPlaceIds?: string[]
   onToggleSaveCompetitor?: (c: CompetitorClosure) => void
   // A competitor chosen from the list. `seq` bumps on every click so re-selecting
@@ -241,6 +243,7 @@ export function MapView({
   ownedHsLocationIds = [],
   showMyLocations = true,
   onHsLocationClick,
+  onWatchArea,
   savedPlaceIds = [],
   onToggleSaveCompetitor,
   selectedCompetitor,
@@ -267,6 +270,8 @@ export function MapView({
   onListingClickRef.current = onListingClick
   const onHsLocationClickRef = useRef(onHsLocationClick)
   onHsLocationClickRef.current = onHsLocationClick
+  const onWatchAreaRef = useRef(onWatchArea)
+  onWatchAreaRef.current = onWatchArea
 
   // Initialize map once
   useEffect(() => {
@@ -558,7 +563,8 @@ export function MapView({
 
   // Unlisted Hello Sugar locations: a third marker layer of solid slate dots.
   // Hover previews a non-PII popup; a single click pins it open (click elsewhere
-  // on the map dismisses it via closeOnClick). These never navigate and have no
+  // on the map dismisses it via closeOnClick). The dots themselves never
+  // navigate — only the owned popup's View button does — and they have no
   // onHover coordination (they aren't in the list). The popup is deliberately
   // NOT attached via setPopup — the marker's built-in click-toggle would fight
   // the hover-open handler and demand a second click to reopen the popup.
@@ -593,6 +599,12 @@ export function MapView({
           offset: 24,
           closeButton: false,
           maxWidth: "220px",
+          // These popups open on HOVER. focusAfterOpen defaults to true, which
+          // would pull keyboard focus onto the owned variant's "View location"
+          // button on every hover and dump focus back to <body> when the popup
+          // is removed — shredding tab order for anyone passing the cursor over
+          // the map.
+          focusAfterOpen: false,
         })
           .setLngLat([loc.longitude, loc.latitude])
           .setHTML(hsLocationPopupHtml(loc, isMine))
@@ -610,22 +622,47 @@ export function MapView({
           inner.style.transform = "scale(1)"
           if (!pinned) popup.remove()
         })
-        // Owned dots navigate to the owner detail page; everyone else's keep
-        // the pin-the-popup behavior. stopPropagation (both paths) keeps the
-        // map's closeOnClick from immediately dismissing a pinned popup.
+        // All HS dots pin the popup on click; owned popups carry View/Watch action
+        // buttons (wired below). stopPropagation keeps the map's closeOnClick from
+        // immediately dismissing a pinned popup.
+        //
+        // addTo() on an ALREADY-OPEN popup re-adds it: MapLibre's addTo starts
+        // with `if (this._map) this.remove()`, and remove() fires "close" — which
+        // would flip `pinned` straight back to false (the popup is already open
+        // from mouseenter on desktop). So: only add when closed, and set `pinned`
+        // AFTER, where no close event can clear it.
         el.addEventListener("click", (e) => {
           e.stopPropagation()
-          if (isMine && onHsLocationClickRef.current) {
-            popup.remove()
-            onHsLocationClickRef.current(loc.id)
-            return
-          }
+          if (!popup.isOpen()) popup.addTo(m)
           pinned = true
-          popup.addTo(m)
         })
         popup.on("close", () => {
           pinned = false
         })
+
+        if (isMine) {
+          popup.on("open", () => {
+            const root = popup.getElement()
+            const viewBtn = root?.querySelector<HTMLButtonElement>('[data-hs-popup-action="view"]')
+            if (viewBtn && viewBtn.dataset.bound !== "1") {
+              viewBtn.dataset.bound = "1"
+              viewBtn.addEventListener("click", (e) => {
+                e.stopPropagation()
+                popup.remove()
+                onHsLocationClickRef.current?.(loc.id)
+              })
+            }
+            const watchBtn = root?.querySelector<HTMLButtonElement>('[data-hs-popup-action="watch"]')
+            if (watchBtn && watchBtn.dataset.bound !== "1") {
+              watchBtn.dataset.bound = "1"
+              watchBtn.addEventListener("click", (e) => {
+                e.stopPropagation()
+                popup.remove()
+                onWatchAreaRef.current?.(loc)
+              })
+            }
+          })
+        }
 
         hsMarkers.current.push({ marker, popup, id: loc.id })
       }

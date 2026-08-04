@@ -1,14 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // Hoist mock variables so they are available in the vi.mock factory
-const { mockSelect } = vi.hoisted(() => {
+const { mockSelect, mockAuth } = vi.hoisted(() => {
   const mockSelect = vi.fn()
-  return { mockSelect }
+  const mockAuth = vi.fn()
+  return { mockSelect, mockAuth }
 })
 
 vi.mock("@/db", () => ({
   db: { select: mockSelect },
 }))
+
+// getListings is a "use server" export, so it authenticates itself via
+// requireSession() -> auth(). Every query test needs a session present.
+vi.mock("@/auth", () => ({ auth: mockAuth }))
 
 // Import after mock is set up
 import { getListings } from "@/lib/listings-query"
@@ -32,6 +37,20 @@ function makeQueryChain(result: unknown[]) {
 describe("getListings", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuth.mockResolvedValue({ user: { id: "user-1" } })
+  })
+
+  // Regression: getListings is reachable as an unauthenticated Server Action
+  // POST (its action id ships in the client bundle), so it must reject callers
+  // with no session rather than returning the active-listing set. Confirmed
+  // exploitable in production before this guard existed.
+  it("rejects an unauthenticated caller instead of returning listings", async () => {
+    mockAuth.mockResolvedValue(null)
+    const chain = makeQueryChain([makeRow(0)])
+    mockSelect.mockReturnValue(chain)
+
+    await expect(getListings({})).rejects.toThrow("Unauthorized")
+    expect(mockSelect).not.toHaveBeenCalled()
   })
 
   // Test 1: returns only active listings (status eq condition always applied)

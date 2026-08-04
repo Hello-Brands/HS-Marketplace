@@ -7,6 +7,8 @@ import { getUnlistedHsLocations } from "@/lib/hs-locations-query"
 import { getSavedCompetitorPlaceIds } from "@/lib/saved-competitors-actions"
 import { getMyMapOwnership } from "@/lib/owner-map/data"
 import { getFavoriteListingIds } from "@/lib/favorites-actions"
+import { getMyOwnerLocations } from "@/lib/owner-directory/data"
+import { annotateAndSortCompetitors, toOwnerPoints } from "@/lib/competitor-sort"
 import { shouldShowOwnerAlertsPrompt } from "@/lib/owner-alerts/prompt"
 import { OwnerAlertsPrompt } from "@/components/alerts/OwnerAlertsPrompt"
 import { BrowsePage } from "@/components/browse/BrowsePage"
@@ -78,6 +80,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
     hsLocations,
     mapOwnership,
     favoriteIds,
+    myOwnership,
     showOwnerPrompt,
   ] = await Promise.all([
     getListings(filters),
@@ -96,9 +99,21 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
     }),
     getMyMapOwnership(),
     getFavoriteListingIds(),
+    getMyOwnerLocations(),
     shouldShowOwnerAlertsPrompt(),
   ])
   const count = initialListings.length
+
+  // Sort competitors by the searched center, else by the viewer's nearest owned
+  // salon, else opportunities-first + newest. Per-request on purpose: owner
+  // coordinates must never enter the shared owner-agnostic caches (DEBT-024).
+  const sortedCompetitors = annotateAndSortCompetitors(competitorClosures, {
+    searchCenter:
+      filters.centerLat != null && filters.centerLng != null
+        ? { lat: filters.centerLat, lng: filters.centerLng }
+        : null,
+    ownerPoints: toOwnerPoints(myOwnership.locations),
+  })
 
   return (
     // Viewport-pinned shell: header + browse content are clamped to the window
@@ -118,7 +133,7 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
       )}
       <BrowsePage
         initialListings={initialListings}
-        competitorClosures={competitorClosures}
+        competitorClosures={sortedCompetitors}
         savedCompetitorIds={savedCompetitorIds}
         hsLocations={hsLocations}
         mapOwnership={mapOwnership}

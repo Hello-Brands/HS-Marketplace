@@ -40,15 +40,19 @@ describe("hsLocationPopupHtml", () => {
     expect(html).not.toContain("owner")
   })
 
-  it("owned variant shows the yours badge and a details CTA", () => {
+  it("owned variant shows the yours badge and both action buttons", () => {
     const html = hsLocationPopupHtml(base, true)
     expect(html).toContain("Your location")
-    expect(html).toContain("view details")
+    expect(html).toContain('data-hs-popup-action="view"')
+    expect(html).toContain("View location")
+    expect(html).toContain('data-hs-popup-action="watch"')
+    expect(html).toContain("Watch this area")
   })
 
-  it("default variant is unchanged (no CTA, not-for-sale badge)", () => {
+  it("default variant is unchanged (no action buttons, not-for-sale badge)", () => {
     const html = hsLocationPopupHtml(base)
     expect(html).toContain("not for sale")
-    expect(html).not.toContain("view details")
+    expect(html).not.toContain("data-hs-popup-action")
+    expect(html).not.toContain("<button")
   })
 })

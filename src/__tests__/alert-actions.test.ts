@@ -64,8 +64,9 @@ import {
   updateAlert,
   deleteAlert,
   getMyAlerts,
-  triggerAlertMatching,
 } from "@/lib/alert-actions"
+// Moved out of the "use server" module so it is not an addressable endpoint.
+import { triggerAlertMatching } from "@/lib/alerts/matching"
 
 const MOCK_USER_ID = "user-123"
 const MOCK_USER_EMAIL = "buyer@example.com"
