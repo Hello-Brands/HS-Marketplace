@@ -5,10 +5,12 @@ import { users } from "@/db/schema/auth"
 import { eq } from "drizzle-orm"
 import { getCompetitorClosures } from "@/lib/competitor-query"
 import {
+  eligibleClosuresForAlert,
   filterCompetitorsByScope,
   selectUnloggedCompetitors,
   scopeIsBounded,
 } from "@/lib/competitor-filter"
+import { isOwnerAutoAlert } from "@/lib/owner-alerts/constants"
 import { getLoggedCompetitorPlaceIds, recordCompetitorAlerts } from "@/lib/competitor-alert-log"
 import { sendCompetitorAlertEmail } from "@/lib/email"
 import { savedSearchToBrowseParams } from "@/lib/saved-search"
@@ -46,7 +48,9 @@ export async function GET(request: Request) {
     processed++
 
     try {
-      const inScope = filterCompetitorsByScope(allCompetitors, scope)
+      // Owner-auto alerts fire on permanent closures only.
+      const pool = eligibleClosuresForAlert(alert, allCompetitors)
+      const inScope = filterCompetitorsByScope(pool, scope)
       const logged = await getLoggedCompetitorPlaceIds(alert.id)
       const fresh = selectUnloggedCompetitors(inScope, logged)
       if (fresh.length === 0) continue
@@ -54,8 +58,9 @@ export async function GET(request: Request) {
       const res = await sendCompetitorAlertEmail({
         buyerEmail: user.email,
         buyerName: user.name || "Hello Sugar Buyer",
-        searchName: alert.name || "your saved search",
+        searchName: alert.name || alert.centerLabel || "your saved search",
         searchUrl: `${appUrl}/browse?${savedSearchToBrowseParams(alert)}&showCompetitors=true`,
+        variant: isOwnerAutoAlert(alert) ? "owner-location" : "saved-search",
         competitors: fresh.map((c) => ({
           brandName: c.brandName,
           city: c.city,

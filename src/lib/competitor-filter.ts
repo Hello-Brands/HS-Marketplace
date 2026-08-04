@@ -1,4 +1,5 @@
 import { isWithinRadius } from "./geo"
+import { isOwnerAutoAlert } from "./owner-alerts/constants"
 
 export interface CompetitorScope {
   centerLat?: number | null
@@ -54,6 +55,19 @@ export function scopeIsBounded(scope: CompetitorScope): boolean {
     scope.centerLat != null && scope.centerLng != null && scope.radiusMiles != null
   const hasStates = !!(scope.states && scope.states.length > 0)
   return hasGeo || hasStates
+}
+
+/**
+ * Which closures an alert may match. Owner-auto alerts fire on permanent
+ * closures only (spec decision); regular saved searches keep both types.
+ */
+export function eligibleClosuresForAlert<T extends { businessStatus: string }>(
+  alert: { origin: string | null | undefined },
+  closures: T[]
+): T[] {
+  return isOwnerAutoAlert(alert)
+    ? closures.filter((c) => c.businessStatus === "CLOSED_PERMANENTLY")
+    : closures
 }
 
 export function selectUnloggedCompetitors<T extends { googlePlaceId: string }>(

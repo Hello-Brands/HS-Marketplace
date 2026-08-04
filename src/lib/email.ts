@@ -63,6 +63,8 @@ export interface CompetitorAlertData {
   buyerName: string
   searchName: string
   searchUrl: string
+  /** 'owner-location' = an owner-auto alert around an owned salon. */
+  variant?: "saved-search" | "owner-location"
   competitors: Array<{
     brandName: string
     city: string | null
@@ -293,7 +295,13 @@ export async function sendReminderEmail(data: ReminderEmailData) {
 export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject: string; html: string } {
   const { buyerName, searchName, searchUrl, competitors } = data
   const n = competitors.length
-  const subject = `${n} new competitor closure${n !== 1 ? "s" : ""} near your saved search`
+  const ownerVariant = data.variant === "owner-location"
+  const subject = ownerVariant
+    ? `${n} competitor closure${n !== 1 ? "s" : ""} near ${searchName}`
+    : `${n} new competitor closure${n !== 1 ? "s" : ""} near your saved search`
+  const intro = ownerVariant
+    ? `${n} competitor${n !== 1 ? "s" : ""} permanently closed near your location <strong>${searchName}</strong>:`
+    : `${n} new competitor closure${n !== 1 ? "s" : ""} appeared in the area of your saved search <strong>${searchName}</strong>:`
   const appUrl = env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
 
   const cards = competitors
@@ -320,7 +328,7 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #ED1845;">New Competitor Closures Near Your Search</h1>
       <p>Hi ${buyerName},</p>
-      <p>${n} new competitor closure${n !== 1 ? "s" : ""} appeared in the area of your saved search <strong>${searchName}</strong>:</p>
+      <p>${intro}</p>
       ${cards}
       <p>
         <a href="${searchUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">

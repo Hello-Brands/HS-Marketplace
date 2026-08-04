@@ -27,4 +27,15 @@ describe("buildCompetitorAlertEmail", () => {
     expect(html).toContain("Watermark")
     expect(html).toContain(data.searchUrl)
   })
+  it("uses the owner-location subject for the owner-auto variant", () => {
+    const { subject } = buildCompetitorAlertEmail({
+      buyerEmail: "o@x.com",
+      buyerName: "Owner",
+      searchName: "Sugar House",
+      searchUrl: "https://example.com/browse?x=1",
+      variant: "owner-location",
+      competitors: [{ brandName: "EWC", city: "SLC", state: "UT", nearestHsName: null, nearestHsMiles: null, mapsUrl: null }],
+    })
+    expect(subject).toBe("1 competitor closure near Sugar House")
+  })
 })
