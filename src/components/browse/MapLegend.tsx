@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useListingFilters } from "./FilterBar"
+import { MARKER_ICON } from "@/lib/browse/map-markers"
 
 // Swirl-mark swatch mirroring the map markers. `halo` gives the white
 // (unlisted) mark a soft dark shadow so it stays visible against the white
@@ -119,20 +120,20 @@ export function MapLayerRows() {
         label="Your locations"
         active={filters.showMyLocations}
         onClick={() => setFilters({ showMyLocations: !filters.showMyLocations })}
-        swatch={<BadgeSwatch src="/markers/hs-marker-owner.png" />}
-        titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the Hello Sugar badge"}
+        swatch={<IconSwatch src={MARKER_ICON.owned} />}
+        titleOverride={filters.showMyLocations ? "Show your locations in the normal marks" : "Highlight your locations with the Hello Sugar swirl"}
       />
       <ToggleRow
         label="For sale"
         active={filters.showListings}
         onClick={() => setFilters({ showListings: !filters.showListings })}
-        swatch={<IconSwatch src="/markers/hs-marker-color.png" />}
+        swatch={<BadgeSwatch src={MARKER_ICON.forSale} />}
       />
       <ToggleRow
         label="Hello Sugar (not listed)"
         active={filters.showHsLocations}
         onClick={() => setFilters({ showHsLocations: !filters.showHsLocations })}
-        swatch={<IconSwatch src="/markers/hs-marker-white.png" halo />}
+        swatch={<IconSwatch src={MARKER_ICON.unlisted} halo />}
       />
 
       <div className="mt-1.5 border-t border-gray-100 pt-1.5">
