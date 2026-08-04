@@ -3,7 +3,11 @@ import { db } from "@/db"
 import { competitorAlertLog } from "@/db/schema/competitorAlertLog"
 import { eq } from "drizzle-orm"
 import { getCompetitorClosures } from "./competitor-query"
-import { scopeIsBounded, type CompetitorScope } from "./competitor-filter"
+import {
+  eligibleClosuresForAlert,
+  scopeIsBounded,
+  type CompetitorScope,
+} from "./competitor-filter"
 
 /** Place IDs already logged (emailed or baseline-seeded) for a saved search. */
 export async function getLoggedCompetitorPlaceIds(alertId: string): Promise<Set<string>> {
@@ -27,12 +31,24 @@ export async function recordCompetitorAlerts(
 }
 
 /**
- * Baseline-seed a saved search's ledger with every closure currently in scope,
- * WITHOUT emailing — so the first weekly run never blasts pre-existing
- * closures. No-op when the scope can't narrow competitors.
+ * Baseline-seed a saved search's ledger with every closure currently in scope
+ * THAT THE ALERT COULD EMAIL, WITHOUT emailing — so the first weekly run never
+ * blasts pre-existing closures. No-op when the scope can't narrow competitors.
+ *
+ * The seed pool must mirror the cron's eligibility filter exactly: owner-auto
+ * alerts only ever email permanent closures, so seeding their temporary ones
+ * would burn the (alert_id, google_place_id) ledger key and permanently
+ * suppress the notification when that competitor later closes for good.
  */
-export async function seedCompetitorLedger(alertId: string, scope: CompetitorScope): Promise<void> {
+export async function seedCompetitorLedger(
+  alertId: string,
+  scope: CompetitorScope,
+  alert: { origin: string | null } = { origin: "user" }
+): Promise<void> {
   if (!scopeIsBounded(scope)) return
   const inScope = await getCompetitorClosures(scope)
-  await recordCompetitorAlerts(alertId, inScope.map((c) => c.googlePlaceId))
+  await recordCompetitorAlerts(
+    alertId,
+    eligibleClosuresForAlert(alert, inScope).map((c) => c.googlePlaceId)
+  )
 }

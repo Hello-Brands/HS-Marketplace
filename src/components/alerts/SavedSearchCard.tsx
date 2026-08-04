@@ -102,7 +102,12 @@ export function SavedSearchCard({ alert, onRename, onDelete, onToggleNotify, onR
             {draftRadius !== (alert.radiusMiles ?? 3) && (
               <button
                 type="button"
-                disabled={savingRadius || draftRadius < RADIUS_MIN_MILES || draftRadius > RADIUS_MAX_MILES}
+                disabled={
+                  savingRadius ||
+                  !Number.isInteger(draftRadius) ||
+                  draftRadius < RADIUS_MIN_MILES ||
+                  draftRadius > RADIUS_MAX_MILES
+                }
                 onClick={async () => {
                   setSavingRadius(true)
                   await onRadiusChange(alert.id, draftRadius)

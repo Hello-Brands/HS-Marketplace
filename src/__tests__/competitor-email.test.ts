@@ -27,8 +27,13 @@ describe("buildCompetitorAlertEmail", () => {
     expect(html).toContain("Watermark")
     expect(html).toContain(data.searchUrl)
   })
-  it("uses the owner-location subject for the owner-auto variant", () => {
-    const { subject } = buildCompetitorAlertEmail({
+  it("keeps the saved-search h1 and CTA for the default variant", () => {
+    const { html } = buildCompetitorAlertEmail(data)
+    expect(html).toContain("New Competitor Closures Near Your Search")
+    expect(html).toContain("View your saved search")
+  })
+  it("uses the owner-location subject, heading, CTA, and intro for the owner-auto variant", () => {
+    const { subject, html } = buildCompetitorAlertEmail({
       buyerEmail: "o@x.com",
       buyerName: "Owner",
       searchName: "Sugar House",
@@ -37,5 +42,10 @@ describe("buildCompetitorAlertEmail", () => {
       competitors: [{ brandName: "EWC", city: "SLC", state: "UT", nearestHsName: null, nearestHsMiles: null, mapsUrl: null }],
     })
     expect(subject).toBe("1 competitor closure near Sugar House")
+    expect(html).toContain("New Competitor Closures Near Your Location")
+    expect(html).not.toContain("New Competitor Closures Near Your Search")
+    expect(html).toContain("View this area")
+    expect(html).not.toContain("View your saved search")
+    expect(html).toContain("permanently closed near your location")
   })
 })

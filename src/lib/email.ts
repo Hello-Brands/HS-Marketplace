@@ -302,6 +302,10 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
   const intro = ownerVariant
     ? `${n} competitor${n !== 1 ? "s" : ""} permanently closed near your location <strong>${searchName}</strong>:`
     : `${n} new competitor closure${n !== 1 ? "s" : ""} appeared in the area of your saved search <strong>${searchName}</strong>:`
+  const heading = ownerVariant
+    ? "New Competitor Closures Near Your Location"
+    : "New Competitor Closures Near Your Search"
+  const ctaLabel = ownerVariant ? "View this area" : "View your saved search"
   const appUrl = env.NEXT_PUBLIC_APP_URL || "https://marketplace.hellosugar.salon"
 
   const cards = competitors
@@ -326,13 +330,13 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #ED1845;">New Competitor Closures Near Your Search</h1>
+      <h1 style="color: #ED1845;">${heading}</h1>
       <p>Hi ${buyerName},</p>
       <p>${intro}</p>
       ${cards}
       <p>
         <a href="${searchUrl}" style="display: inline-block; background: #ED1845; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
-          View your saved search
+          ${ctaLabel}
         </a>
       </p>
       <hr style="border: none; border-top: 1px solid #E8DED7; margin: 24px 0;" />

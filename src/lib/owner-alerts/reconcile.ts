@@ -79,13 +79,20 @@ export async function reconcileOwnerAutoAlerts(userId: string): Promise<void> {
           })
           .returning({ id: alerts.id })
         createdId = row.id
-        // Seed so closures that pre-date the opt-in never email.
-        await seedCompetitorLedger(row.id, {
-          centerLat: c.latitude,
-          centerLng: c.longitude,
-          radiusMiles: OWNER_AUTO_RADIUS_MILES,
-          states: [],
-        })
+        // Seed so closures that pre-date the opt-in never email. Pass the
+        // origin so the seed pool matches what the cron would actually email
+        // (permanent-only) — seeding temporary closures here would suppress
+        // them forever once they flip to CLOSED_PERMANENTLY.
+        await seedCompetitorLedger(
+          row.id,
+          {
+            centerLat: c.latitude,
+            centerLng: c.longitude,
+            radiusMiles: OWNER_AUTO_RADIUS_MILES,
+            states: [],
+          },
+          { origin: OWNER_AUTO_ORIGIN }
+        )
       } catch (err) {
         console.warn(
           `[owner-alerts] create failed for ${c.ownerIdentifier} / ${c.locationName} (non-fatal):`,
