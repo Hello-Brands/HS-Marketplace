@@ -573,10 +573,27 @@ Expected: no type errors; all tests pass. `tsc` is what catches any other `Saved
 
 - [ ] **Step 12: Verify the round trip in the browser**
 
-Ask the user to start the dev server. Signed in, go to `/browse`, save a competitor that shows a `Closure detected` line, then re-run a one-off query to confirm the new row persisted the date:
+Ask the user to start the dev server. Signed in, go to `/browse`, save a competitor that shows a `Closure detected` line, then confirm the new row persisted the date. Use a temp script file rather than `tsx -e` — an inline one-liner containing backticks and `$` does not survive PowerShell/bash quoting on this machine. Write `scripts/_tmp-check-saved.ts`:
+
+```ts
+import { db } from "@/db"
+import { sql } from "drizzle-orm"
+
+async function main() {
+  const r = await db.execute(sql`
+    select place_id, closed_at from saved_competitors
+    order by created_at desc limit 3`)
+  console.log(r.rows ?? r)
+}
+
+main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1) })
+```
+
+Run it, then delete it:
 
 ```
-npx tsx --env-file=.env.local -e "import('./src/db').then(async ({db}) => { const {sql} = await import('drizzle-orm'); const r = await db.execute(sql\`select place_id, closed_at from saved_competitors order by created_at desc limit 3\`); console.log(r.rows ?? r); process.exit(0) })"
+npx tsx --env-file=.env.local scripts/_tmp-check-saved.ts
+rm scripts/_tmp-check-saved.ts
 ```
 
 Expected: the newest row carries a non-null `closed_at` matching that competitor's date. Also confirm `/account/favorites` still loads without error — that page selects every declared column, so it is the canary for a schema/database mismatch.
@@ -626,15 +643,21 @@ The card's body currently ends with the Google Maps link (lines 208-217):
                     )}
 ```
 
-Insert the detected line **before** that block — directly after the address `<p>` that closes on line 207 — so the date sits with the record's metadata and the link stays the card's last, action-shaped element:
+First compute the line once, in the `savedComps.map((c) => {` statement body — add it directly after the existing `const place = ...` line (line 189), matching how Task 2 does it:
+
+```ts
+                const detectedLine = formatClosureDetected(c.closedAt)
+```
+
+Then insert the render **before** the Maps-link block — directly after the address `<p>` that closes on line 207 — so the date sits with the record's metadata and the link stays the card's last, action-shaped element:
 
 ```tsx
-                    {formatClosureDetected(c.closedAt) && (
-                      <p className="text-xs text-hs-mauve">
-                        {formatClosureDetected(c.closedAt)}
-                      </p>
+                    {detectedLine && (
+                      <p className="text-xs text-hs-mauve">{detectedLine}</p>
                     )}
 ```
+
+Compute once into a local rather than calling the formatter twice (once in the guard, once in the body) — the duplicate call is the obvious-looking shortcut and it is worse on both readability and consistency with Task 2.
 
 Note this card's wrapper is `flex flex-col gap-2`, so spacing comes from the parent `gap` — do **not** add `mt-1` here the way Task 2 does for the browse card, which has no such gap.
 
