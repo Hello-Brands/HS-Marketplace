@@ -28,6 +28,8 @@ export const savedCompetitors = pgTable(
     mapsUrl: text("maps_url"),
     // Detection timestamp snapshotted from competitor_opportunities.closed_at.
     // timestamptz (unlike created_at below) so the source instant survives.
+    // Captured at save time and intentionally not refreshed afterward — staleness
+    // vs. foreign-key deletion is the correct tradeoff for user-owned data.
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

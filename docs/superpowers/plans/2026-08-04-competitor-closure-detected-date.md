@@ -14,7 +14,7 @@
 - **Date format is `en-US` with `{ year: "numeric", month: "short", day: "numeric" }`**, pinned to **`timeZone: "America/Denver"`**. The fixed zone is mandatory — it is what makes one formatter produce byte-identical output on the server and the client, so there is no hydration mismatch.
 - **A missing or unparseable date renders no line at all.** 22 of 79 production rows have no `closed_at`; never substitute a placeholder, a fallback date, or an empty element.
 - **`competitor_opportunities` is strictly read-only from this app.** No INSERT/UPDATE/DELETE, no schema change, no foreign key into it. The external Railway `competitor-monitor` scraper owns every row and its columns are a byte-for-byte shared contract.
-- **`drizzle-kit generate` is broken in this repo** (snapshot drift). Migration SQL *and* its `drizzle/meta/_journal.json` entry are hand-authored. Never run `npm run db:generate`.
+- **`drizzle-kit generate` is broken in this repo** (snapshot drift). The migration SQL, its `drizzle/meta/_journal.json` entry, **and** its `drizzle/meta/NNNN_snapshot.json` are all hand-authored. Never run `npm run db:generate`.
 - **Do not run `next build` while a dev server is running** (Windows `.next` lock). Use `npx tsc --noEmit` as the per-task type gate.
 - **Never start `npm run dev` unprompted.** Manual browser verification steps say to ask the user to start it.
 - Tailwind's stock palette names are remapped to brand colors in this repo's `@theme`. `text-hs-mauve` and `text-hs-taupe` are the intended brand tokens here — do not "correct" them.

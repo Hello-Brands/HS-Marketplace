@@ -107,7 +107,7 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
 
   const detectedLine = formatClosureDetected(c.closedAt)
   const detected = detectedLine
-    ? `<div style="font-size:11px;color:${BRAND.mauve};margin-top:6px;">${escapeHtml(detectedLine)}</div>`
+    ? `<div style="font-size:11px;color:${BRAND.taupe};margin-top:6px;">${escapeHtml(detectedLine)}</div>`
     : ""
 
   const nearest =

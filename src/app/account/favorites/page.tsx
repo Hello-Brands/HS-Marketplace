@@ -208,7 +208,7 @@ export default async function FavoritesPage() {
                       {c.address}{place ? ` · ${place}` : ''}
                     </p>
                     {detectedLine && (
-                      <p className="text-xs text-hs-mauve">{detectedLine}</p>
+                      <p className="text-xs text-hs-taupe">{detectedLine}</p>
                     )}
                     {c.mapsUrl && (
                       <a

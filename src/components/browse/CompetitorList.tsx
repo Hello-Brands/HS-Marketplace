@@ -103,7 +103,7 @@ export function CompetitorList({
                   </p>
                 ) : null}
                 {detectedLine && (
-                  <p className="text-xs text-hs-mauve mt-1">{detectedLine}</p>
+                  <p className="text-xs text-hs-taupe mt-1">{detectedLine}</p>
                 )}
               </button>
               <div className="flex items-start">
