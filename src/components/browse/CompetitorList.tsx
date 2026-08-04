@@ -1,13 +1,13 @@
 'use client'
 
-import type { CompetitorClosure } from "@/lib/competitor-query"
+import type { AnnotatedCompetitor } from "@/lib/competitor-sort"
 import { SaveCompetitorButton } from "./SaveCompetitorButton"
 
 interface CompetitorListProps {
-  competitors: CompetitorClosure[]
+  competitors: AnnotatedCompetitor[]
   savedSet: Set<string>
-  onToggleSave: (c: CompetitorClosure) => void
-  onSelect: (c: CompetitorClosure) => void
+  onToggleSave: (c: AnnotatedCompetitor) => void
+  onSelect: (c: AnnotatedCompetitor) => void
   hoveredId: string | null
   onHover: (id: string | null) => void
 }
@@ -79,11 +79,15 @@ export function CompetitorList({
                 <p className="text-xs text-gray-500 mt-1 truncate">
                   {c.address}{place ? ` · ${place}` : ""}
                 </p>
-                {c.nearestHsName && c.nearestHsMiles != null && (
+                {c.ownerDistanceMiles != null && c.ownerDistanceFrom ? (
+                  <p className="text-xs text-hs-taupe mt-1">
+                    ≈{c.ownerDistanceMiles.toFixed(1)} mi from {c.ownerDistanceFrom}
+                  </p>
+                ) : c.nearestHsName && c.nearestHsMiles != null ? (
                   <p className="text-xs text-hs-taupe mt-1">
                     {c.nearestHsMiles.toFixed(1)} mi from {c.nearestHsName}
                   </p>
-                )}
+                ) : null}
               </button>
               <div className="flex items-start">
                 <SaveCompetitorButton
