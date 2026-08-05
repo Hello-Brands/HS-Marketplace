@@ -44,8 +44,12 @@ export function toOwnerPoints(
 
 /**
  * Annotate each closure with the distance to the viewer's nearest owned salon,
- * then sort: searched center (when set) → nearest owned salon → opportunities
- * first + newest closure. Pure; the caller resolves session/owner data.
+ * then sort: searched center (when set) → newest detected closure. Pure; the
+ * caller resolves session/owner data.
+ *
+ * Owner distance is still annotated for the card line, but no longer drives the
+ * order: recency is what owners act on, so the newest detections sit on top for
+ * everyone. Opportunities keep their badge and get no ordering boost.
  */
 export function annotateAndSortCompetitors(
   competitors: CompetitorClosure[],
@@ -74,16 +78,13 @@ export function annotateAndSortCompetitors(
       .map((x) => x.c)
   }
 
-  if (ownerPoints.length > 0) {
-    return [...annotated].sort(
-      (a, b) => (a.ownerDistanceMiles ?? Infinity) - (b.ownerDistanceMiles ?? Infinity)
-    )
+  // Newest detection first. The 22-of-79 rows with a null (or unparseable)
+  // closedAt have no recency to rank on, so they sink to the bottom rather than
+  // masquerading as either the newest or the oldest.
+  const closedTime = (c: AnnotatedCompetitor) => {
+    if (!c.closedAt) return Number.NEGATIVE_INFINITY
+    const t = Date.parse(c.closedAt)
+    return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t
   }
-
-  const closedTime = (c: AnnotatedCompetitor) =>
-    c.closedAt ? Date.parse(c.closedAt) : Number.NEGATIVE_INFINITY
-  return [...annotated].sort((a, b) => {
-    if (a.isOpportunity !== b.isOpportunity) return a.isOpportunity ? -1 : 1
-    return closedTime(b) - closedTime(a)
-  })
+  return [...annotated].sort((a, b) => closedTime(b) - closedTime(a))
 }
