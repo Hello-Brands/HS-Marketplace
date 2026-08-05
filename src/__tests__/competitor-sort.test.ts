@@ -30,16 +30,28 @@ const SUGAR_HOUSE = { name: "Sugar House", latitude: 40.725, longitude: -111.86 
 const PROVO = { name: "Provo", latitude: 40.2338, longitude: -111.6585 }
 
 describe("annotateAndSortCompetitors", () => {
-  it("sorts by distance to the nearest owned salon and annotates it", () => {
-    const near = makeCompetitor({ googlePlaceId: "near", latitude: 40.73, longitude: -111.86 })
-    const far = makeCompetitor({ googlePlaceId: "far", latitude: 41.5, longitude: -112.0 })
-    const result = annotateAndSortCompetitors([far, near], {
+  it("annotates the nearest owned salon without letting it drive the order", () => {
+    // "far" is the newer detection, so it outranks the nearby-but-older "near".
+    const near = makeCompetitor({
+      googlePlaceId: "near",
+      latitude: 40.73,
+      longitude: -111.86,
+      closedAt: "2026-01-01T00:00:00.000Z",
+    })
+    const far = makeCompetitor({
+      googlePlaceId: "far",
+      latitude: 41.5,
+      longitude: -112.0,
+      closedAt: "2026-07-01T00:00:00.000Z",
+    })
+    const result = annotateAndSortCompetitors([near, far], {
       ownerPoints: [SUGAR_HOUSE, PROVO],
     })
-    expect(result.map((c) => c.googlePlaceId)).toEqual(["near", "far"])
-    expect(result[0].ownerDistanceFrom).toBe("Sugar House")
-    expect(result[0].ownerDistanceMiles).toBeGreaterThan(0)
-    expect(result[0].ownerDistanceMiles).toBeLessThan(2)
+    expect(result.map((c) => c.googlePlaceId)).toEqual(["far", "near"])
+    const annotatedNear = result.find((c) => c.googlePlaceId === "near")!
+    expect(annotatedNear.ownerDistanceFrom).toBe("Sugar House")
+    expect(annotatedNear.ownerDistanceMiles).toBeGreaterThan(0)
+    expect(annotatedNear.ownerDistanceMiles).toBeLessThan(2)
   })
 
   it("prefers the searched center over owned locations for ordering", () => {
@@ -55,14 +67,22 @@ describe("annotateAndSortCompetitors", () => {
     expect(result.find((c) => c.googlePlaceId === "a")!.ownerDistanceFrom).toBe("Sugar House")
   })
 
-  it("falls back to opportunities-first, then newest closedAt, for non-owners", () => {
+  it("sorts by newest closedAt, giving opportunities no ordering boost", () => {
     const oldOpp = makeCompetitor({ googlePlaceId: "oldOpp", isOpportunity: true, closedAt: "2026-01-01T00:00:00.000Z" })
     const newPlain = makeCompetitor({ googlePlaceId: "newPlain", closedAt: "2026-07-01T00:00:00.000Z" })
     const oldPlain = makeCompetitor({ googlePlaceId: "oldPlain", closedAt: "2026-02-01T00:00:00.000Z" })
-    const nullPlain = makeCompetitor({ googlePlaceId: "nullPlain", closedAt: null })
-    const result = annotateAndSortCompetitors([nullPlain, oldPlain, newPlain, oldOpp], {})
-    expect(result.map((c) => c.googlePlaceId)).toEqual(["oldOpp", "newPlain", "oldPlain", "nullPlain"])
+    const result = annotateAndSortCompetitors([oldOpp, oldPlain, newPlain], {})
+    expect(result.map((c) => c.googlePlaceId)).toEqual(["newPlain", "oldPlain", "oldOpp"])
     expect(result[0].ownerDistanceMiles).toBeNull()
+  })
+
+  it("sinks closures with a missing or unparseable closedAt to the bottom", () => {
+    const dated = makeCompetitor({ googlePlaceId: "dated", closedAt: "2026-02-01T00:00:00.000Z" })
+    const nullDate = makeCompetitor({ googlePlaceId: "nullDate", closedAt: null })
+    const junkDate = makeCompetitor({ googlePlaceId: "junkDate", closedAt: "not-a-date" })
+    const result = annotateAndSortCompetitors([nullDate, junkDate, dated], {})
+    expect(result[0].googlePlaceId).toBe("dated")
+    expect(result.slice(1).map((c) => c.googlePlaceId).sort()).toEqual(["junkDate", "nullDate"])
   })
 })
 

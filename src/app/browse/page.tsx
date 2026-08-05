@@ -104,9 +104,10 @@ async function BrowseContent({ searchParams }: { searchParams: RawSearchParams }
   ])
   const count = initialListings.length
 
-  // Sort competitors by the searched center, else by the viewer's nearest owned
-  // salon, else opportunities-first + newest. Per-request on purpose: owner
-  // coordinates must never enter the shared owner-agnostic caches (DEBT-024).
+  // Sort competitors by the searched center when one is set, else newest
+  // detected closure first. Owner coordinates are still resolved per-request for
+  // the distance annotation on each card, on purpose: they must never enter the
+  // shared owner-agnostic caches (DEBT-024).
   const sortedCompetitors = annotateAndSortCompetitors(competitorClosures, {
     searchCenter:
       filters.centerLat != null && filters.centerLng != null
