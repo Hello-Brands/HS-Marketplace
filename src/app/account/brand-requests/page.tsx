@@ -37,19 +37,19 @@ export default async function MyBrandRequestsPage() {
     redirect("/login")
   }
 
-  const requests = await db.query.brandRequests.findMany({
-    where: eq(brandRequests.submittedBy, session.user.id),
-    orderBy: [desc(brandRequests.createdAt)],
-  })
-
   // monitored_brands is OWNED by the external competitor-monitor repo and is
   // read-only here; rows appear/change out of band, so it must not be cached
   // (covered by the page-level force-dynamic above).
-  const monitored = sortMonitoredBrands(
-    await db.query.monitoredBrands.findMany({
+  const [requests, monitoredRows] = await Promise.all([
+    db.query.brandRequests.findMany({
+      where: eq(brandRequests.submittedBy, session.user.id),
+      orderBy: [desc(brandRequests.createdAt)],
+    }),
+    db.query.monitoredBrands.findMany({
       columns: { brandId: true, name: true, locationsCount: true },
     }),
-  )
+  ])
+  const monitored = sortMonitoredBrands(monitoredRows)
 
   return (
     <>
