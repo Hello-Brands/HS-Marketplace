@@ -5,8 +5,11 @@ import { db } from "@/db"
 import { brandRequests } from "@/db/schema/brandRequests"
 import { desc, eq } from "drizzle-orm"
 import { SiteHeader } from "@/components/layout/SiteHeader"
+import { AutoRefresh } from "@/components/ui/AutoRefresh"
 import { EmptyStateIllustrated } from "@/components/ui/EmptyState"
 import { RequestStatusBadge } from "@/components/brand-requests/RequestStatusBadge"
+import { MonitoredBrandsList } from "@/components/brand-requests/MonitoredBrandsList"
+import { sortMonitoredBrands } from "@/lib/brand-requests/monitored-brands-display"
 
 export const metadata = {
   title: "Brand Requests - Hello Sugar Marketplace",
@@ -39,8 +42,24 @@ export default async function MyBrandRequestsPage() {
     orderBy: [desc(brandRequests.createdAt)],
   })
 
+  // monitored_brands is OWNED by the external competitor-monitor repo and is
+  // read-only here; rows appear/change out of band, so it must not be cached
+  // (covered by the page-level force-dynamic above).
+  const monitored = sortMonitoredBrands(
+    await db.query.monitoredBrands.findMany({
+      columns: { brandId: true, name: true, locationsCount: true },
+    }),
+  )
+
   return (
     <>
+      {/*
+        Monitor writes (new brands, refreshed location counts) never come from a
+        mutation on this page. Unlike the admin detail page there is no in-flight
+        status to gate on, so this stays mounted and 60s — not the 10s default —
+        is the deliberate mitigation for a whole-page RSC refresh.
+      */}
+      <AutoRefresh intervalMs={60_000} />
       <SiteHeader
         world="marketplace"
         title="Brand Requests"
@@ -116,6 +135,10 @@ export default async function MyBrandRequestsPage() {
             ))}
           </ul>
         )}
+
+        <div className="mt-10 pt-6 border-t border-gray-200">
+          <MonitoredBrandsList brands={monitored} />
+        </div>
       </main>
     </>
   )
