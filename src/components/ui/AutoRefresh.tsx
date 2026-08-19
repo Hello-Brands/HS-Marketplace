@@ -11,6 +11,9 @@ import { useRouter } from 'next/navigation'
  * mutation of its own to refresh from. Render it only while something is
  * actually in flight, and unmount it otherwise — every tick is a full RSC
  * request. Hidden tabs are skipped.
+ *
+ * When a page has no in-flight signal to gate on and must stay mounted, the
+ * mitigation is a long interval (tens of seconds, not the 10s default).
  */
 export function AutoRefresh({ intervalMs = 10_000 }: { intervalMs?: number }) {
   const router = useRouter()

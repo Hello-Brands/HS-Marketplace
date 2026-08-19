@@ -6,7 +6,7 @@ import { brandRequests, type BrandRequestStatus } from "@/db/schema/brandRequest
 import { requireAdmin } from "@/lib/auth-guards"
 import { RequestStatusBadge } from "@/components/brand-requests/RequestStatusBadge"
 import { BrandRequestActions } from "@/components/admin/BrandRequestActions"
-import { AutoRefresh } from "@/components/admin/AutoRefresh"
+import { AutoRefresh } from "@/components/ui/AutoRefresh"
 import { eq, inArray } from "drizzle-orm"
 
 export const metadata = {
