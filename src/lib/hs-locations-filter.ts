@@ -22,6 +22,9 @@ function toDate(value: Date | string | null): Date | null {
   return value instanceof Date ? value : new Date(value)
 }
 
+/** Which track(s) a location currently operates: suite, flagship, or both. */
+export type HsLocationType = "suite" | "flagship" | "both"
+
 /** A map dot for an open Hello Sugar location that is NOT listed for sale. */
 export interface UnlistedHsLocation {
   id: string
@@ -31,6 +34,7 @@ export interface UnlistedHsLocation {
   latitude: number
   longitude: number
   openedSince: number | null
+  locationType: HsLocationType | null
 }
 
 /** A track (suite or flagship) is live if it has gone and hasn't since closed. */
@@ -48,6 +52,16 @@ export function isLocationOpen(dates: HsLocationOpenDates, now: Date): boolean {
     trackOpen(dates.actualSuiteGoDate, dates.suiteClosedDate, now) ||
     trackOpen(dates.actualFlagshipGoDate, dates.flagshipClosedDate, now)
   )
+}
+
+/** Type from the currently OPEN tracks; null when neither is open right now. */
+export function locationType(dates: HsLocationOpenDates, now: Date): HsLocationType | null {
+  const suite = trackOpen(dates.actualSuiteGoDate, dates.suiteClosedDate, now)
+  const flagship = trackOpen(dates.actualFlagshipGoDate, dates.flagshipClosedDate, now)
+  if (suite && flagship) return "both"
+  if (suite) return "suite"
+  if (flagship) return "flagship"
+  return null
 }
 
 /** Year of the earliest actual go-date (suite or flagship); null if neither set. */

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   isLocationOpen,
+  locationType,
   openedSinceYear,
   locationDedupeKey,
   isNotListed,
@@ -70,6 +71,51 @@ describe("isLocationOpen", () => {
         NOW
       )
     ).toBe(false)
+  })
+})
+
+describe("locationType", () => {
+  it("is suite when only the suite track is open", () => {
+    expect(locationType(dates({ actualSuiteGoDate: d("2019-01-01") }), NOW)).toBe("suite")
+  })
+  it("is flagship when only the flagship track is open", () => {
+    expect(locationType(dates({ actualFlagshipGoDate: d("2020-05-01") }), NOW)).toBe("flagship")
+  })
+  it("is both when both tracks are open", () => {
+    expect(
+      locationType(
+        dates({ actualSuiteGoDate: d("2019-01-01"), actualFlagshipGoDate: d("2021-06-01") }),
+        NOW
+      )
+    ).toBe("both")
+  })
+  it("ignores a track that has since closed", () => {
+    expect(
+      locationType(
+        dates({
+          actualSuiteGoDate: d("2019-01-01"),
+          suiteClosedDate: d("2024-01-01"),
+          actualFlagshipGoDate: d("2020-01-01"),
+        }),
+        NOW
+      )
+    ).toBe("flagship")
+  })
+  it("ignores a track whose go date is in the future", () => {
+    expect(
+      locationType(
+        dates({ actualSuiteGoDate: d("2019-01-01"), actualFlagshipGoDate: d("2027-01-01") }),
+        NOW
+      )
+    ).toBe("suite")
+  })
+  it("is null when no track is open", () => {
+    expect(locationType(dates({}), NOW)).toBeNull()
+  })
+  it("accepts ISO-string dates (post-cache serialization)", () => {
+    expect(
+      locationType(dates({ actualSuiteGoDate: "2019-01-01T00:00:00.000Z" }), NOW)
+    ).toBe("suite")
   })
 })
 
