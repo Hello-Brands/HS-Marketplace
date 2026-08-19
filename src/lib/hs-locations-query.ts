@@ -12,6 +12,7 @@ import {
   isNotListed,
   hsLocationInScope,
   locationDedupeKey,
+  locationType,
   openedSinceYear,
   type UnlistedHsLocation,
 } from "./hs-locations-filter"
@@ -160,6 +161,7 @@ export async function getUnlistedHsLocations(
         latitude: r.latitude,
         longitude: r.longitude,
         openedSince: openedSinceYear(r),
+        locationType: locationType(r, now),
       }
       if (scope && !hsLocationInScope(loc, scope)) continue
 

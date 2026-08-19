@@ -3,7 +3,8 @@ import { escapeHtml } from "@/lib/escape-html"
 
 /**
  * Brand-styled hover card for an open Hello Sugar location.
- * NON-PII ONLY: name, city/state (or nothing), and "Open since {year}".
+ * NON-PII ONLY: name, city/state (or nothing), suite/flagship type chips, and
+ * "Open since {year}".
  * The `owned` variant swaps the "not for sale" badge for a "Your location"
  * badge and adds View / Watch-this-area action buttons (wired up by MapView via
  * the `data-hs-popup-action` attributes) — still non-PII, it only reflects what
@@ -15,9 +16,26 @@ export function hsLocationPopupHtml(loc: UnlistedHsLocation, owned = false): str
     .map(escapeHtml)
     .join(", ")
 
+  const pill = (bg: string, color: string, label: string) =>
+    `<span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:${bg};color:${color};padding:2px 8px;border-radius:999px;">${label}</span>`
+
   const badge = owned
-    ? `<div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#DBEBE1;color:#3F7D5B;padding:2px 8px;border-radius:999px;margin-bottom:6px;">Your location</div>`
-    : `<div style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#EEE2DA;color:#8F7067;padding:2px 8px;border-radius:999px;margin-bottom:6px;">Hello Sugar · not for sale</div>`
+    ? pill("#DBEBE1", "#3F7D5B", "Your location")
+    : pill("#EEE2DA", "#8F7067", "Hello Sugar · not for sale")
+
+  // Suite/flagship type chips (color-coded: caramel = suite, rose = flagship).
+  const suiteChip = pill("#E2CCB9", "#6E4A2F", "Suite")
+  const flagshipChip = pill("#F7DCDA", "#AD4C52", "Flagship")
+  const typeChips =
+    loc.locationType === "both"
+      ? suiteChip + flagshipChip
+      : loc.locationType === "suite"
+        ? suiteChip
+        : loc.locationType === "flagship"
+          ? flagshipChip
+          : ""
+
+  const pillRow = `<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:6px;">${badge}${typeChips}</div>`
 
   const placeLine = place
     ? `<div style="font-size:12px;color:#8F7067;margin-top:6px;">${place}</div>`
@@ -37,7 +55,7 @@ export function hsLocationPopupHtml(loc: UnlistedHsLocation, owned = false): str
 
   return `
     <div style="font-family:'Montserrat',system-ui,sans-serif;padding:4px 4px 2px;max-width:220px;">
-      ${badge}
+      ${pillRow}
       <div style="font-size:15px;font-weight:700;color:#1F1917;line-height:1.25;">${escapeHtml(loc.name)}</div>
       ${placeLine}
       ${sinceLine}
