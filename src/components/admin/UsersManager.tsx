@@ -22,6 +22,11 @@ interface User {
 
 interface AllowlistEntry {
   id: string
+  /**
+   * Either an individual email address ("someone@partnerbrand.com") or a
+   * whole-domain entry, which is stored with a leading "@"
+   * ("@partnerbrand.com") and matches that exact domain only.
+   */
   email: string
   addedAt: Date
 }
@@ -47,7 +52,7 @@ export function UsersManager({
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
-  const [allowlistEmail, setAllowlistEmail] = useState('')
+  const [allowlistInput, setAllowlistInput] = useState('')
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users
@@ -95,13 +100,17 @@ export function UsersManager({
 
   const handleAddAllowlist = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!allowlistEmail.trim()) return
+    if (!allowlistInput.trim()) return
 
     startTransition(async () => {
       try {
-        await addToAllowlist(allowlistEmail.trim())
-        setAllowlistEmail('')
-        router.refresh()
+        const result = await addToAllowlist(allowlistInput.trim())
+        if (result.ok) {
+          setAllowlistInput('')
+          router.refresh()
+        } else {
+          alert(result.error)
+        }
       } catch (error) {
         alert((error as Error).message)
       }
@@ -148,7 +157,9 @@ export function UsersManager({
       case 'removeAllowlist':
         return {
           title: 'Remove from Allowlist',
-          message: `Are you sure you want to remove ${confirmAction.email} from the allowlist?`,
+          message: confirmAction.email.startsWith('@')
+            ? `Remove ${confirmAction.email}? Everyone at this domain will lose access on their next sign-in.`
+            : `Are you sure you want to remove ${confirmAction.email} from the allowlist?`,
           confirmLabel: 'Remove',
           variant: 'danger',
         }
@@ -301,17 +312,22 @@ export function UsersManager({
             Allowlist (Non-Franchisees)
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Add email addresses for non-franchisee users who should have access
+            Add individual email addresses, or approve a whole company with an
+            @domain entry (for example @partnerbrand.com). Domain entries match
+            that exact domain only.
           </p>
         </div>
 
         <div className="p-6">
           <form onSubmit={handleAddAllowlist} className="mb-4 flex gap-2">
             <input
-              type="email"
-              placeholder="email@example.com"
-              value={allowlistEmail}
-              onChange={(e) => setAllowlistEmail(e.target.value)}
+              type="text"
+              inputMode="email"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="email@example.com or @partnerbrand.com"
+              value={allowlistInput}
+              onChange={(e) => setAllowlistInput(e.target.value)}
               className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-hs-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
               required
             />
@@ -331,7 +347,19 @@ export function UsersManager({
                   key={entry.id}
                   className="flex items-center justify-between py-3"
                 >
-                  <span className="text-sm text-gray-900">{entry.email}</span>
+                  <span className="text-sm text-gray-900">
+                    {entry.email.startsWith('@') && (
+                      <span className="mr-2 inline-flex items-center rounded-full bg-hs-red-50 px-2 py-0.5 text-xs font-medium text-hs-red-700">
+                        Domain
+                      </span>
+                    )}
+                    {entry.email}
+                    {entry.email.startsWith('@') && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        everyone at this domain
+                      </span>
+                    )}
+                  </span>
                   <button
                     type="button"
                     onClick={() =>

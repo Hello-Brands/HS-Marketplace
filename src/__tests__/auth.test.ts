@@ -189,11 +189,44 @@ describe("auth signIn callback (real src/auth.ts)", () => {
     })
     expect(result).toBe(true)
     expect(mockAllowlistFindFirst).toHaveBeenCalledTimes(1)
-    // The drizzle `eq(...)` object is opaque, so assert the bound value shows up
-    // in its serialized form rather than reaching into its internals.
+    // The drizzle `inArray(...)` object is opaque, so assert the bound values
+    // show up in its serialized form rather than reaching into its internals.
+    // Both candidates are bound: the address and its exact "@domain" entry.
     const bound = boundStrings(mockAllowlistFindFirst.mock.calls[0][0])
     expect(bound).toContain("mixed.case@example.com")
+    expect(bound).toContain("@example.com")
     expect(bound).not.toContain("Mixed.Case@Example.com")
+  })
+
+  // A whole-company allowlist entry is stored in the same column with a
+  // leading "@", so the gate offers it as a second candidate in the same
+  // query. The mock can't tell which candidate matched, so the meaningful
+  // assertion is that "@partner.com" was among the bound strings.
+  it("offers the exact @domain entry as an allowlist candidate", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "@partner.com" })
+    const result = await signInCallback({
+      account: { provider: "google" },
+      profile: { email: "jane@partner.com", email_verified: true },
+    })
+    expect(result).toBe(true)
+    expect(mockAllowlistFindFirst).toHaveBeenCalledTimes(1)
+    const bound = boundStrings(mockAllowlistFindFirst.mock.calls[0][0])
+    expect(bound).toContain("jane@partner.com")
+    expect(bound).toContain("@partner.com")
+  })
+
+  // Exact-domain matching: a subdomain address never asks for the parent
+  // domain, so an admin's "@partner.com" grant cannot leak to it.
+  it("never offers the parent domain for a subdomain address", async () => {
+    mockAllowlistFindFirst.mockResolvedValue(undefined)
+    const result = await signInCallback({
+      account: { provider: "google" },
+      profile: { email: "jane@mail.partner.com", email_verified: true },
+    })
+    expect(result).toBe("/access-denied")
+    const bound = boundStrings(mockAllowlistFindFirst.mock.calls[0][0])
+    expect(bound).toContain("@mail.partner.com")
+    expect(bound).not.toContain("@partner.com")
   })
 })
 

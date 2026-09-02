@@ -1,6 +1,6 @@
 import NextAuth from "next-auth"
 import { DrizzleAdapter } from "@auth/drizzle-adapter"
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { db } from "@/db"
 import { users, accounts, sessions, verificationTokens, allowlist } from "@/db/schema/auth"
 import { authConfig } from "./auth.config"
@@ -29,8 +29,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // workspace domain, else admin allowlist, else denied.
       const deps: AccessGateDeps = {
         workspaceDomain: env.GOOGLE_WORKSPACE_DOMAIN || "hellosugar.salon",
-        isAllowlisted: async (e) =>
-          !!(await db.query.allowlist.findFirst({ where: eq(allowlist.email, e) })),
+        // One query for both entry kinds: the address itself and its exact
+        // "@domain" entry (a whole-company grant an admin added).
+        isAllowlisted: async (candidates) =>
+          !!(await db.query.allowlist.findFirst({
+            where: inArray(allowlist.email, candidates),
+          })),
       }
 
       if (account?.provider === "google") {

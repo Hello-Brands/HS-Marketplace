@@ -5,6 +5,7 @@ import { users, allowlist } from "@/db/schema/auth"
 import { eq, count } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/auth-guards"
+import { parseAllowlistEntry } from "@/lib/auth/allowlist-entry"
 
 export async function getUsers() {
   await requireAdmin()
@@ -41,29 +42,49 @@ export async function setSellerAccess(userId: string, sellerAccess: boolean) {
   revalidatePath("/admin/users")
 }
 
-export async function addToAllowlist(email: string) {
+/**
+ * Add an individual address (`jane@partnerbrand.com`) or a whole company
+ * (`@partnerbrand.com`) to the allowlist.
+ *
+ * Return contract: user-facing problems come back as `{ ok: false, error }`
+ * rather than thrown, because Next.js redacts thrown server-action messages in
+ * production — the admin would just see "an error occurred". `requireAdmin`
+ * still throws: that is an auth failure, not user input.
+ */
+export async function addToAllowlist(
+  raw: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const currentUser = await requireAdmin()
 
-  // Check if already exists
+  const parsed = parseAllowlistEntry(raw)
+  if (!parsed.ok) return { ok: false, error: parsed.error }
+  const { entry } = parsed
+
   const existing = await db.query.allowlist.findFirst({
-    where: eq(allowlist.email, email.toLowerCase()),
+    where: eq(allowlist.email, entry.value),
   })
 
   if (existing) {
-    throw new Error("Email already in allowlist")
+    return {
+      ok: false,
+      error: entry.kind === "domain" ? "Domain already in allowlist" : "Email already in allowlist",
+    }
   }
 
   await db.insert(allowlist).values({
-    email: email.toLowerCase(),
+    email: entry.value,
     addedBy: currentUser.id,
   })
 
   revalidatePath("/admin/users")
+  return { ok: true }
 }
 
 export async function removeFromAllowlist(email: string) {
   await requireAdmin()
-  await db.delete(allowlist).where(eq(allowlist.email, email.toLowerCase()))
+  // Trim as well as lowercase so a domain entry ("@partnerbrand.com") removes
+  // cleanly no matter how the value reached us.
+  await db.delete(allowlist).where(eq(allowlist.email, email.trim().toLowerCase()))
   revalidatePath("/admin/users")
 }
 
