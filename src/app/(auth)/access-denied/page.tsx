@@ -12,8 +12,21 @@ const SYSTEM_ERROR_MESSAGES: Record<string, string> = {
   SessionRequired: "Your session ended, so you need to sign in again to view that page.",
   Default: "Sign-in failed for an unexpected reason.",
   Configuration: "Sign-in is misconfigured on our end. This is not a problem with your account.",
+  // Magic-link (email provider) failures.
+  Verification:
+    "This sign-in link has expired or was already used. Request a new one from the sign-in page.",
+  EmailSignin: "We couldn't send the sign-in email. Please try again in a moment.",
+  EmailCreateAccount:
+    "We couldn't finish creating your account from the sign-in link. Please try again.",
 }
 const SYSTEM_ERRORS = Object.keys(SYSTEM_ERROR_MESSAGES)
+
+// Codes whose default "Authentication Error" heading and "Try a different
+// account" link would misdescribe what happened. An expired magic link is not
+// an account problem — the fix is a fresh link from /login.
+const SYSTEM_ERROR_OVERRIDES: Record<string, { heading: string; cta: string }> = {
+  Verification: { heading: "Link expired", cta: "Request a new sign-in link" },
+}
 
 interface AccessDeniedPageProps {
   searchParams: Promise<{ error?: string }>
@@ -23,12 +36,15 @@ async function AccessDeniedContent({ searchParams }: AccessDeniedPageProps) {
   const params = await searchParams
   const error = params.error
   const isSystemError = error && SYSTEM_ERRORS.includes(error)
+  const override = error ? SYSTEM_ERROR_OVERRIDES[error] : undefined
 
   return (
     <div className="w-full max-w-md space-y-6 text-center">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">
-          {isSystemError ? "Authentication Error" : "Access Required"}
+          {isSystemError
+            ? (override?.heading ?? "Authentication Error")
+            : "Access Required"}
         </h1>
         {isSystemError ? (
           <div className="mt-4 space-y-2">
@@ -80,7 +96,7 @@ async function AccessDeniedContent({ searchParams }: AccessDeniedPageProps) {
       )}
 
       <Link href="/login" className="text-sm text-hs-red-600 hover:text-hs-red-700 underline underline-offset-2">
-        Try a different account
+        {override?.cta ?? "Try a different account"}
       </Link>
     </div>
   )

@@ -53,6 +53,8 @@ vi.mock("@/db", () => ({
 // Importing src/auth.ts executes NextAuth(...) with the production callbacks,
 // which the next-auth mock above captures.
 import "@/auth"
+import { __resetRateLimits } from "@/lib/rate-limit"
+import { MAGIC_LINK_MAX_AGE_SECONDS } from "@/lib/auth/magic-link-email"
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const signInCallback = (args: any): Promise<boolean | string> =>
@@ -62,9 +64,35 @@ const sessionCallback = (args: any): Promise<any> => captured.config.callbacks.s
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const createUserEvent = (args: any): Promise<void> => captured.config.events.createUser(args)
 
+/**
+ * Pull the bound string literals out of a drizzle `where` clause.
+ *
+ * `eq(allowlist.email, x)` returns an opaque SQL object whose `queryChunks`
+ * hold the column (which back-references its PgTable, so JSON.stringify blows
+ * up on the cycle) alongside a Param carrying the value. This walks it
+ * cycle-safely so a test can assert on the value actually sent to the db.
+ */
+function boundStrings(input: unknown): string[] {
+  const out: string[] = []
+  const seen = new WeakSet<object>()
+  const walk = (node: unknown) => {
+    if (typeof node === "string") {
+      out.push(node)
+      return
+    }
+    if (typeof node !== "object" || node === null) return
+    if (seen.has(node)) return
+    seen.add(node)
+    for (const value of Object.values(node)) walk(value)
+  }
+  walk(input)
+  return out
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   updateSetCalls.length = 0
+  __resetRateLimits()
   vi.stubEnv("GOOGLE_WORKSPACE_DOMAIN", "hellosugar.salon")
   vi.stubEnv("INITIAL_ADMIN_EMAIL", "")
 })
@@ -79,7 +107,7 @@ describe("auth signIn callback (real src/auth.ts)", () => {
     expect(typeof captured.config.callbacks.signIn).toBe("function")
   })
 
-  it("rejects non-google providers", async () => {
+  it("rejects unknown providers", async () => {
     const result = await signInCallback({
       account: { provider: "credentials" },
       profile: { email: "franchisee@hellosugar.salon", email_verified: true },
@@ -149,6 +177,135 @@ describe("auth signIn callback (real src/auth.ts)", () => {
       profile: { email: "attacker@evilhellosugar.salon", email_verified: true },
     })
     expect(result).toBe("/access-denied")
+  })
+
+  // Latent bug the shared gate fixes: the allowlist column is written lowercase
+  // by the admin action, so a mixed-case Google profile email used to miss.
+  it("looks up the allowlist with the lowercased google email", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "mixed.case@example.com" })
+    const result = await signInCallback({
+      account: { provider: "google" },
+      profile: { email: "Mixed.Case@Example.com", email_verified: true },
+    })
+    expect(result).toBe(true)
+    expect(mockAllowlistFindFirst).toHaveBeenCalledTimes(1)
+    // The drizzle `inArray(...)` object is opaque, so assert the bound values
+    // show up in its serialized form rather than reaching into its internals.
+    // Both candidates are bound: the address and its exact "@domain" entry.
+    const bound = boundStrings(mockAllowlistFindFirst.mock.calls[0][0])
+    expect(bound).toContain("mixed.case@example.com")
+    expect(bound).toContain("@example.com")
+    expect(bound).not.toContain("Mixed.Case@Example.com")
+  })
+
+  // A whole-company allowlist entry is stored in the same column with a
+  // leading "@", so the gate offers it as a second candidate in the same
+  // query. The mock can't tell which candidate matched, so the meaningful
+  // assertion is that "@partner.com" was among the bound strings.
+  it("offers the exact @domain entry as an allowlist candidate", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "@partner.com" })
+    const result = await signInCallback({
+      account: { provider: "google" },
+      profile: { email: "jane@partner.com", email_verified: true },
+    })
+    expect(result).toBe(true)
+    expect(mockAllowlistFindFirst).toHaveBeenCalledTimes(1)
+    const bound = boundStrings(mockAllowlistFindFirst.mock.calls[0][0])
+    expect(bound).toContain("jane@partner.com")
+    expect(bound).toContain("@partner.com")
+  })
+
+  // Exact-domain matching: a subdomain address never asks for the parent
+  // domain, so an admin's "@partner.com" grant cannot leak to it.
+  it("never offers the parent domain for a subdomain address", async () => {
+    mockAllowlistFindFirst.mockResolvedValue(undefined)
+    const result = await signInCallback({
+      account: { provider: "google" },
+      profile: { email: "jane@mail.partner.com", email_verified: true },
+    })
+    expect(result).toBe("/access-denied")
+    const bound = boundStrings(mockAllowlistFindFirst.mock.calls[0][0])
+    expect(bound).toContain("@mail.partner.com")
+    expect(bound).not.toContain("@partner.com")
+  })
+})
+
+describe("auth signIn callback — resend magic link (real src/auth.ts)", () => {
+  // Auth.js passes `email: { verificationRequest: true }` on the pre-send pass
+  // and omits `email` entirely when the recipient clicks the link.
+  const verificationRequest = (address: string) =>
+    signInCallback({
+      user: { email: address },
+      account: { provider: "resend" },
+      email: { verificationRequest: true },
+    })
+
+  it("allows an allowlisted address and looks it up lowercased", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "partner@external.com" })
+    const result = await verificationRequest("Partner@External.com")
+    expect(result).toBe(true)
+    expect(mockAllowlistFindFirst).toHaveBeenCalledTimes(1)
+    expect(boundStrings(mockAllowlistFindFirst.mock.calls[0][0])).toContain(
+      "partner@external.com",
+    )
+  })
+
+  it("allows a workspace-domain address without consulting the allowlist", async () => {
+    const result = await verificationRequest("franchisee@hellosugar.salon")
+    expect(result).toBe(true)
+    expect(mockAllowlistFindFirst).not.toHaveBeenCalled()
+  })
+
+  // A returned string short-circuits Auth.js into a redirect BEFORE
+  // sendVerificationRequest runs (@auth/core send-token.js), so a stranger who
+  // types an address into /login never receives a link.
+  it("redirects a non-allowlisted address to /access-denied instead of mailing a link", async () => {
+    mockAllowlistFindFirst.mockResolvedValue(undefined)
+    const result = await verificationRequest("stranger@gmail.com")
+    expect(result).toBe("/access-denied")
+  })
+
+  it("rejects a resend sign-in with no email on the user", async () => {
+    const result = await signInCallback({
+      user: {},
+      account: { provider: "resend" },
+      email: { verificationRequest: true },
+    })
+    expect(result).toBe(false)
+    expect(mockAllowlistFindFirst).not.toHaveBeenCalled()
+  })
+
+  it("allows the link-click phase (no `email` prop) for an allowlisted address", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "partner@external.com" })
+    const result = await signInCallback({
+      user: { email: "partner@external.com" },
+      account: { provider: "resend" },
+    })
+    expect(result).toBe(true)
+  })
+
+  it("rate limits link requests to 3 per address, then pretends it sent", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "partner@external.com" })
+
+    for (let i = 0; i < 3; i++) {
+      expect(await verificationRequest("partner@external.com")).toBe(true)
+    }
+    // 4th request inside the window: same page, no extra email, no enumeration.
+    expect(await verificationRequest("partner@external.com")).toBe("/check-email")
+
+    // A different address has its own window.
+    expect(await verificationRequest("other@external.com")).toBe(true)
+  })
+
+  it("keys the rate limit on the normalized address", async () => {
+    mockAllowlistFindFirst.mockResolvedValue({ id: "1", email: "partner@external.com" })
+    for (let i = 0; i < 3; i++) await verificationRequest("Partner@External.com")
+    // Same mailbox, different casing — must hit the same bucket.
+    expect(await verificationRequest("partner@external.com")).toBe("/check-email")
+  })
+
+  it("uses a 15-minute magic-link window", () => {
+    expect(MAGIC_LINK_MAX_AGE_SECONDS).toBe(900)
   })
 })
 
