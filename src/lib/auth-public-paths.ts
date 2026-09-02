@@ -14,6 +14,7 @@
 export const PUBLIC_PATHS = [
   "/", // logged-out marketing landing (src/app/page.tsx sends authed users to /browse)
   "/login",
+  "/check-email", // Auth.js verifyRequest landing page, reached with no session
   "/access-denied",
   "/action-complete", // no-login email action landing page
   "/api/auth", // Auth.js sign-in/callback endpoints

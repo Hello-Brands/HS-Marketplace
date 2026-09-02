@@ -112,6 +112,46 @@ export default function LoginPage() {
             </form>
           </div>
 
+          {/* Divider between the two sign-in methods */}
+          <div className="divider-text">
+            <span>or</span>
+          </div>
+
+          {/* Magic-link sign-in for approved users without a Google account */}
+          <form
+            action={async (formData: FormData) => {
+              "use server"
+              const email = String(formData.get("email") ?? "").trim()
+              if (!email) return
+              await signIn("resend", { email, redirectTo: "/browse" })
+            }}
+            className="space-y-3"
+          >
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              inputMode="email"
+              placeholder="you@company.com"
+              className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder:text-gray-400 transition-colors focus:border-hs-red-500 focus:outline-none focus:ring-2 focus:ring-hs-red-500/20"
+            />
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-hs-red-600 px-5 py-4 font-semibold text-white shadow-sm transition-all duration-200 hover:bg-hs-red-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500 focus-visible:ring-offset-2 active:scale-[0.99]"
+            >
+              Email me a sign-in link
+            </button>
+            <p className="text-sm text-gray-500">
+              No Google account needed. We&apos;ll send a one-time link that expires in 15
+              minutes.
+            </p>
+          </form>
+
           {/* Divider */}
           <div className="divider-text">
             <span>Authorized users only</span>
@@ -140,8 +180,9 @@ export default function LoginPage() {
               <div>
                 <h3 className="font-semibold text-gray-900">Secure Access</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Sign in with your Hello Sugar Google Workspace account. Access is limited
-                  to franchise owners and approved partners.
+                  Franchise owners sign in with their Hello Sugar Google Workspace account;
+                  other approved partners can use Google or an emailed sign-in link. Access
+                  is limited to franchise owners and approved partners.
                 </p>
               </div>
             </div>

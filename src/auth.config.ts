@@ -1,5 +1,8 @@
 import type { NextAuthConfig } from "next-auth"
 import Google from "next-auth/providers/google"
+import Resend from "next-auth/providers/resend"
+import { FROM_ADDRESS } from "@/lib/email"
+import { MAGIC_LINK_MAX_AGE_SECONDS, sendMagicLinkEmail } from "@/lib/auth/magic-link-email"
 
 /**
  * Provider/page config shared by the full Auth.js instance in src/auth.ts.
@@ -20,9 +23,22 @@ export const authConfig: NextAuthConfig = {
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
+    // Email magic link. The access gate for this provider is NOT here — it
+    // lives in the `signIn` callback in src/auth.ts, which Auth.js runs BEFORE
+    // `sendVerificationRequest` (see @auth/core/lib/actions/signin/send-token.js:
+    // a string return short-circuits into a redirect and the email is never
+    // sent). So a stranger who types an address into /login never receives a
+    // link — they land on /access-denied.
+    Resend({
+      apiKey: process.env.RESEND_API_KEY,
+      from: FROM_ADDRESS,
+      maxAge: MAGIC_LINK_MAX_AGE_SECONDS,
+      sendVerificationRequest: sendMagicLinkEmail,
+    }),
   ],
   pages: {
     signIn: "/login",
     error: "/access-denied",
+    verifyRequest: "/check-email",
   },
 }

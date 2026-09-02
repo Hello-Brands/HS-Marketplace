@@ -8,7 +8,7 @@ const resend = new Resend(env.RESEND_API_KEY)
 // From address configuration. Must be on a domain the Resend API key is
 // authorized for — the verified sending domain is the `noreply.hellosugar.salon`
 // subdomain (not the apex). Override per-environment with EMAIL_FROM if needed.
-const FROM_ADDRESS =
+export const FROM_ADDRESS =
   env.EMAIL_FROM || "Hello Sugar Marketplace <marketplace@noreply.hellosugar.salon>"
 
 // Type definitions

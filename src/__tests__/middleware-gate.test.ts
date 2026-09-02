@@ -120,6 +120,9 @@ describe("public paths need no session", () => {
   const publicPaths = [
     "/",
     "/login",
+    // Auth.js verifyRequest landing: the browser arrives here right after the
+    // magic-link email is sent, i.e. with no session cookie yet.
+    "/check-email",
     "/access-denied",
     "/action-complete",
     "/action-complete/success",
@@ -139,6 +142,10 @@ describe("public paths need no session", () => {
   it.each(publicPaths)("%s is also reachable with a session", (path) => {
     expect(allowed(path, { [PROD_COOKIE]: "opaque-session-token" })).toBe(true)
   })
+
+  it.each(["/check-email", "/check-email/"])("isPublicPath(%s) is true", (path) => {
+    expect(isPublicPath(path)).toBe(true)
+  })
 })
 
 describe("prefix matching does not over-match", () => {
@@ -147,6 +154,7 @@ describe("prefix matching does not over-match", () => {
   const lookalikes = [
     "/loginX",
     "/login-fake",
+    "/check-emailx",
     "/access-denied-2",
     "/api/authx",
     "/api/auth2/callback",
