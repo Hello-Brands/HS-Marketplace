@@ -17,24 +17,38 @@ export interface AuditTarget {
   id: string | null
 }
 
-const REDACT_KEYS = new Set(["message", "notes", "body"])
+const REDACT_KEYS = new Set([
+  "message", "notes", "body",
+  "token", "access_token", "refresh_token", "accessToken", "refreshToken",
+  "secret", "client_secret", "clientSecret", "code", "code_verifier", "codeVerifier", "password",
+])
 const MAX_STRING = 2048
+const MAX_DEPTH = 8
 
 /** Strip free-text fields and cap long strings before the args hit the DB. */
-export function redactAuditArgs(args: unknown): unknown {
+export function redactAuditArgs(args: unknown, depth = 0): unknown {
+  if (depth > MAX_DEPTH) return "[truncated depth]"
   if (args === null || args === undefined) return args
   if (typeof args === "string") {
     return args.length > MAX_STRING ? `${args.slice(0, MAX_STRING)}…[truncated]` : args
   }
-  if (Array.isArray(args)) return args.map(redactAuditArgs)
+  if (Array.isArray(args)) return args.map((v) => redactAuditArgs(v, depth + 1))
   if (typeof args === "object") {
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(args as Record<string, unknown>)) {
-      out[k] = REDACT_KEYS.has(k) ? "[redacted]" : redactAuditArgs(v)
+      out[k] = REDACT_KEYS.has(k) ? "[redacted]" : redactAuditArgs(v, depth + 1)
     }
     return out
   }
   return args
+}
+
+function safeRedact(args: unknown): unknown {
+  try {
+    return redactAuditArgs(args)
+  } catch {
+    return "[unredactable]"
+  }
 }
 
 function isRejectedResult(value: unknown): value is { ok: false; error: string } {
@@ -65,7 +79,7 @@ function baseRow(actor: AdminActor, action: string, target: AuditTarget | null, 
     action,
     targetType: target?.type ?? null,
     targetId: target?.id ?? null,
-    args: redactAuditArgs(args),
+    args: safeRedact(args),
   }
 }
 

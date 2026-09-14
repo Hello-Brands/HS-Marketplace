@@ -91,7 +91,22 @@ describe("getRecentActivity", () => {
   it("truncates every union branch timestamp to milliseconds", async () => {
     execute.mockResolvedValue({ rows: [] })
     await getRecentActivity({ limit: 5 })
-    const rendered = new PgDialect().sqlToQuery(execute.mock.calls[0][0] as SQL).sql
+    const rendered = new PgDialect().sqlToQuery(execute.mock.calls.at(-1)![0] as SQL).sql
     expect(rendered.match(/date_trunc\('milliseconds'/g)).toHaveLength(10)
+    expect(rendered.match(/AT TIME ZONE 'UTC'/g)).toHaveLength(7)
+  })
+
+  it("fails closed when every requested kind is unknown", async () => {
+    execute.mockClear()
+    const out = await getRecentActivity({ limit: 10, kinds: ["nope" as never] })
+    expect(out).toEqual({ items: [], nextCursor: null })
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it("falls back to a sane limit when given a non-number", async () => {
+    execute.mockResolvedValue({ rows: [] })
+    await getRecentActivity({ limit: Number.NaN })
+    const q = new PgDialect().sqlToQuery(execute.mock.calls.at(-1)![0] as SQL)
+    expect(q.params.at(-1)).toBe(51)
   })
 })

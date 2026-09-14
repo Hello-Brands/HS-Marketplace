@@ -85,6 +85,24 @@ describe("withAudit", () => {
     expect(captureException).toHaveBeenCalledTimes(1)
   })
 
+  it("also survives an async rejection from the insert", async () => {
+    const values = vi.fn().mockRejectedValue(new Error("db down (async)"))
+    insert.mockReset().mockReturnValue({ values })
+    const out = await withAudit(actor, "listing.approve", null, {}, async () => "done")
+    expect(out.result).toBe("done")
+    expect(captureException).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not let a hostile args object break the action", async () => {
+    const cyclic: Record<string, unknown> = { a: 1 }
+    cyclic.self = cyclic
+    const b = builder(undefined)
+    insert.mockReset().mockReturnValue(b)
+    const out = await withAudit(actor, "listing.approve", null, cyclic, async () => "ok")
+    expect(out.result).toBe("ok")
+    expect(insert).toHaveBeenCalledTimes(1)
+  })
+
   it("carries mcp client/token ids", async () => {
     await withAudit({ userId: "a", source: "mcp", clientId: "claude-code", tokenId: "t1" }, "listing.approve", null, {}, async () => 1)
     expect(insertBuilder.calls.values[0][0]).toMatchObject({ source: "mcp", mcpClientId: "claude-code", mcpTokenId: "t1" })
