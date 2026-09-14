@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
+import { PgDialect } from "drizzle-orm/pg-core"
+import type { SQL } from "drizzle-orm"
 
 const { execute } = vi.hoisted(() => ({ execute: vi.fn() }))
 vi.mock("@/db", () => ({ db: { execute: (...a: unknown[]) => execute(...a) } }))
@@ -82,5 +84,14 @@ describe("getRecentActivity", () => {
   it("returns null cursor at the end", async () => {
     execute.mockResolvedValue({ rows: [raw({ id: "c1" })] })
     expect((await getRecentActivity({ limit: 25 })).nextCursor).toBeNull()
+  })
+
+  // The cursor round-trips through a JS Date (ms), so every UNION branch must
+  // truncate to ms or the (at, kind, id) tuple compare skips sub-ms siblings.
+  it("truncates every union branch timestamp to milliseconds", async () => {
+    execute.mockResolvedValue({ rows: [] })
+    await getRecentActivity({ limit: 5 })
+    const rendered = new PgDialect().sqlToQuery(execute.mock.calls[0][0] as SQL).sql
+    expect(rendered.match(/date_trunc\('milliseconds'/g)).toHaveLength(10)
   })
 })

@@ -155,28 +155,31 @@ export function summarizeActivity(row: ActivityRawRow): string {
   }
 }
 
+// Every timestamp is date_trunc'd to milliseconds because the keyset cursor round-trips
+// through a JS Date (ms precision): truncating keeps the (at, kind, id) tuple comparison
+// exact, so rows sharing a millisecond fall to the kind/id tie-break instead of being skipped.
 const UNION_SQL = sql`
-  SELECT a.created_at::timestamptz AS at, 'admin_action' AS kind, a.id AS id, a.actor_user_id AS actor_id,
+  SELECT date_trunc('milliseconds', a.created_at)::timestamptz AS at, 'admin_action' AS kind, a.id AS id, a.actor_user_id AS actor_id,
          a.target_type AS target_type, a.target_id AS target_id, a.action AS detail, a.source AS source, a.outcome AS outcome
     FROM admin_audit_log a WHERE a.action <> 'mcp.read'
   UNION ALL
-  SELECT l.created_at::timestamptz, 'listing_created', l.id, l.seller_id, 'listing', l.id, NULL, NULL, NULL FROM listings l
+  SELECT date_trunc('milliseconds', l.created_at)::timestamptz, 'listing_created', l.id, l.seller_id, 'listing', l.id, NULL, NULL, NULL FROM listings l
   UNION ALL
-  SELECT l.listed_at::timestamptz, 'listing_listed', l.id, l.seller_id, 'listing', l.id, NULL, NULL, NULL FROM listings l WHERE l.listed_at IS NOT NULL
+  SELECT date_trunc('milliseconds', l.listed_at)::timestamptz, 'listing_listed', l.id, l.seller_id, 'listing', l.id, NULL, NULL, NULL FROM listings l WHERE l.listed_at IS NOT NULL
   UNION ALL
-  SELECT l.updated_at::timestamptz, 'listing_updated', l.id, l.seller_id, 'listing', l.id, NULL, NULL, NULL FROM listings l WHERE l.updated_at <> l.created_at
+  SELECT date_trunc('milliseconds', l.updated_at)::timestamptz, 'listing_updated', l.id, l.seller_id, 'listing', l.id, NULL, NULL, NULL FROM listings l WHERE l.updated_at <> l.created_at
   UNION ALL
-  SELECT c.created_at::timestamptz, 'inquiry', c.id, c.buyer_id, 'listing', c.listing_id, NULL, NULL, NULL FROM contacts c
+  SELECT date_trunc('milliseconds', c.created_at)::timestamptz, 'inquiry', c.id, c.buyer_id, 'listing', c.listing_id, NULL, NULL, NULL FROM contacts c
   UNION ALL
-  SELECT f.created_at::timestamptz, 'favorite', f.id, f.user_id, 'listing', f.listing_id, NULL, NULL, NULL FROM favorites f
+  SELECT date_trunc('milliseconds', f.created_at)::timestamptz, 'favorite', f.id, f.user_id, 'listing', f.listing_id, NULL, NULL, NULL FROM favorites f
   UNION ALL
-  SELECT e.created_at::timestamptz, 'login', e.id, e.user_id, 'user', e.user_id, NULL, NULL, NULL FROM login_events e
+  SELECT date_trunc('milliseconds', e.created_at)::timestamptz, 'login', e.id, e.user_id, 'user', e.user_id, NULL, NULL, NULL FROM login_events e
   UNION ALL
-  SELECT b.created_at::timestamptz, 'brand_request_submitted', b.id, b.submitted_by, 'brand_request', b.id, NULL, NULL, NULL FROM brand_requests b
+  SELECT date_trunc('milliseconds', b.created_at)::timestamptz, 'brand_request_submitted', b.id, b.submitted_by, 'brand_request', b.id, NULL, NULL, NULL FROM brand_requests b
   UNION ALL
-  SELECT b.decided_at::timestamptz, 'brand_request_decided', b.id, b.decided_by, 'brand_request', b.id, b.status, NULL, NULL FROM brand_requests b WHERE b.decided_at IS NOT NULL
+  SELECT date_trunc('milliseconds', b.decided_at)::timestamptz, 'brand_request_decided', b.id, b.decided_by, 'brand_request', b.id, b.status, NULL, NULL FROM brand_requests b WHERE b.decided_at IS NOT NULL
   UNION ALL
-  SELECT u.updated_at::timestamptz, 'owner_link_changed', u.id, u.actor_user_id, 'user', u.user_id, u.source, NULL, NULL FROM user_owner_links u
+  SELECT date_trunc('milliseconds', u.updated_at)::timestamptz, 'owner_link_changed', u.id, u.actor_user_id, 'user', u.user_id, u.source, NULL, NULL FROM user_owner_links u
 `
 
 export async function getRecentActivity(opts: {
