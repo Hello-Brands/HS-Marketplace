@@ -38,6 +38,16 @@ const {
 
 vi.mock("@/auth", () => ({ auth: mockAuth }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+vi.mock("@/lib/admin/audit", () => ({
+  withAudit: async (
+    _actor: unknown,
+    _action: unknown,
+    _target: unknown,
+    _args: unknown,
+    fn: () => Promise<unknown>,
+  ) => ({ result: await fn(), auditId: "audit-test" }),
+  recordMcpRead: async () => "audit-test",
+}))
 vi.mock("@/lib/brand-requests/dispatch", () => ({
   dispatchMonitorEvent: mockDispatch,
 }))
@@ -322,7 +332,7 @@ describe("approveBrandRequest", () => {
 
     const result = await approveBrandRequest("req-1")
 
-    expect(result).toEqual({ success: true, dispatched: true })
+    expect(result).toEqual({ success: true, dispatched: true, auditId: "audit-test" })
     expect(updateSetCalls[0]).toMatchObject({
       status: "approved",
       decidedBy: "admin-1",
@@ -338,7 +348,7 @@ describe("approveBrandRequest", () => {
 
     const result = await approveBrandRequest("req-1", { withoutRecon: true })
 
-    expect(result).toEqual({ success: true, dispatched: true })
+    expect(result).toEqual({ success: true, dispatched: true, auditId: "audit-test" })
     expect(updateSetCalls[0]).toMatchObject({ status: "approved" })
   })
 
@@ -381,7 +391,7 @@ describe("approveBrandRequest", () => {
 
     const result = await approveBrandRequest("req-1")
 
-    expect(result).toEqual({ success: true, dispatched: false })
+    expect(result).toEqual({ success: true, dispatched: false, auditId: "audit-test" })
     expect(updateSetCalls[0]).toMatchObject({ status: "approved" })
     expect(updateSetCalls[1]).toMatchObject({
       error: "Build dispatch failed: Not Found",
@@ -428,7 +438,7 @@ describe("rejectBrandRequest", () => {
   it("records the decision on the happy path", async () => {
     const result = await rejectBrandRequest("req-1", "  Only 3 locations nationwide  ")
 
-    expect(result).toEqual({ success: true })
+    expect(result).toEqual({ success: true, auditId: "audit-test" })
     expect(updateSetCalls[0]).toMatchObject({
       status: "rejected",
       rejectReason: "Only 3 locations nationwide",
@@ -502,7 +512,7 @@ describe("retryMonitorDispatch", () => {
 
     const result = await retryMonitorDispatch("req-1", "recon")
 
-    expect(result).toEqual({ success: true })
+    expect(result).toEqual({ success: true, auditId: "audit-test" })
     expect(mockDispatch).toHaveBeenCalledWith("brand-recon", "req-1")
     expect(updateSetCalls).toHaveLength(1)
     expect(updateSetCalls[0]).toMatchObject({ error: null })
@@ -513,6 +523,7 @@ describe("retryMonitorDispatch", () => {
 
     await expect(retryMonitorDispatch("req-1", "build")).resolves.toEqual({
       success: true,
+      auditId: "audit-test",
     })
     expect(mockDispatch).toHaveBeenCalledWith("brand-build", "req-1")
   })
