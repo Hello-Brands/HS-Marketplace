@@ -12,6 +12,16 @@ import { builder } from "../../../test/helpers/drizzle-mock"
 
 vi.mock("server-only", () => ({}))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+vi.mock("@/lib/admin/audit", () => ({
+  withAudit: async (
+    _actor: unknown,
+    _action: unknown,
+    _target: unknown,
+    _args: unknown,
+    fn: () => Promise<unknown>,
+  ) => ({ result: await fn(), auditId: "audit-test" }),
+  recordMcpRead: async () => "audit-test",
+}))
 
 const requireAdmin = vi.fn()
 vi.mock("@/lib/auth-guards", () => ({ requireAdmin }))
@@ -41,7 +51,11 @@ describe("addOwnerLink", () => {
   it("refuses to assign the Unknown Owner bucket, without touching the DB", async () => {
     const { addOwnerLink } = await import("@/lib/owner-directory/actions")
     const res = await addOwnerLink("user-1", "Unknown Owner")
-    expect(res).toEqual({ ok: false, error: "Unknown Owner cannot be assigned to a user" })
+    expect(res).toEqual({
+      ok: false,
+      error: "Unknown Owner cannot be assigned to a user",
+      auditId: "audit-test",
+    })
     expect(select).not.toHaveBeenCalled()
     expect(insert).not.toHaveBeenCalled()
   })
@@ -52,6 +66,7 @@ describe("addOwnerLink", () => {
     expect(await addOwnerLink("user-1", "ghost-owner")).toEqual({
       ok: false,
       error: "Unknown owner_identifier: ghost-owner",
+      auditId: "audit-test",
     })
     expect(insert).not.toHaveBeenCalled()
   })
@@ -62,7 +77,7 @@ describe("addOwnerLink", () => {
     insert.mockReturnValue(insertBuilder)
     const { userOwnerLinks } = await import("@/db/schema")
     const { addOwnerLink } = await import("@/lib/owner-directory/actions")
-    expect(await addOwnerLink("user-1", "ut-towns")).toEqual({ ok: true })
+    expect(await addOwnerLink("user-1", "ut-towns")).toEqual({ ok: true, auditId: "audit-test" })
     expect(insert).toHaveBeenCalledTimes(1)
     expect(insert).toHaveBeenCalledWith(userOwnerLinks)
     expect(insertBuilder.calls.values[0][0]).toMatchObject({
@@ -80,14 +95,14 @@ describe("addOwnerLink", () => {
     })
   })
 
-  it("writes actorUserId as null when the admin session has no id", async () => {
+  it("rejects when the admin session has no id (uiActorFromSession)", async () => {
     requireAdmin.mockReset().mockResolvedValue({ role: "admin" })
     select.mockReturnValue(builder([{ id: "ol-1" }]))
     const insertBuilder = builder(undefined)
     insert.mockReturnValue(insertBuilder)
     const { addOwnerLink } = await import("@/lib/owner-directory/actions")
-    expect(await addOwnerLink("user-1", "ut-towns")).toEqual({ ok: true })
-    expect(insertBuilder.calls.values[0][0]).toMatchObject({ actorUserId: null })
+    await expect(addOwnerLink("user-1", "ut-towns")).rejects.toThrow("Unauthorized")
+    expect(insert).not.toHaveBeenCalled()
   })
 
   it("requires an admin", async () => {
@@ -111,7 +126,7 @@ describe("revokeOwnerLink / clearOwnerLink", () => {
     insert.mockReturnValue(insertBuilder)
     const { userOwnerLinks } = await import("@/db/schema")
     const { revokeOwnerLink } = await import("@/lib/owner-directory/actions")
-    expect(await revokeOwnerLink("user-1", "vanished-owner")).toEqual({ ok: true })
+    expect(await revokeOwnerLink("user-1", "vanished-owner")).toEqual({ ok: true, auditId: "audit-test" })
     expect(select).not.toHaveBeenCalled()
     expect(insert).toHaveBeenCalledTimes(1)
     expect(insert).toHaveBeenCalledWith(userOwnerLinks)
@@ -141,7 +156,7 @@ describe("revokeOwnerLink / clearOwnerLink", () => {
     del.mockReturnValue(delBuilder)
     const { userOwnerLinks } = await import("@/db/schema")
     const { clearOwnerLink } = await import("@/lib/owner-directory/actions")
-    expect(await clearOwnerLink("user-1", "ut-towns")).toEqual({ ok: true })
+    expect(await clearOwnerLink("user-1", "ut-towns")).toEqual({ ok: true, auditId: "audit-test" })
     expect(del).toHaveBeenCalledTimes(1)
     expect(del).toHaveBeenCalledWith(userOwnerLinks)
   })
