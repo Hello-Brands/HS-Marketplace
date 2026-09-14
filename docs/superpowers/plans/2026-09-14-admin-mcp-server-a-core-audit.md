@@ -229,6 +229,10 @@ In `drizzle/meta/_journal.json`, after the `idx: 10` entry (add a comma to it), 
 
 Verify with: `node -e "const j=require('./drizzle/meta/_journal.json');console.log(j.entries.at(-1))"` → prints the idx 11 entry.
 
+- [ ] **Step 5b: Hand-build the snapshot**
+
+`src/__tests__/db/migration-artifacts.test.ts` requires `drizzle/meta/0011_snapshot.json` with `prevId` equal to `0010_snapshot.json`'s `id`. Copy 0010, set a fresh `id`, set `prevId` to 0010's id, and add the `public.admin_audit_log` table entry mirroring the SQL (see `.superpowers/sdd/.../task-1b-brief.md` for the generator script). Run `npx vitest run src/__tests__/db/migration-artifacts.test.ts` → 4/4.
+
 - [ ] **Step 6: Export from the schema barrel**
 
 Append to `src/db/schema.ts` after the `disclaimerAcknowledgments` line:
