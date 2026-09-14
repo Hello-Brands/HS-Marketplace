@@ -52,6 +52,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Brand Requests", href: "/admin/brand-requests" },
   { label: "Users", href: "/admin/users" },
   { label: "Analytics", href: "/admin/analytics" },
+  { label: "Activity", href: "/admin/activity" },
   { label: "Data", href: "/admin/data" },
   { label: "Owners", href: "/admin/owner-directory" },
 ]
