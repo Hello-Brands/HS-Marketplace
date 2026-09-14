@@ -27,3 +27,6 @@ export * from "./schema/brandRequests"
 export * from "./schema/monitoredBrands"
 
 export * from "./schema/disclaimerAcknowledgments"
+
+// Admin action audit log (written only via src/lib/admin/audit.ts)
+export * from "./schema/adminAuditLog"
