@@ -44,7 +44,7 @@ recorded in a new admin audit log and surfaced in an activity feed.
   extracted (section 5).
 - Neon HTTP driver: **no transactions**. Multi-row writes use `db.batch`.
 - Hand-authored migrations only; `drizzle-kit generate` is broken (snapshot drift).
-  Next migration number is **0009**.
+  Migrations currently run through `0010`; the next numbers are **0011** (audit log) and **0012** (OAuth tables).
 - Every `"use server"` export is a public POST endpoint. New shared modules must not
   be `"use server"` and carry the same "NOT a use server module" header used by
   `src/lib/alerts/matching.ts`.
@@ -60,7 +60,7 @@ recorded in a new admin audit log and surfaced in an activity feed.
 
 ## 4. OAuth 2.1 authorization server
 
-### 4.1 Tables (migration 0010, shipped in PR B — see section 9)
+### 4.1 Tables (migration 0012, shipped in PR B — see section 9)
 
 **`mcp_oauth_clients`** — pre-registered clients, seeded by script, never via DCR.
 
@@ -243,7 +243,7 @@ Exported names and signatures are unchanged, so no client component changes.
 
 ## 6. Audit log and activity feed
 
-### 6.1 Table `admin_audit_log` (migration 0009, shipped in PR A)
+### 6.1 Table `admin_audit_log` (migration 0011, shipped in PR A)
 
 | column | type | notes |
 |---|---|---|
@@ -415,9 +415,9 @@ any `next build` (Windows `.next` lock).
 
 Three PRs, each cut from `origin/main`:
 
-1. **PR A — core extraction + audit log + activity page.** Migration `0009` (audit
+1. **PR A — core extraction + audit log + activity page.** Migration `0011` (audit
    table only). No MCP code. Largest diff, lowest risk.
-2. **PR B — OAuth server.** Migration `0010` (three OAuth tables), routes, consent
+2. **PR B — OAuth server.** Migration `0012` (three OAuth tables), routes, consent
    page, `/admin/mcp-connections`, seed script `scripts/seed-mcp-clients.ts`, env vars.
 3. **PR C — MCP endpoint + tools + confirmation.**
 
