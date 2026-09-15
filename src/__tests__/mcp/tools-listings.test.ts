@@ -29,6 +29,25 @@ vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras: core.listingExtras
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview: core.marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog: core.listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity: core.getRecentActivity }))
+// The harness builds the WHOLE server, so the other domains' modules load too.
+// They are stubbed only so their `@/db` import never runs; no test here calls them.
+vi.mock("@/lib/admin/core/users", () => ({
+  getUsers: vi.fn(),
+  setUserRole: vi.fn(),
+  setSellerAccess: vi.fn(),
+  removeUser: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/allowlist", () => ({
+  getAllowlist: vi.fn(),
+  addToAllowlist: vi.fn(),
+  removeFromAllowlist: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/analytics", () => ({
+  getUserAnalytics: vi.fn(),
+  getAnalyticsSummary: vi.fn(),
+  getLoginTrend: vi.fn(),
+}))
+vi.mock("@/lib/mcp/queries/users", () => ({ userDetail: vi.fn() }))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 import { __resetRateLimits } from "@/lib/rate-limit"

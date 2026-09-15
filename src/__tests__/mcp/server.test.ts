@@ -20,6 +20,17 @@ const {
   adminMarkSold,
   queryAdminListing,
   listingExtras,
+  getUsers,
+  setUserRole,
+  setSellerAccess,
+  removeUser,
+  getAllowlist,
+  addToAllowlist,
+  removeFromAllowlist,
+  getUserAnalytics,
+  getAnalyticsSummary,
+  getLoginTrend,
+  userDetail,
 } = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
   marketplaceOverview: vi.fn(),
@@ -32,6 +43,17 @@ const {
   adminMarkSold: vi.fn(),
   queryAdminListing: vi.fn(),
   listingExtras: vi.fn(),
+  getUsers: vi.fn(),
+  setUserRole: vi.fn(),
+  setSellerAccess: vi.fn(),
+  removeUser: vi.fn(),
+  getAllowlist: vi.fn(),
+  addToAllowlist: vi.fn(),
+  removeFromAllowlist: vi.fn(),
+  getUserAnalytics: vi.fn(),
+  getAnalyticsSummary: vi.fn(),
+  getLoginTrend: vi.fn(),
+  userDetail: vi.fn(),
 }))
 
 vi.mock("@/lib/admin/audit", () => ({ recordMcpRead }))
@@ -47,6 +69,23 @@ vi.mock("@/lib/admin/core/listings", () => ({
 }))
 vi.mock("@/lib/listings/load-listing", () => ({ queryAdminListing }))
 vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras }))
+vi.mock("@/lib/admin/core/users", () => ({
+  getUsers,
+  setUserRole,
+  setSellerAccess,
+  removeUser,
+}))
+vi.mock("@/lib/admin/core/allowlist", () => ({
+  getAllowlist,
+  addToAllowlist,
+  removeFromAllowlist,
+}))
+vi.mock("@/lib/admin/core/analytics", () => ({
+  getUserAnalytics,
+  getAnalyticsSummary,
+  getLoginTrend,
+}))
+vi.mock("@/lib/mcp/queries/users", () => ({ userDetail }))
 // --------------------------- end of mock block -----------------------------
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"

@@ -13,6 +13,7 @@ import type { McpActor } from "@/lib/mcp/auth/verify-token"
 import { toolContext } from "@/lib/mcp/tools/_shared"
 import { registerListingTools } from "@/lib/mcp/tools/listings"
 import { registerOverviewTools } from "@/lib/mcp/tools/overview"
+import { registerUserTools } from "@/lib/mcp/tools/users"
 
 export const MCP_SERVER_NAME = "hs-marketplace-mcp-server"
 export const MCP_SERVER_TITLE = "Hello Sugar Marketplace Admin"
@@ -74,6 +75,7 @@ export function buildMcpServer(actor: McpActor): McpServer {
 
   registerOverviewTools(server, ctx)
   registerListingTools(server, ctx)
+  registerUserTools(server, ctx)
 
   return server
 }

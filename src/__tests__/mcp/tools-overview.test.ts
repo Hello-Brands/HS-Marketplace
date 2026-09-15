@@ -24,6 +24,23 @@ vi.mock("@/lib/admin/core/listings", () => ({
 }))
 vi.mock("@/lib/listings/load-listing", () => ({ queryAdminListing: vi.fn() }))
 vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras: vi.fn() }))
+vi.mock("@/lib/admin/core/users", () => ({
+  getUsers: vi.fn(),
+  setUserRole: vi.fn(),
+  setSellerAccess: vi.fn(),
+  removeUser: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/allowlist", () => ({
+  getAllowlist: vi.fn(),
+  addToAllowlist: vi.fn(),
+  removeFromAllowlist: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/analytics", () => ({
+  getUserAnalytics: vi.fn(),
+  getAnalyticsSummary: vi.fn(),
+  getLoginTrend: vi.fn(),
+}))
+vi.mock("@/lib/mcp/queries/users", () => ({ userDetail: vi.fn() }))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 
