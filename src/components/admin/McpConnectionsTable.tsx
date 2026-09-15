@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import {
@@ -58,32 +58,38 @@ function scopeLabel(scope: string): string {
 
 export function McpConnectionsTable({ connections, showAll }: McpConnectionsTableProps) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  // NOT useTransition: React 18's `pending` flips back to false as soon as the
+  // synchronous prefix of an async transition callback runs (tracking the
+  // whole async body is a React 19 behaviour), so it never actually gated the
+  // UI during the request -- a double-click could fire two revocations (two
+  // audit rows). A plain busy flag set before the await and cleared in
+  // `finally` is the house pattern (see BrandRequestActions.tsx).
+  const [busy, setBusy] = useState(false)
   const [target, setTarget] = useState<McpConnectionTableRow | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  function confirmRevoke() {
+  async function confirmRevoke() {
     if (!target) return
     const tokenId = target.id
-    startTransition(async () => {
-      try {
-        const result = await revokeMcpConnection(tokenId)
-        if (!result.ok) {
-          setError(result.error)
-          return
-        }
-        setError(null)
-        router.refresh()
-      } catch (error) {
-        // Only the two expected failures come back as { ok: false }; an expired
-        // session (requireAdmin throws), a db failure or a failed audit write
-        // rejects instead. Without this the dialog would sit open with no
-        // message and no way to tell whether the connection was revoked.
-        setError((error as Error)?.message || 'Revoke failed')
-      } finally {
-        setTarget(null)
+    setBusy(true)
+    try {
+      const result = await revokeMcpConnection(tokenId)
+      if (!result.ok) {
+        setError(result.error)
+        return
       }
-    })
+      setError(null)
+      router.refresh()
+    } catch (error) {
+      // Only the two expected failures come back as { ok: false }; an expired
+      // session (requireAdmin throws), a db failure or a failed audit write
+      // rejects instead. Without this the dialog would sit open with no
+      // message and no way to tell whether the connection was revoked.
+      setError((error as Error)?.message || 'Revoke failed')
+    } finally {
+      setTarget(null)
+      setBusy(false)
+    }
   }
 
   if (connections.length === 0) {
@@ -174,7 +180,7 @@ export function McpConnectionsTable({ connections, showAll }: McpConnectionsTabl
                         <button
                           type="button"
                           onClick={() => setTarget(connection)}
-                          disabled={pending}
+                          disabled={busy}
                           className="text-sm font-semibold text-hs-red-600 hover:text-hs-red-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hs-red-500"
                         >
                           Revoke
@@ -197,7 +203,7 @@ export function McpConnectionsTable({ connections, showAll }: McpConnectionsTabl
         } will stop working immediately, and the client will have to authorize again.`}
         confirmLabel="Revoke"
         variant="danger"
-        isProcessing={pending}
+        isProcessing={busy}
         onConfirm={confirmRevoke}
         onCancel={() => setTarget(null)}
       />

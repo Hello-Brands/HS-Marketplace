@@ -8,12 +8,13 @@
  * protocol-relative, backslash-smuggled, scheme-bearing, or containing a
  * control character falls back -- `signIn(..., { redirectTo })` would otherwise
  * hand an attacker a one-click open redirect off an authenticated session.
+ *
+ * `raw` is typed `unknown` because Next.js hands back a `string[]` for a
+ * repeated query key (`?callbackUrl=a&callbackUrl=b`); any non-string input
+ * (array, number, etc.) falls back rather than throwing.
  */
-export function safeCallbackUrl(
-  raw: string | null | undefined,
-  fallback = "/browse",
-): string {
-  if (!raw) return fallback
+export function safeCallbackUrl(raw: unknown, fallback = "/browse"): string {
+  if (typeof raw !== "string" || !raw) return fallback
   // Control characters (incl. CR/LF header smuggling) disqualify outright.
   if (/[\u0000-\u001f\u007f]/.test(raw)) return fallback
   if (!raw.startsWith("/")) return fallback

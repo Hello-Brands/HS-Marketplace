@@ -44,4 +44,17 @@ describe("safeCallbackUrl", () => {
   it("honours an explicit fallback", () => {
     expect(safeCallbackUrl(null, "/admin")).toBe("/admin")
   })
+
+  it("returns the default for a repeated-query-key array", () => {
+    // ?callbackUrl=a&callbackUrl=b yields a string[] from Next.js searchParams.
+    expect(safeCallbackUrl(["/browse", "/admin"])).toBe("/browse")
+  })
+
+  it("returns the default for undefined", () => {
+    expect(safeCallbackUrl(undefined)).toBe("/browse")
+  })
+
+  it("returns the default for a number", () => {
+    expect(safeCallbackUrl(42)).toBe("/browse")
+  })
 })

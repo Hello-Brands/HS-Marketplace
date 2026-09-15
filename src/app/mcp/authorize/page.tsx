@@ -159,7 +159,10 @@ export default async function McpAuthorizePage({ searchParams }: McpAuthorizePag
               type="radio"
               name="scope_choice"
               value="read"
-              defaultChecked={!canWrite}
+              // Least privilege: "Read only" is preselected whenever both
+              // options are offered, and it is the only option (so it stays
+              // selected) when the client didn't request write access.
+              defaultChecked
               className="mt-1 h-4 w-4 accent-hs-red-600"
             />
             <span>
@@ -177,7 +180,6 @@ export default async function McpAuthorizePage({ searchParams }: McpAuthorizePag
                 type="radio"
                 name="scope_choice"
                 value="read_write"
-                defaultChecked
                 className="mt-1 h-4 w-4 accent-hs-red-600"
               />
               <span>

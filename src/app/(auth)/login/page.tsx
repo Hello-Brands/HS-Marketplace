@@ -2,7 +2,7 @@ import { signIn } from "@/auth"
 import { safeCallbackUrl } from "@/lib/auth/callback-url"
 
 interface LoginPageProps {
-  searchParams: Promise<{ callbackUrl?: string }>
+  searchParams: Promise<{ callbackUrl?: string | string[] }>
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {

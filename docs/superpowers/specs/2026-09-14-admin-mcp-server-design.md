@@ -463,6 +463,13 @@ during planning and execution:
   `Retry-After`. The limiter is per-instance in-memory (DEBT-028).
 - **`verifyMcpToken` takes the whole `Authorization` header value**, not the
   bare token; `parseBearer` strips the scheme. PR C passes the header through.
+- **Refresh rotation extends both `expires_at` and `refresh_expires_at`**,
+  giving a sliding 30-day window: a connection used at least monthly never
+  re-consents. Safe because `verifyMcpToken` re-checks `users.role` on every
+  call and revocation is immediate; a dormant connection still dies 30 days
+  after its last refresh.
+- **The consent screen preselects "Read only"**; the admin opts into write
+  access explicitly.
 
 ## 10. Follow-ups (not v1)
 
