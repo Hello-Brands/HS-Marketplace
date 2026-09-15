@@ -84,7 +84,8 @@ beforeEach(() => {
   core.recordMcpRead.mockResolvedValue("audit-read")
   core.getUsers.mockResolvedValue([
     userRow(),
-    userRow({ id: "u-1", role: "admin", name: "Parker", email: "parker@hellosugar.salon" }),
+    // The admin's name and email share no substring, so a search can isolate either half.
+    userRow({ id: "u-1", role: "admin", name: "Parker", email: "admin@hellosugar.salon" }),
   ])
   // Two admins by default, so the last-admin pre-checks stay out of the way of
   // every test that is not about them.
@@ -145,8 +146,12 @@ describe("list_users", () => {
     const { client } = await mcpTestClient()
     const byRole = await client.callTool({ name: "list_users", arguments: { role: "admin" } })
     expect((byRole.structuredContent as { items: { id: string }[] }).items.map((i) => i.id)).toEqual(["u-1"])
-    const bySearch = await client.callTool({ name: "list_users", arguments: { search: "dana@" } })
-    expect((bySearch.structuredContent as { items: { id: string }[] }).items.map((i) => i.id)).toEqual(["u-2"])
+    const byEmail = await client.callTool({ name: "list_users", arguments: { search: "dana@" } })
+    expect((byEmail.structuredContent as { items: { id: string }[] }).items.map((i) => i.id)).toEqual(["u-2"])
+    // "parker" appears in the admin row's NAME only, so this proves the other half
+    // of "across name and email".
+    const byName = await client.callTool({ name: "list_users", arguments: { search: "parker" } })
+    expect((byName.structuredContent as { items: { id: string }[] }).items.map((i) => i.id)).toEqual(["u-1"])
   })
 })
 
@@ -220,11 +225,35 @@ describe("add_to_allowlist (non-destructive, ok/error contract)", () => {
     expect((r.content[0] as { text: string }).text).toBe("Domain already in allowlist")
   })
 
-  it("returns the audit id on success", async () => {
+  it("reports the stored row, normalized, rather than echoing the caller's casing", async () => {
+    core.getAllowlist.mockResolvedValue([
+      { id: "al-2", email: "jane@brand.com", addedBy: "u-1", addedAt: new Date("2026-09-15T00:00:00.000Z") },
+    ])
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "add_to_allowlist",
+      arguments: { entry: "Jane@Brand.COM" },
+    })
+    // The raw entry goes to the core, which owns the normalization.
+    expect(core.addToAllowlist).toHaveBeenCalledWith(ACTOR, "Jane@Brand.COM")
+    expect(r.structuredContent).toEqual({
+      audit_id: "aud-allow",
+      target: {
+        id: "al-2",
+        email: "jane@brand.com",
+        kind: "address",
+        added_by: "u-1",
+        added_at: "2026-09-15T00:00:00.000Z",
+      },
+    })
+  })
+
+  it("refuses to fabricate a target when the stored entry cannot be read back", async () => {
+    core.getAllowlist.mockResolvedValue([])
     const { client } = await mcpTestClient()
     const r = await client.callTool({ name: "add_to_allowlist", arguments: { entry: "jane@brand.com" } })
-    expect(core.addToAllowlist).toHaveBeenCalledWith(ACTOR, "jane@brand.com")
-    expect((r.structuredContent as { audit_id: string }).audit_id).toBe("aud-allow")
+    expect(r.isError).toBe(true)
+    expect((r.content[0] as { text: string }).text).toContain("could not read the stored entry back")
   })
 })
 
@@ -324,16 +353,21 @@ describe("remove_user (destructive)", () => {
 describe("remove_from_allowlist (destructive)", () => {
   it("previews, then executes and reports a deleted target", async () => {
     const { client } = await mcpTestClient()
+    // Mixed case on the way in: the core deletes the lowercased value, so the preview
+    // and the deleted target must both name that, not what the caller typed.
     const preview = await client.callTool({
       name: "remove_from_allowlist",
-      arguments: { email: "@partnerbrand.com" },
+      arguments: { email: "@PartnerBrand.com" },
     })
+    expect((preview.structuredContent as { preview: string }).preview).toContain(
+      '"@partnerbrand.com"',
+    )
     const token = (preview.structuredContent as { confirmation_token: string }).confirmation_token
     const r = await client.callTool({
       name: "remove_from_allowlist",
-      arguments: { email: "@partnerbrand.com", confirmation_token: token },
+      arguments: { email: "@PartnerBrand.com", confirmation_token: token },
     })
-    expect(core.removeFromAllowlist).toHaveBeenCalledWith(ACTOR, "@partnerbrand.com")
+    expect(core.removeFromAllowlist).toHaveBeenCalledWith(ACTOR, "@PartnerBrand.com")
     expect(r.structuredContent).toEqual({
       audit_id: "aud-unallow",
       target: { type: "allowlist", id: "@partnerbrand.com", deleted: true },

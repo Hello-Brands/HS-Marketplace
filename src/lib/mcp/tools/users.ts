@@ -11,6 +11,7 @@ import {
   removeUser,
 } from "@/lib/admin/core/users"
 import { getAllowlist, addToAllowlist, removeFromAllowlist } from "@/lib/admin/core/allowlist"
+import { isDomainEntry, parseAllowlistEntry } from "@/lib/auth/allowlist-entry"
 import { getUserAnalytics } from "@/lib/admin/core/analytics"
 import { userDetail } from "@/lib/mcp/queries/users"
 import { requireConfirmation } from "@/lib/mcp/confirm"
@@ -54,6 +55,35 @@ function userSummary(row: UserRow): Record<string, unknown> {
     last_login_at: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
     created_at: row.createdAt.toISOString(),
   }
+}
+
+type AllowlistRow = {
+  id: string
+  email: string
+  addedBy: string | null
+  addedAt: Date
+}
+
+/** One projection for the list tool and for every allowlist write's `target`. */
+function allowlistSummary(row: AllowlistRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    email: row.email,
+    kind: isDomainEntry(row.email) ? "domain" : "address",
+    added_by: row.addedBy,
+    added_at: row.addedAt.toISOString(),
+  }
+}
+
+/**
+ * What the core stores for `raw`. `addToAllowlist` normalizes through
+ * `parseAllowlistEntry`, so the row's email is NOT the caller's casing — reusing the
+ * same helper is what lets a write report its real post-write state.
+ */
+function storedAllowlistValue(raw: string): string {
+  const parsed = parseAllowlistEntry(raw)
+  if (!parsed.ok) throw new Error(parsed.error)
+  return parsed.entry.value
 }
 
 async function loadUserOrThrow(userId: string): Promise<UserRow> {
@@ -146,23 +176,12 @@ export function registerUserTools(server: McpServer, ctx: McpToolContext): void 
     },
     async (args) =>
       readTool(ctx, "list_allowlist", args, async () => {
-        const rows = (await getAllowlist()) as {
-          id: string
-          email: string
-          addedBy: string | null
-          addedAt: Date
-        }[]
+        const rows = (await getAllowlist()) as AllowlistRow[]
         const needle = args.search?.trim().toLowerCase()
         const filtered = needle ? rows.filter((r) => r.email.toLowerCase().includes(needle)) : rows
         const page = paginateArray(filtered, args.limit, args.cursor)
         return {
-          items: page.items.map((r) => ({
-            id: r.id,
-            email: r.email,
-            kind: r.email.startsWith("@") ? "domain" : "address",
-            added_by: r.addedBy,
-            added_at: r.addedAt.toISOString(),
-          })),
+          items: page.items.map(allowlistSummary),
           next_cursor: page.next_cursor,
         }
       }),
@@ -213,10 +232,16 @@ export function registerUserTools(server: McpServer, ctx: McpToolContext): void 
         // This core returns { ok: false } rather than throwing, because Next redacts
         // thrown server-action messages in production. Convert it to a tool error here.
         if (!result.ok) throw new Error(result.error)
-        return {
-          audit_id: result.auditId,
-          target: { type: "allowlist", id: args.entry },
+        // Report the stored row, not the caller's input: the core lowercases and trims
+        // through parseAllowlistEntry, so "Jane@Brand.COM" is stored as "jane@brand.com".
+        const stored = storedAllowlistValue(args.entry)
+        const row = ((await getAllowlist()) as AllowlistRow[]).find((r) => r.email === stored)
+        if (!row) {
+          throw new Error(
+            `Added "${stored}" to the allowlist, but could not read the stored entry back. Call list_allowlist to confirm it.`,
+          )
         }
+        return { audit_id: result.auditId, target: allowlistSummary(row) }
       }),
   )
 
@@ -282,19 +307,24 @@ export function registerUserTools(server: McpServer, ctx: McpToolContext): void 
     async (args) =>
       writeTool(ctx, "remove_from_allowlist", args, async () => {
         const { confirmation_token, ...rest } = args
-        const isDomain = rest.email.trim().startsWith("@")
+        // What removeFromAllowlist actually deletes (src/lib/admin/core/allowlist.ts:
+        // `email.trim().toLowerCase()`). Deliberately NOT parseAllowlistEntry: the core
+        // does not parse on delete, and refusing to remove a malformed legacy row would
+        // be a new refusal this tool has no business inventing.
+        const stored = rest.email.trim().toLowerCase()
+        const isDomain = isDomainEntry(stored)
         const prompt = requireConfirmation(
           ctx.actor.userId,
           "remove_from_allowlist",
           rest,
           confirmation_token,
           isDomain
-            ? `Remove the domain entry "${rest.email}" from the sign-in allowlist. Everyone at that domain without their own entry loses sign-in.`
-            : `Remove "${rest.email}" from the sign-in allowlist. That address can no longer sign in.`,
+            ? `Remove the domain entry "${stored}" from the sign-in allowlist. Everyone at that domain without their own entry loses sign-in.`
+            : `Remove "${stored}" from the sign-in allowlist. That address can no longer sign in.`,
         )
         if (prompt) return { ...prompt }
         const result = await removeFromAllowlist(ctx.actor, rest.email)
-        return { audit_id: result.auditId, target: deletedTarget("allowlist", rest.email) }
+        return { audit_id: result.auditId, target: deletedTarget("allowlist", stored) }
       }),
   )
 
