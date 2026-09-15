@@ -37,6 +37,21 @@ const validatedEnv = createEnv({
     HS_INTERNAL_API_TOKEN: z.string().min(1).optional(),
     // Placeholder — declared for future error-monitoring wiring, not read yet.
     SENTRY_DSN: z.string().optional(),
+    // Public origin of the MCP OAuth authorization server (spec §4.5). Optional:
+    // src/lib/mcp/oauth/urls.ts falls back to NEXT_PUBLIC_APP_URL. Set it only
+    // when the MCP issuer is not the app's own canonical origin — changing it
+    // after clients have connected invalidates their stored metadata.
+    MCP_ISSUER_URL: z
+      .string()
+      .url()
+      .refine((v) => v.startsWith("https://"), {
+        message: "Must be an HTTPS URL",
+      })
+      .optional(),
+    // HMAC key for the destructive-tool confirmation tokens in spec §7.5.
+    // REQUIRED and declared here (not in PR C) so prod carries it before this
+    // PR deploys; nothing in PR B reads it yet.
+    MCP_CONFIRM_SECRET: z.string().min(32),
   },
   client: {
     // Public key exposed to client — domain-restricted in MapTiler Cloud dashboard

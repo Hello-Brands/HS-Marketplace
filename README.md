@@ -22,11 +22,11 @@ npm run dev                       # http://localhost:3000
 
 `src/lib/env.ts` (`@t3-oss/env-nextjs` + zod) is the **source of truth** and validates these at boot — a missing/invalid required var fails the build/start loudly. Tests set `SKIP_ENV_VALIDATION`.
 
-**Required — server:** `DATABASE_URL` (pooled), `DATABASE_URL_DIRECT` (direct, for migrations), `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `ACTION_TOKEN_SECRET`, `CRON_SECRET`.
+**Required — server:** `DATABASE_URL` (pooled), `DATABASE_URL_DIRECT` (direct, for migrations), `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `ACTION_TOKEN_SECRET`, `CRON_SECRET`, `MCP_CONFIRM_SECRET` (≥ 32 chars — HMAC key for MCP destructive-tool confirmations).
 
 **Required — client:** `NEXT_PUBLIC_MAPTILER_API_KEY` (domain-restricted key), `NEXT_PUBLIC_APP_URL` (absolute base URL, e.g. `https://marketplace.hellosugar.salon` — used to build email/cron links).
 
-**Optional / defaulted:** `GOOGLE_WORKSPACE_DOMAIN` (default `hellosugar.salon`), `INITIAL_ADMIN_EMAIL`, `EMAIL_FROM`, `EMAIL_OVERRIDE`, `MAPTILER_API_KEY` (server-side, unrestricted — for backfill/geocoding), `BIGQUERY_PROJECT_ID`, `GCP_SERVICE_ACCOUNT_JSON` / `BIGQUERY_CREDENTIALS` / `GOOGLE_APPLICATION_CREDENTIALS`, `HS_INTERNAL_API_URL`, `HS_INTERNAL_API_TOKEN`, `BOULEVARD_API_URL`, `BOULEVARD_API_KEY`, `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` (error monitoring — inert until set).
+**Optional / defaulted:** `GOOGLE_WORKSPACE_DOMAIN` (default `hellosugar.salon`), `INITIAL_ADMIN_EMAIL`, `EMAIL_FROM`, `EMAIL_OVERRIDE`, `MAPTILER_API_KEY` (server-side, unrestricted — for backfill/geocoding), `BIGQUERY_PROJECT_ID`, `GCP_SERVICE_ACCOUNT_JSON` / `BIGQUERY_CREDENTIALS` / `GOOGLE_APPLICATION_CREDENTIALS`, `HS_INTERNAL_API_URL`, `HS_INTERNAL_API_TOKEN`, `BOULEVARD_API_URL`, `BOULEVARD_API_KEY`, `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` (error monitoring — inert until set), `MCP_ISSUER_URL` (MCP OAuth issuer origin — defaults to `NEXT_PUBLIC_APP_URL`).
 
 See `src/lib/env.ts` for the authoritative list and validators.
 
