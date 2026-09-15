@@ -3,7 +3,13 @@
 // NOT a use server module.
 import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/server"
-import { getUsers, setUserRole, setSellerAccess, removeUser } from "@/lib/admin/core/users"
+import {
+  adminCount,
+  getUsers,
+  setUserRole,
+  setSellerAccess,
+  removeUser,
+} from "@/lib/admin/core/users"
 import { getAllowlist, addToAllowlist, removeFromAllowlist } from "@/lib/admin/core/allowlist"
 import { getUserAnalytics } from "@/lib/admin/core/analytics"
 import { userDetail } from "@/lib/mcp/queries/users"
@@ -235,6 +241,13 @@ export function registerUserTools(server: McpServer, ctx: McpToolContext): void 
       writeTool(ctx, "set_user_role", args, async () => {
         const { confirmation_token, ...rest } = args
         const row = await loadUserOrThrow(rest.user_id)
+        // The core's last-admin rule, re-run on the preview path (spec §7.5) so a
+        // doomed demotion never mints a token. Only reachable when the target is
+        // themselves the sole admin — which, since the caller is an admin too, is
+        // exactly the self-demotion the core refuses.
+        if (row.role === "admin" && rest.role === "user" && (await adminCount()) <= 1) {
+          throw new Error("Cannot demote the last admin")
+        }
         const prompt = requireConfirmation(
           ctx.actor.userId,
           "set_user_role",
@@ -301,9 +314,13 @@ export function registerUserTools(server: McpServer, ctx: McpToolContext): void 
     async (args) =>
       writeTool(ctx, "remove_user", args, async () => {
         const { confirmation_token, ...rest } = args
-        // Cheap pre-check the core also enforces: refuse before minting a token.
+        // Both pre-checks the core enforces, re-run here (spec §7.5) so a doomed
+        // call is refused before a token is ever minted.
         if (rest.user_id === ctx.actor.userId) throw new Error("Cannot remove yourself")
         const row = await loadUserOrThrow(rest.user_id)
+        if (row.role === "admin" && (await adminCount()) <= 1) {
+          throw new Error("Cannot remove the last admin")
+        }
         const prompt = requireConfirmation(
           ctx.actor.userId,
           "remove_user",

@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}))
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
   getUsers: vi.fn(),
+  adminCount: vi.fn(),
   setUserRole: vi.fn(),
   setSellerAccess: vi.fn(),
   removeUser: vi.fn(),
@@ -26,6 +27,7 @@ const core = vi.hoisted(() => ({
 vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
 vi.mock("@/lib/admin/core/users", () => ({
   getUsers: core.getUsers,
+  adminCount: core.adminCount,
   setUserRole: core.setUserRole,
   setSellerAccess: core.setSellerAccess,
   removeUser: core.removeUser,
@@ -84,6 +86,9 @@ beforeEach(() => {
     userRow(),
     userRow({ id: "u-1", role: "admin", name: "Parker", email: "parker@hellosugar.salon" }),
   ])
+  // Two admins by default, so the last-admin pre-checks stay out of the way of
+  // every test that is not about them.
+  core.adminCount.mockResolvedValue(2)
   core.getAllowlist.mockResolvedValue([
     { id: "al-1", email: "@partnerbrand.com", addedBy: "u-1", addedAt: new Date("2026-05-01T00:00:00.000Z") },
   ])
@@ -244,17 +249,29 @@ describe("set_user_role (destructive)", () => {
     expect(core.setUserRole).toHaveBeenCalledWith(ACTOR, "u-2", "admin")
   })
 
-  it("surfaces the last-admin refusal from the core verbatim", async () => {
-    core.setUserRole.mockRejectedValue(new Error("Cannot demote the last admin"))
+  it("refuses demoting the last admin at the pre-check, before any token is minted", async () => {
+    core.adminCount.mockResolvedValue(1)
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "set_user_role",
+      arguments: { user_id: "u-1", role: "user" },
+    })
+    expect(r.isError).toBe(true)
+    expect((r.content[0] as { text: string }).text).toBe("Cannot demote the last admin")
+    expect(r.structuredContent).not.toHaveProperty("confirmation_token")
+    expect(core.setUserRole).not.toHaveBeenCalled()
+  })
+
+  it("still demotes an admin when another admin remains", async () => {
     const { client } = await mcpTestClient()
     const args = { user_id: "u-1", role: "user" as const }
     const preview = await client.callTool({ name: "set_user_role", arguments: args })
     const token = (preview.structuredContent as { confirmation_token: string }).confirmation_token
-    const r = await client.callTool({
+    await client.callTool({
       name: "set_user_role",
       arguments: { ...args, confirmation_token: token },
     })
-    expect((r.content[0] as { text: string }).text).toBe("Cannot demote the last admin")
+    expect(core.setUserRole).toHaveBeenCalledWith(ACTOR, "u-1", "user")
   })
 })
 
@@ -265,6 +282,19 @@ describe("remove_user (destructive)", () => {
     expect(r.isError).toBe(true)
     expect((r.content[0] as { text: string }).text).toBe("Cannot remove yourself")
     expect(r.structuredContent).not.toHaveProperty("confirmation_token")
+  })
+
+  it("refuses removing the last admin at the pre-check, before any token is minted", async () => {
+    core.adminCount.mockResolvedValue(1)
+    core.getUsers.mockResolvedValue([
+      userRow({ id: "u-3", role: "admin", name: "Sam", email: "sam@hellosugar.salon" }),
+    ])
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({ name: "remove_user", arguments: { user_id: "u-3" } })
+    expect(r.isError).toBe(true)
+    expect((r.content[0] as { text: string }).text).toBe("Cannot remove the last admin")
+    expect(r.structuredContent).not.toHaveProperty("confirmation_token")
+    expect(core.removeUser).not.toHaveBeenCalled()
   })
 
   it("warns in the preview that the user's listings cascade away", async () => {

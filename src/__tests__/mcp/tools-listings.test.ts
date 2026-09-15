@@ -33,6 +33,7 @@ vi.mock("@/lib/admin/activity", () => ({ getRecentActivity: core.getRecentActivi
 // They are stubbed only so their `@/db` import never runs; no test here calls them.
 vi.mock("@/lib/admin/core/users", () => ({
   getUsers: vi.fn(),
+  adminCount: vi.fn(),
   setUserRole: vi.fn(),
   setSellerAccess: vi.fn(),
   removeUser: vi.fn(),

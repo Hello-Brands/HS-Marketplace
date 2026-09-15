@@ -18,7 +18,12 @@ export async function getUsers() {
   return db.select().from(users).orderBy(users.createdAt)
 }
 
-async function adminCount(): Promise<number> {
+/**
+ * How many admins exist. Exported so the MCP destructive tools can run the same
+ * last-admin refusal as a PREVIEW pre-check, before a confirmation token is minted
+ * (spec §7.5). A read: it grants no power the caller did not already have.
+ */
+export async function adminCount(): Promise<number> {
   const rows = await db.select({ count: count() }).from(users).where(eq(users.role, "admin"))
   return rows[0].count
 }

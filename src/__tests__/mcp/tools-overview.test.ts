@@ -26,6 +26,7 @@ vi.mock("@/lib/listings/load-listing", () => ({ queryAdminListing: vi.fn() }))
 vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras: vi.fn() }))
 vi.mock("@/lib/admin/core/users", () => ({
   getUsers: vi.fn(),
+  adminCount: vi.fn(),
   setUserRole: vi.fn(),
   setSellerAccess: vi.fn(),
   removeUser: vi.fn(),

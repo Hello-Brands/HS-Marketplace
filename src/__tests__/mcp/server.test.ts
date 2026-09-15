@@ -21,6 +21,7 @@ const {
   queryAdminListing,
   listingExtras,
   getUsers,
+  adminCount,
   setUserRole,
   setSellerAccess,
   removeUser,
@@ -44,6 +45,7 @@ const {
   queryAdminListing: vi.fn(),
   listingExtras: vi.fn(),
   getUsers: vi.fn(),
+  adminCount: vi.fn(),
   setUserRole: vi.fn(),
   setSellerAccess: vi.fn(),
   removeUser: vi.fn(),
@@ -71,6 +73,7 @@ vi.mock("@/lib/listings/load-listing", () => ({ queryAdminListing }))
 vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras }))
 vi.mock("@/lib/admin/core/users", () => ({
   getUsers,
+  adminCount,
   setUserRole,
   setSellerAccess,
   removeUser,
