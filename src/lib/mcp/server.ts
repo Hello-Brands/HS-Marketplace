@@ -11,6 +11,7 @@ import { McpServer, createMcpHandler, type McpHttpHandler } from "@modelcontextp
 import * as Sentry from "@sentry/nextjs"
 import type { McpActor } from "@/lib/mcp/auth/verify-token"
 import { toolContext } from "@/lib/mcp/tools/_shared"
+import { registerListingTools } from "@/lib/mcp/tools/listings"
 import { registerOverviewTools } from "@/lib/mcp/tools/overview"
 
 export const MCP_SERVER_NAME = "hs-marketplace-mcp-server"
@@ -72,6 +73,7 @@ export function buildMcpServer(actor: McpActor): McpServer {
   const ctx = toolContext(actor)
 
   registerOverviewTools(server, ctx)
+  registerListingTools(server, ctx)
 
   return server
 }

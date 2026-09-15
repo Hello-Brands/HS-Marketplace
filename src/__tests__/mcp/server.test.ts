@@ -8,17 +8,45 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 // ---------------------------------------------------------------------------
 vi.mock("server-only", () => ({}))
 
-const { recordMcpRead, marketplaceOverview, getRecentActivity, listAuditLog } = vi.hoisted(() => ({
+const {
+  recordMcpRead,
+  marketplaceOverview,
+  getRecentActivity,
+  listAuditLog,
+  getAllListings,
+  approveListing,
+  rejectListing,
+  adminUpdateListing,
+  adminMarkSold,
+  queryAdminListing,
+  listingExtras,
+} = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
   marketplaceOverview: vi.fn(),
   getRecentActivity: vi.fn(),
   listAuditLog: vi.fn(),
+  getAllListings: vi.fn(),
+  approveListing: vi.fn(),
+  rejectListing: vi.fn(),
+  adminUpdateListing: vi.fn(),
+  adminMarkSold: vi.fn(),
+  queryAdminListing: vi.fn(),
+  listingExtras: vi.fn(),
 }))
 
 vi.mock("@/lib/admin/audit", () => ({ recordMcpRead }))
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity }))
+vi.mock("@/lib/admin/core/listings", () => ({
+  getAllListings,
+  approveListing,
+  rejectListing,
+  adminUpdateListing,
+  adminMarkSold,
+}))
+vi.mock("@/lib/listings/load-listing", () => ({ queryAdminListing }))
+vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras }))
 // --------------------------- end of mock block -----------------------------
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
@@ -34,6 +62,13 @@ beforeEach(() => {
   marketplaceOverview.mockReset().mockResolvedValue({ listings: { total: 0, by_status: {} } })
   getRecentActivity.mockReset().mockResolvedValue({ items: [], nextCursor: null })
   listAuditLog.mockReset().mockResolvedValue({ items: [], next_cursor: null })
+  getAllListings.mockReset().mockResolvedValue([])
+  approveListing.mockReset()
+  rejectListing.mockReset()
+  adminUpdateListing.mockReset()
+  adminMarkSold.mockReset()
+  queryAdminListing.mockReset()
+  listingExtras.mockReset()
 })
 
 describe("buildMcpServer", () => {
@@ -69,6 +104,24 @@ describe("tools/list scope filtering", () => {
     const { client } = await mcpTestClient({ scopes: ["marketplace:read"] })
     const names = (await client.listTools()).tools.map((t) => t.name)
     for (const write of WRITE_TOOL_NAMES) expect(names).not.toContain(write)
+  })
+
+  it("advertises the registered write tools to a write-scoped token", async () => {
+    const { client } = await mcpTestClient({
+      scopes: ["marketplace:read", "marketplace:write"],
+    })
+    const names = (await client.listTools()).tools.map((t) => t.name)
+    // The write half of the gate: without this the negative test above would still
+    // pass if `canWrite` were broken and nothing registered at all.
+    for (const write of [
+      "approve_listing",
+      "reject_listing",
+      "update_listing",
+      "mark_listing_sold",
+    ]) {
+      expect(names).toContain(write)
+      expect(WRITE_TOOL_NAMES.has(write)).toBe(true)
+    }
   })
 
   it("marks every advertised tool closed-world", async () => {

@@ -13,6 +13,17 @@ vi.mock("@/lib/admin/audit", () => ({ recordMcpRead }))
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity }))
+// The harness builds the WHOLE server, so the other domains' modules load too.
+// They are stubbed only so their `@/db` import never runs; no test here calls them.
+vi.mock("@/lib/admin/core/listings", () => ({
+  getAllListings: vi.fn(),
+  approveListing: vi.fn(),
+  rejectListing: vi.fn(),
+  adminUpdateListing: vi.fn(),
+  adminMarkSold: vi.fn(),
+}))
+vi.mock("@/lib/listings/load-listing", () => ({ queryAdminListing: vi.fn() }))
+vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras: vi.fn() }))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 
