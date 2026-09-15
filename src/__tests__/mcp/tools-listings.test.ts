@@ -306,7 +306,20 @@ describe("update_listing (destructive)", () => {
     expect(core.adminUpdateListing).not.toHaveBeenCalled()
   })
 
+  it("refuses a patch with no recognised fields before issuing a token", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "update_listing",
+      arguments: { listing_id: "l-1", patch: { totallyMadeUp: 1 } },
+    })
+    expect(r.isError).toBe(true)
+    expect(r.structuredContent).not.toHaveProperty("confirmation_token")
+    expect(core.adminUpdateListing).not.toHaveBeenCalled()
+  })
+
   it("hands the RAW patch to the core so it applies its own dollars-to-cents rule", async () => {
+    // Nothing stored to preserve, so the patch reaches the core exactly as sent.
+    core.queryAdminListing.mockResolvedValue(listingRow({ inventoryCostEstimate: null }))
     const { client } = await mcpTestClient()
     const args = { listing_id: "l-1", patch: { askingPrice: 150000, notes: "Price drop" } }
     const preview = await client.callTool({ name: "update_listing", arguments: args })
@@ -318,6 +331,37 @@ describe("update_listing (destructive)", () => {
     expect(core.adminUpdateListing).toHaveBeenCalledWith(ACTOR, "l-1", {
       askingPrice: 150000,
       notes: "Price drop",
+    })
+  })
+
+  it("re-sends the stored inventory cost (in dollars) when the patch omits it", async () => {
+    // A patch here is genuinely partial, unlike the admin form, which posts every key.
+    // Without this the core's buildListingUpdate would clear the stored 250000 cents.
+    const { client } = await mcpTestClient()
+    const args = { listing_id: "l-1", patch: { notes: "Just a note" } }
+    const preview = await client.callTool({ name: "update_listing", arguments: args })
+    const token = (preview.structuredContent as { confirmation_token: string }).confirmation_token
+    await client.callTool({
+      name: "update_listing",
+      arguments: { ...args, confirmation_token: token },
+    })
+    expect(core.adminUpdateListing).toHaveBeenCalledWith(ACTOR, "l-1", {
+      notes: "Just a note",
+      inventoryCostEstimate: 2500,
+    })
+  })
+
+  it("does not re-send the cost when the patch turns inventory off", async () => {
+    const { client } = await mcpTestClient()
+    const args = { listing_id: "l-1", patch: { inventoryIncluded: false } }
+    const preview = await client.callTool({ name: "update_listing", arguments: args })
+    const token = (preview.structuredContent as { confirmation_token: string }).confirmation_token
+    await client.callTool({
+      name: "update_listing",
+      arguments: { ...args, confirmation_token: token },
+    })
+    expect(core.adminUpdateListing).toHaveBeenCalledWith(ACTOR, "l-1", {
+      inventoryIncluded: false,
     })
   })
 

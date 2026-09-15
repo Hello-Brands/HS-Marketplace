@@ -14,6 +14,7 @@ import { queryAdminListing } from "@/lib/listings/load-listing"
 import { parseListingPatch } from "@/lib/listings/schemas"
 import { canTransition } from "@/lib/listings/status-machine"
 import type { ListingFormData, ListingStatus } from "@/lib/listings/types"
+import { centsToDollars } from "@/lib/money"
 import { listingExtras } from "@/lib/mcp/queries/listings"
 import { requireConfirmation } from "@/lib/mcp/confirm"
 import {
@@ -293,22 +294,43 @@ export function registerListingTools(server: McpServer, ctx: McpToolContext): vo
         // Validate before minting a token: parseListingPatch throws with the offending
         // paths, which is far more useful than a token the second call would reject.
         const parsed = parseListingPatch(rest.patch)
-        const fields = Object.keys(parsed).sort().join(", ")
+        const fields = Object.keys(parsed).sort()
+        // Unknown keys are stripped silently by the schema, so a patch of nothing but
+        // typos parses to `{}` and would otherwise mint a token for a write that
+        // changes nothing an admin asked for.
+        if (fields.length === 0) {
+          throw new Error(
+            "Patch contains no recognised listing fields. See this tool's description for the accepted keys.",
+          )
+        }
         const prompt = requireConfirmation(
           ctx.actor.userId,
           "update_listing",
           rest,
           confirmation_token,
-          `Update listing "${row.title ?? row.id}" (${row.id}): change ${fields}.`,
+          `Update listing "${row.title ?? row.id}" (${row.id}): change ${fields.join(", ")}.`,
         )
         if (prompt) return { ...prompt }
+        // Preserve-on-omit, on this path only. `buildListingUpdate` clears the stored
+        // inventory cost whenever the incoming patch carries no value for it — harmless
+        // for the admin form, which always posts every key (an emptied box is how the
+        // cost gets cleared), but wrong for a genuinely partial MCP patch. Re-send the
+        // stored cents as DOLLARS, the unit the core converts from; dollarsToCents
+        // rounds, so the round trip is exact for an integer-cent value.
+        const inventoryIncluded = parsed.inventoryIncluded ?? row.inventoryIncluded
+        const patch =
+          inventoryIncluded &&
+          parsed.inventoryCostEstimate === undefined &&
+          row.inventoryCostEstimate != null
+            ? { ...rest.patch, inventoryCostEstimate: centsToDollars(row.inventoryCostEstimate) }
+            : rest.patch
         // Pass the RAW patch, not `parsed`: adminUpdateListing parses it itself and owns
         // the dollars-to-cents conversion. Handing it pre-parsed output would double-apply
         // nothing today but would silently diverge the moment the core adds a step.
         const result = await adminUpdateListing(
           ctx.actor,
           rest.listing_id,
-          rest.patch as Partial<ListingFormData>,
+          patch as Partial<ListingFormData>,
         )
         return {
           audit_id: result.auditId,
