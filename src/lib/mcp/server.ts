@@ -12,9 +12,11 @@ import * as Sentry from "@sentry/nextjs"
 import type { McpActor } from "@/lib/mcp/auth/verify-token"
 import { toolContext } from "@/lib/mcp/tools/_shared"
 import { registerBrandRequestTools } from "@/lib/mcp/tools/brand-requests"
+import { registerDataTools } from "@/lib/mcp/tools/data"
 import { registerInquiryTools } from "@/lib/mcp/tools/inquiries"
 import { registerListingTools } from "@/lib/mcp/tools/listings"
 import { registerOverviewTools } from "@/lib/mcp/tools/overview"
+import { registerOwnerTools } from "@/lib/mcp/tools/owner"
 import { registerUserTools } from "@/lib/mcp/tools/users"
 
 export const MCP_SERVER_NAME = "hs-marketplace-mcp-server"
@@ -80,6 +82,8 @@ export function buildMcpServer(actor: McpActor): McpServer {
   registerUserTools(server, ctx)
   registerBrandRequestTools(server, ctx)
   registerInquiryTools(server, ctx)
+  registerOwnerTools(server, ctx)
+  registerDataTools(server, ctx)
 
   return server
 }

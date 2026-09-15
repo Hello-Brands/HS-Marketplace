@@ -61,6 +61,18 @@ vi.mock("@/lib/admin/core/brand-requests", () => ({
   retryMonitorDispatch: vi.fn(),
 }))
 vi.mock("@/lib/admin/core/inquiries", () => ({ getInquiries: vi.fn() }))
+vi.mock("@/lib/owner-directory/data", () => ({
+  queryOwnerDirectory: vi.fn(),
+  queryUsersWithLinks: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/owner-links", () => ({
+  addOwnerLink: vi.fn(),
+  revokeOwnerLink: vi.fn(),
+  clearOwnerLink: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/owner-directory", () => ({ refreshOwnerDirectory: vi.fn() }))
+vi.mock("@/lib/mcp/queries/data-mappings", () => ({ unresolvedMappings: vi.fn() }))
+vi.mock("@/lib/admin/core/data-mappings", () => ({ setLocationMapping: vi.fn() }))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 import { __resetRateLimits } from "@/lib/rate-limit"

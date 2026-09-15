@@ -44,6 +44,18 @@ vi.mock("@/lib/admin/core/brand-requests", () => ({
   retryMonitorDispatch: core.retryMonitorDispatch,
 }))
 vi.mock("@/lib/admin/core/inquiries", () => ({ getInquiries: core.getInquiries }))
+vi.mock("@/lib/owner-directory/data", () => ({
+  queryOwnerDirectory: vi.fn(),
+  queryUsersWithLinks: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/owner-links", () => ({
+  addOwnerLink: vi.fn(),
+  revokeOwnerLink: vi.fn(),
+  clearOwnerLink: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/owner-directory", () => ({ refreshOwnerDirectory: vi.fn() }))
+vi.mock("@/lib/mcp/queries/data-mappings", () => ({ unresolvedMappings: vi.fn() }))
+vi.mock("@/lib/admin/core/data-mappings", () => ({ setLocationMapping: vi.fn() }))
 // The harness builds the WHOLE server, so the other domains' modules load too.
 // They are stubbed only so their `@/db` import never runs; no test here calls them.
 vi.mock("@/lib/admin/core/users", () => ({
