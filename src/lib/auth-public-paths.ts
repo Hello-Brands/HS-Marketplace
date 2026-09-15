@@ -28,10 +28,17 @@ export const PUBLIC_PATHS = [
   //                    of the gate's default landing
   //   /mcp/token       authenticated by the PKCE code or the refresh token
   //   /mcp/revoke      authenticated by the token being revoked
+  //   /api/mcp         the MCP endpoint itself, authenticated by the OAuth
+  //                    access token in its Authorization header. Gating it
+  //                    turned every bearer request into a 307 to /login, so
+  //                    the handler's 401 + WWW-Authenticate never reached the
+  //                    client and no MCP client could discover the
+  //                    authorization server or connect at all.
   "/.well-known",
   "/mcp/authorize",
   "/mcp/token",
   "/mcp/revoke",
+  "/api/mcp",
 ] as const
 
 /**
