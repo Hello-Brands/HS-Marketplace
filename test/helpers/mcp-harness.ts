@@ -9,7 +9,13 @@
  * Deliberately NOT `InMemoryTransport.createLinkedPair()`: in SDK v2 that pair
  * connects 2025-era instances only, so it would not exercise the protocol revision
  * this endpoint actually serves.
+ *
+ * Callers do NOT need to close: `mcpTestClient` registers its own `onTestFinished`
+ * cleanup, so the client and handler are torn down even when an assertion fails
+ * partway through a test. `close` is still returned for a test that wants to shut
+ * the session down early (and calling it twice is safe).
  */
+import { onTestFinished } from "vitest"
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client"
 import { createMcpRequestHandler } from "@/lib/mcp/server"
 import type { McpActor } from "@/lib/mcp/auth/verify-token"
@@ -40,11 +46,19 @@ export async function mcpTestClient(
   )
   await client.connect(transport)
 
-  return {
-    client,
-    close: async () => {
-      await client.close()
-      await handler.close()
-    },
+  // Idempotent: the automatic cleanup below and an explicit early `close()` in a
+  // test must not both tear the same session down.
+  let closed = false
+  const close = async () => {
+    if (closed) return
+    closed = true
+    await client.close()
+    await handler.close()
   }
+
+  // Runs even when the test fails mid-way, so a failed assertion cannot leak a
+  // handler into the next test.
+  onTestFinished(close)
+
+  return { client, close }
 }

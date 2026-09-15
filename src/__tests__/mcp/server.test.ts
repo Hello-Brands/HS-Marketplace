@@ -58,52 +58,47 @@ describe("server identity", () => {
 
 describe("tools/list scope filtering", () => {
   it("advertises the read tools to a read-only token", async () => {
-    const { client, close } = await mcpTestClient({ scopes: ["marketplace:read"] })
+    const { client } = await mcpTestClient({ scopes: ["marketplace:read"] })
     const names = (await client.listTools()).tools.map((t) => t.name)
     expect(names).toContain("get_marketplace_overview")
     expect(names).toContain("list_recent_activity")
     expect(names).toContain("list_audit_log")
-    await close()
   })
 
   it("advertises no tool that is in the write set to a read-only token", async () => {
-    const { client, close } = await mcpTestClient({ scopes: ["marketplace:read"] })
+    const { client } = await mcpTestClient({ scopes: ["marketplace:read"] })
     const names = (await client.listTools()).tools.map((t) => t.name)
     for (const write of WRITE_TOOL_NAMES) expect(names).not.toContain(write)
-    await close()
   })
 
   it("marks every advertised tool closed-world", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     for (const tool of (await client.listTools()).tools) {
       expect(tool.annotations?.openWorldHint).toBe(false)
     }
-    await close()
   })
 
   it("gives every advertised tool a title, a description and an input schema", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     for (const tool of (await client.listTools()).tools) {
       expect(tool.title, tool.name).toBeTruthy()
       expect(tool.description, tool.name).toBeTruthy()
       expect(tool.inputSchema, tool.name).toBeTruthy()
     }
-    await close()
   })
 })
 
 describe("tools/call transport round trip", () => {
   it("returns structuredContent through a real client", async () => {
     marketplaceOverview.mockResolvedValue({ listings: { total: 3, by_status: { active: 3 } } })
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     const result = await client.callTool({ name: "get_marketplace_overview", arguments: {} })
     expect(result.isError).toBeFalsy()
     expect(result.structuredContent).toEqual({ listings: { total: 3, by_status: { active: 3 } } })
-    await close()
   })
 
   it("rejects an out-of-range limit before the handler runs", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     const result = await client.callTool({
       name: "list_audit_log",
       arguments: { limit: 5000 },
@@ -111,11 +106,10 @@ describe("tools/call transport round trip", () => {
     expect(result.isError).toBe(true)
     expect((result.content[0] as { text: string }).text).toMatch(/validation/i)
     expect(listAuditLog).not.toHaveBeenCalled()
-    await close()
   })
 
   it("reports an unknown tool as an error rather than crashing the connection", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     // SDK v2 answers an unknown tool with a JSON-RPC protocol error, not an in-band
     // `isError` result (that shape is reserved for a tool that ran and refused), so
     // the client surfaces it as a rejection.
@@ -125,6 +119,5 @@ describe("tools/call transport round trip", () => {
     // The point of the test: the session survives it and the next call still works.
     const after = await client.callTool({ name: "get_marketplace_overview", arguments: {} })
     expect(after.isError).toBeFalsy()
-    await close()
   })
 })

@@ -16,6 +16,19 @@ import {
   type McpToolContext,
 } from "@/lib/mcp/tools/_shared"
 
+/**
+ * The activity kinds `list_recent_activity` will filter by.
+ *
+ * Deliberately inlined rather than imported from `@/lib/admin/activity`, whose
+ * own `ACTIVITY_KINDS` this mirrors: every tool test mocks that module with a
+ * factory exporting only `getRecentActivity`, so importing the constant at
+ * runtime would hand `z.enum` an `undefined` and throw at module load.
+ *
+ * `satisfies` catches a kind that is REMOVED or RENAMED upstream; the
+ * `_AllKindsCovered` check below catches one that is ADDED — without it, a new
+ * eleventh kind would silently become unfilterable and no test would fail.
+ * Both are compile-time only and emit nothing.
+ */
 const ACTIVITY_KINDS = [
   "admin_action",
   "listing_created",
@@ -28,6 +41,14 @@ const ACTIVITY_KINDS = [
   "brand_request_decided",
   "owner_link_changed",
 ] as const satisfies readonly ActivityKind[]
+
+/** `true` only while the list above covers every `ActivityKind`; otherwise `never`. */
+type _AllKindsCovered =
+  Exclude<ActivityKind, (typeof ACTIVITY_KINDS)[number]> extends never ? true : never
+// tsc fails here — "Type 'boolean' is not assignable to type 'never'" — the moment
+// PR A adds a kind this list does not carry.
+const _allKindsCovered: _AllKindsCovered = true
+void _allKindsCovered
 
 const sinceField = z.iso
   .datetime()

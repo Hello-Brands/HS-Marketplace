@@ -25,23 +25,21 @@ beforeEach(() => {
 
 describe("get_marketplace_overview", () => {
   it("writes an mcp.read audit row naming the tool", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     await client.callTool({ name: "get_marketplace_overview", arguments: {} })
     expect(recordMcpRead).toHaveBeenCalledWith(
       { userId: "u-1", source: "mcp", clientId: "claude-code", tokenId: "tok-1" },
       "get_marketplace_overview",
       {},
     )
-    await close()
   })
 
   it("surfaces a plain Error from the query as the tool's message", async () => {
     marketplaceOverview.mockRejectedValue(new Error("Analytics unavailable"))
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     const r = await client.callTool({ name: "get_marketplace_overview", arguments: {} })
     expect(r.isError).toBe(true)
     expect((r.content[0] as { text: string }).text).toBe("Analytics unavailable")
-    await close()
   })
 })
 
@@ -61,7 +59,7 @@ describe("list_recent_activity", () => {
       ],
       nextCursor: "CURSOR",
     })
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     const r = await client.callTool({
       name: "list_recent_activity",
       arguments: { kinds: ["admin_action"], since: "2026-09-01T00:00:00.000Z", limit: 10 },
@@ -87,28 +85,25 @@ describe("list_recent_activity", () => {
       ],
       next_cursor: "CURSOR",
     })
-    await close()
   })
 
   it("defaults the limit to 25 when the caller omits it", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     await client.callTool({ name: "list_recent_activity", arguments: {} })
     expect(getRecentActivity.mock.calls[0][0].limit).toBe(25)
-    await close()
   })
 
   it("rejects an unknown activity kind at the schema, not in the handler", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     const r = await client.callTool({ name: "list_recent_activity", arguments: { kinds: ["nope"] } })
     expect(r.isError).toBe(true)
     expect(getRecentActivity).not.toHaveBeenCalled()
-    await close()
   })
 })
 
 describe("list_audit_log", () => {
   it("maps snake_case tool arguments onto the query's camelCase filters", async () => {
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     await client.callTool({
       name: "list_audit_log",
       arguments: {
@@ -134,14 +129,12 @@ describe("list_audit_log", () => {
       limit: 50,
       cursor: "C",
     })
-    await close()
   })
 
   it("returns the query's page shape unchanged", async () => {
     listAuditLog.mockResolvedValue({ items: [{ id: "a1" }], next_cursor: "NEXT" })
-    const { client, close } = await mcpTestClient()
+    const { client } = await mcpTestClient()
     const r = await client.callTool({ name: "list_audit_log", arguments: {} })
     expect(r.structuredContent).toEqual({ items: [{ id: "a1" }], next_cursor: "NEXT" })
-    await close()
   })
 })

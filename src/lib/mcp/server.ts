@@ -18,13 +18,15 @@ export const MCP_SERVER_TITLE = "Hello Sugar Marketplace Admin"
 export const MCP_SERVER_VERSION = "1.0.0"
 
 /**
- * Every tool that mutates. Two jobs:
- *  - the route rejects a `tools/call` naming one of these with HTTP 403
+ * Every tool that mutates — spec §7.4, exactly.
+ *
+ * A read-only token never has these registered, so they simply do not appear in its
+ * tools/list. The named set exists because two callers need to reason about them
+ * without a server instance in hand:
+ *  - the route, which rejects a `tools/call` naming one of these with HTTP 403
  *    `insufficient_scope` when the token is read-only, instead of the bare
  *    "unknown tool" the omitted registration would otherwise produce;
- *  - the server test diffs a write-scoped tools/list against a read-scoped one and
- *    asserts the difference is exactly this set, so the list cannot drift.
- * Mirrors spec §7.4 exactly.
+ *  - the server test, which asserts a read-scoped tools/list advertises none of them.
  */
 export const WRITE_TOOL_NAMES: ReadonlySet<string> = new Set([
   "approve_listing",
