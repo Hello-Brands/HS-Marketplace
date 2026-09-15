@@ -35,11 +35,17 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalize(value))
 }
 
+// Only JSON scalars, arrays and plain objects are supported — a non-plain object
+// (Date, Map, class instance) is walked as a bag of own enumerable keys, so callers
+// must sign JSON-shaped values only. MCP tool arguments always are.
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize)
   if (value !== null && typeof value === "object") {
     const source = value as Record<string, unknown>
-    const out: Record<string, unknown> = {}
+    // Null-prototype: a key literally named `__proto__` (JSON.parse creates it as an
+    // own property, which is exactly how MCP arguments arrive) would otherwise hit the
+    // prototype setter, never become an own key, and silently vanish from the signature.
+    const out = Object.create(null) as Record<string, unknown>
     for (const key of Object.keys(source).sort()) {
       if (source[key] === undefined) continue
       out[key] = canonicalize(source[key])
@@ -85,11 +91,15 @@ export function verifyConfirmationToken(
   if (parts.length !== 2 || !parts[0] || !parts[1]) return { ok: false, reason: "malformed" }
   const [body, providedSig] = parts
 
+  // Shape-check the signature before anything else: timingSafeEqual compares BYTES and
+  // throws a RangeError on a length difference, and a JS string's .length is UTF-16 code
+  // units, not bytes ("é".repeat(64) is 64 long but 128 bytes). Anything that is not
+  // exactly our digest — 64 lowercase hex chars — is a garbled token, not a wrong one.
+  if (!/^[0-9a-f]{64}$/.test(providedSig)) return { ok: false, reason: "malformed" }
+
   // Signature first: never parse attacker-controlled bytes we have not authenticated.
+  // Both buffers are now guaranteed to be 64 ASCII bytes, so timingSafeEqual cannot throw.
   const expectedSig = sign(body)
-  // timingSafeEqual throws on unequal lengths, so length is checked up front — a
-  // length difference is not secret (the digest length is fixed and public).
-  if (providedSig.length !== expectedSig.length) return { ok: false, reason: "mismatch" }
   if (!timingSafeEqual(Buffer.from(providedSig, "utf8"), Buffer.from(expectedSig, "utf8"))) {
     return { ok: false, reason: "mismatch" }
   }
@@ -151,15 +161,21 @@ export function requireConfirmation(
   token: string | undefined,
   preview: string,
 ): ConfirmationPrompt | null {
+  // Stripped defensively as well as by contract: if a caller ever passed the raw
+  // arguments through, the token would sign a field that only exists on the second
+  // call and could therefore never match it.
+  const signed = { ...args }
+  delete signed.confirmation_token
+
   if (!token) {
     return {
       preview,
-      confirmation_token: createConfirmationToken({ tool, args, userId }),
+      confirmation_token: createConfirmationToken({ tool, args: signed, userId }),
       expires_in: CONFIRMATION_TTL_SECONDS,
     }
   }
 
-  const verdict = verifyConfirmationToken(token, { tool, args, userId })
+  const verdict = verifyConfirmationToken(token, { tool, args: signed, userId })
   if (verdict.ok) return null
 
   switch (verdict.reason) {

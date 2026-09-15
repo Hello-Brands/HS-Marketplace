@@ -39,6 +39,15 @@ describe("canonicalJson", () => {
     expect(canonicalJson({ a: 1, b: undefined })).toBe('{"a":1}')
   })
 
+  it("keeps a literal __proto__ key, so it cannot be swapped without changing the signature", () => {
+    // Own `__proto__` properties only exist via JSON.parse (an object literal's
+    // `__proto__:` sets the prototype instead) — which is exactly how MCP args arrive.
+    const a: unknown = JSON.parse('{"__proto__":{"x":1},"b":2}')
+    const b: unknown = JSON.parse('{"__proto__":{"x":9},"b":2}')
+    expect(canonicalJson(a)).not.toBe(canonicalJson(b))
+    expect(canonicalJson(a)).toBe('{"__proto__":{"x":1},"b":2}')
+  })
+
   it("serialises null, numbers, booleans and strings as JSON does", () => {
     expect(canonicalJson({ a: null, b: 1.5, c: true, d: "x" })).toBe(
       '{"a":null,"b":1.5,"c":true,"d":"x"}',
@@ -135,11 +144,26 @@ describe("confirmation tokens", () => {
   })
 
   it("reports a structurally broken token as malformed, not as a crash", () => {
-    for (const bad of ["", "nodot", "a.b.c", "!!!.aaaa"]) {
-      expect(() => verifyConfirmationToken(bad, input)).not.toThrow()
-      expect(verifyConfirmationToken(bad, input).ok).toBe(false)
+    const body = createConfirmationToken(input).split(".")[0]
+    const bad = [
+      "",
+      "nodot",
+      "a.b.c",
+      "!!!.aaaa",
+      // Non-ASCII signature: 64 UTF-16 units but 128 bytes — timingSafeEqual would
+      // throw a RangeError, which the route's error map would report as an
+      // "Unexpected error" instead of a bad token.
+      `${body}.${"é".repeat(64)}`,
+      // Right alphabet, wrong length.
+      `${body}.${"a".repeat(63)}`,
+      `${body}.${"a".repeat(65)}`,
+      // Uppercase hex is not what we emit.
+      `${body}.${"A".repeat(64)}`,
+    ]
+    for (const token of bad) {
+      expect(() => verifyConfirmationToken(token, input)).not.toThrow()
+      expect(verifyConfirmationToken(token, input)).toEqual({ ok: false, reason: "malformed" })
     }
-    expect(verifyConfirmationToken("nodot", input)).toEqual({ ok: false, reason: "malformed" })
   })
 
   it("reports a correctly-signed but non-JSON payload as malformed", () => {
@@ -176,6 +200,30 @@ describe("requireConfirmation", () => {
         userId: "u-1",
       }),
     ).toEqual({ ok: true })
+  })
+
+  it("ignores a confirmation_token key inside args when signing", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-09-14T12:00:00.000Z"))
+    const clean = requireConfirmation("u-1", "reject_listing", args, undefined, "preview")!
+    const withToken = requireConfirmation(
+      "u-1",
+      "reject_listing",
+      { ...args, confirmation_token: "stale" },
+      undefined,
+      "preview",
+    )!
+    expect(withToken.confirmation_token).toBe(clean.confirmation_token)
+    // And the round trip still works when the execute call carries the token in args.
+    expect(
+      requireConfirmation(
+        "u-1",
+        "reject_listing",
+        { ...args, confirmation_token: clean.confirmation_token },
+        clean.confirmation_token,
+        "preview",
+      ),
+    ).toBeNull()
   })
 
   it("returns null — proceed — for a matching token", () => {
