@@ -1,5 +1,5 @@
 import "server-only"
-import { and, asc, eq, ilike, inArray, ne, or, type SQL } from "drizzle-orm"
+import { asc, eq, ilike, inArray, ne, or, type SQL } from "drizzle-orm"
 import { auth } from "@/auth"
 import { db } from "@/db"
 import { users } from "@/db/schema/auth"
@@ -48,10 +48,17 @@ async function requireAdminSession() {
   return session.user
 }
 
-/** Admin-only: the full directory, optionally filtered by a search term. */
-export async function getOwnerDirectory(search?: string): Promise<OwnerLocation[]> {
-  await requireAdminSession()
-
+/**
+ * The full owner directory, optionally filtered — WITHOUT a session check.
+ *
+ * Exported so the MCP endpoint can read it: that request carries a bearer token,
+ * not an Auth.js cookie, so `requireAdminSession()` would always throw there. The
+ * MCP's own admin check happens in `verifyMcpToken`, which re-reads the user row and
+ * refuses anyone who is not `role === "admin"` on every single call.
+ *
+ * Every caller of this function MUST have established admin authority first.
+ */
+export async function queryOwnerDirectory(search?: string): Promise<OwnerLocation[]> {
   const term = search?.trim()
   const where: SQL | undefined = term
     ? or(
@@ -69,6 +76,12 @@ export async function getOwnerDirectory(search?: string): Promise<OwnerLocation[
     .orderBy(asc(ownerLocations.ownerIdentifier), asc(ownerLocations.blvdLocationName))
 }
 
+/** Admin-only: the full directory, optionally filtered by a search term. */
+export async function getOwnerDirectory(search?: string): Promise<OwnerLocation[]> {
+  await requireAdminSession()
+  return queryOwnerDirectory(search)
+}
+
 /** Admin-only: distinct, linkable owners (excludes Unknown Owner) for the override picker. */
 export async function listLinkableOwners(): Promise<{ ownerIdentifier: string; ownerName: string | null }[]> {
   await requireAdminSession()
@@ -84,17 +97,10 @@ export async function listLinkableOwners(): Promise<{ ownerIdentifier: string; o
 }
 
 /**
- * Admin-only: every user with all their owner links (including revoked ones,
- * which the panel shows so a suppression is never invisible).
- *
- * Deliberately does NOT join owner_locations for the display name: that table
- * has many rows per identifier, so the join would need a distinct/aggregate.
- * The admin component already receives the owner list from listLinkableOwners
- * and resolves names — and "not in the list" is exactly the orphaned-link case
- * it needs to surface.
+ * Every user with all their owner links (including revoked ones) — WITHOUT a session
+ * check. Same rule as queryOwnerDirectory: the caller establishes admin authority.
  */
-export async function listUsersWithLinks(): Promise<AdminUserRow[]> {
-  await requireAdminSession()
+export async function queryUsersWithLinks(): Promise<AdminUserRow[]> {
   const rows = await db
     .select({
       id: users.id,
@@ -107,4 +113,19 @@ export async function listUsersWithLinks(): Promise<AdminUserRow[]> {
     .leftJoin(userOwnerLinks, eq(userOwnerLinks.userId, users.id))
     .orderBy(asc(users.email), asc(userOwnerLinks.ownerIdentifier))
   return groupUserLinkRows(rows)
+}
+
+/**
+ * Admin-only: every user with all their owner links (including revoked ones,
+ * which the panel shows so a suppression is never invisible).
+ *
+ * Deliberately does NOT join owner_locations for the display name: that table
+ * has many rows per identifier, so the join would need a distinct/aggregate.
+ * The admin component already receives the owner list from listLinkableOwners
+ * and resolves names — and "not in the list" is exactly the orphaned-link case
+ * it needs to surface.
+ */
+export async function listUsersWithLinks(): Promise<AdminUserRow[]> {
+  await requireAdminSession()
+  return queryUsersWithLinks()
 }

@@ -8,7 +8,7 @@ const { insert, captureException } = vi.hoisted(() => ({
 vi.mock("@/db", () => ({ db: { insert: (...a: unknown[]) => insert(...a) } }))
 vi.mock("@sentry/nextjs", () => ({ captureException }))
 
-import { withAudit, recordMcpRead, redactAuditArgs } from "@/lib/admin/audit"
+import { withAudit, recordMcpRead, recordMcpPreview, redactAuditArgs } from "@/lib/admin/audit"
 import { adminAuditLog } from "@/db/schema/adminAuditLog"
 
 const actor = { userId: "admin-1", source: "ui" as const }
@@ -120,6 +120,24 @@ describe("recordMcpRead", () => {
       source: "mcp",
       args: { tool: "list_listings", filters: { status: "pending" } },
       outcome: "ok",
+    })
+  })
+})
+
+describe("recordMcpPreview", () => {
+  it("writes an mcp.preview row — a distinct action, so list_audit_log keeps it by default", async () => {
+    const b = builder(undefined)
+    insert.mockReset().mockReturnValue(b)
+    const id = await recordMcpPreview({ userId: "a", source: "mcp", clientId: "c", tokenId: "t" }, "remove_user", { user_id: "u-9" })
+    expect(typeof id).toBe("string")
+    expect(b.calls.values[0][0]).toMatchObject({
+      action: "mcp.preview",
+      source: "mcp",
+      targetType: null,
+      targetId: null,
+      args: { tool: "remove_user", args: { user_id: "u-9" } },
+      outcome: "ok",
+      durationMs: 0,
     })
   })
 })

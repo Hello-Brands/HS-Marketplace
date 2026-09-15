@@ -33,8 +33,15 @@ async function queryListingBase(id: string): Promise<ListingWithRelations | unde
   })
 }
 
-/** Fetch a listing with its ordered locations, photos, and the seller user row. */
-async function queryListingWithSeller(
+/**
+ * Fetch a listing with its ordered locations, photos, and the seller user row.
+ *
+ * Exported and session-free on purpose: `loadAdminListing` below layers the page
+ * behaviour (session check, `redirect()`, `notFound()`) on top, but the MCP endpoint
+ * carries a bearer token rather than a cookie and must never call a Next navigation
+ * throw. Both callers share this one query so the shape can never diverge.
+ */
+export async function queryAdminListing(
   id: string,
 ): Promise<ListingWithRelationsAndSeller | undefined> {
   return db.query.listings.findFirst({
@@ -97,9 +104,7 @@ export async function loadAdminListing(
     redirect("/login")
   }
 
-  const listing = opts?.withSeller
-    ? await queryListingWithSeller(id)
-    : await queryListingBase(id)
+  const listing = opts?.withSeller ? await queryAdminListing(id) : await queryListingBase(id)
 
   if (!listing) {
     notFound()
