@@ -425,6 +425,45 @@ Migrations are hand-authored, applied with the guarded push after preview
 verification. Prod env gains `MCP_CONFIRM_SECRET` and `MCP_ISSUER_URL` before PR B
 deploys.
 
+**PR B implementation notes (2026-09-14).** Points the design left open, resolved
+during planning and execution:
+
+- **PR B is cut from `origin/main` after PR A merges**, not in parallel: it
+  imports `withAudit`/`uiActorFromSession` from PR A and its migration number
+  assumes `0011` is already journalled.
+- **`/login` now honours `?callbackUrl`** (relative paths only, via
+  `safeCallbackUrl`). It previously ignored the parameter and always landed on
+  `/browse`, which would have stranded every authorization mid-flow.
+- **A non-admin at `/mcp/authorize` sees the access-denied copy rendered in
+  place**, rather than being redirected to `/access-denied`, so the OAuth
+  request stays on screen and survives a re-sign-in.
+- **`revokeMcpToken(actor, { tokenId, ownOnly })` is the audited core mutation**
+  (section 6.2: every core mutation goes through `withAudit`). It wraps itself in
+  `withAudit("mcp_token.revoke")` and returns `{ ok, auditId }`. The admin UI
+  passes `ownOnly: false` (an admin may revoke any admin's connection, per the
+  "All admins" toggle); PR C's `revoke_mcp_connection` tool passes `true` with
+  its `mcp` actor and gets the audit row for free. `POST /mcp/revoke` (RFC 7009,
+  bearer-holder self-revocation) is deliberately unaudited — it has no admin
+  actor.
+- **Token-endpoint writes are guarded against concurrent replay.** The
+  authorization-code exchange claims the code with
+  `UPDATE … SET used_at WHERE code_hash = ? AND used_at IS NULL RETURNING` and
+  only then inserts the token row; refresh rotation is
+  `UPDATE … WHERE id = ? AND refresh_token_hash = <presented> RETURNING`. An
+  empty `RETURNING` is `invalid_grant`. A crash between claim and insert fails
+  closed (the admin re-consents) — strictly safer than the replayable code a
+  `db.batch` would have left.
+- **`resource` is optional at `/mcp/token`** (RFC 8707 makes it optional there);
+  when present it must equal the value stored on the code row, which
+  `/mcp/authorize` already validated against the MCP URL.
+- **`MCP_ISSUER_URL` is validated as an https URL**; the `NEXT_PUBLIC_APP_URL`
+  fallback is unvalidated so local http dev still works without the override.
+- **`/mcp/token` throttling returns `429` with `error: "invalid_request"`.**
+  RFC 6749 section 5.2 defines no code for throttling; the detail is in
+  `Retry-After`. The limiter is per-instance in-memory (DEBT-028).
+- **`verifyMcpToken` takes the whole `Authorization` header value**, not the
+  bare token; `parseBearer` strips the scheme. PR C passes the header through.
+
 ## 10. Follow-ups (not v1)
 
 - CIMD support (`client_id_metadata_document_supported`) so Claude can use its
