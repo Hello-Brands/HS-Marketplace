@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { db } from "@/db"
 import { users } from "@/db/schema/auth"
 import { mcpOauthClients, mcpOauthCodes, mcpOauthTokens } from "@/db/schema/mcpOauth"
@@ -164,21 +164,36 @@ async function exchangeAuthorizationCode(
   const accessToken = generateOpaqueToken()
   const refreshToken = generateOpaqueToken()
 
-  // neon-http has no db.transaction (spec section 3). db.batch is the atomic
-  // unit: without it a crash between the two writes leaves a replayable code.
-  await db.batch([
-    db.update(mcpOauthCodes).set({ usedAt: now }).where(eq(mcpOauthCodes.codeHash, row.codeHash)),
-    db.insert(mcpOauthTokens).values({
-      tokenHash: sha256Hex(accessToken),
-      refreshTokenHash: sha256Hex(refreshToken),
-      clientId: row.clientId,
-      userId: row.userId,
-      scope: row.scope,
-      label: row.label,
-      expiresAt: new Date(now.getTime() + ACCESS_TOKEN_TTL_MS),
-      refreshExpiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
-    }),
-  ])
+  // Claim the code before issuing anything. The `usedAt` check above is a read,
+  // and two concurrent exchanges of one code would both pass it; only this
+  // guarded UPDATE (`used_at IS NULL` in the WHERE, decided by Postgres) can
+  // settle the race. The loser gets no rows back and is told invalid_grant.
+  //
+  // Deliberately NOT a db.batch: neon-http has no transactions (spec section 3),
+  // so a batch would give crash-atomicity without concurrency safety — the wrong
+  // half of the guarantee. Ordering the claim first means a crash between the two
+  // statements fails CLOSED: the code is burned, no token is issued, and the
+  // admin simply re-consents. That is strictly safer than a replayable code.
+  const claimed = await db
+    .update(mcpOauthCodes)
+    .set({ usedAt: now })
+    .where(and(eq(mcpOauthCodes.codeHash, row.codeHash), isNull(mcpOauthCodes.usedAt)))
+    .returning({ codeHash: mcpOauthCodes.codeHash })
+
+  if (claimed.length === 0) {
+    return oauthError("invalid_grant", "Authorization code is invalid.")
+  }
+
+  await db.insert(mcpOauthTokens).values({
+    tokenHash: sha256Hex(accessToken),
+    refreshTokenHash: sha256Hex(refreshToken),
+    clientId: row.clientId,
+    userId: row.userId,
+    scope: row.scope,
+    label: row.label,
+    expiresAt: new Date(now.getTime() + ACCESS_TOKEN_TTL_MS),
+    refreshExpiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
+  })
 
   return tokenResponse(accessToken, refreshToken, row.scope)
 }
@@ -187,8 +202,9 @@ async function exchangeRefreshToken(form: URLSearchParams, clientId: string): Pr
   const refreshToken = form.get("refresh_token")
   if (!refreshToken) return oauthError("invalid_request", "refresh_token is required.")
 
+  const presentedHash = sha256Hex(refreshToken)
   const row = await db.query.mcpOauthTokens.findFirst({
-    where: eq(mcpOauthTokens.refreshTokenHash, sha256Hex(refreshToken)),
+    where: eq(mcpOauthTokens.refreshTokenHash, presentedHash),
   })
   const now = new Date()
 
@@ -214,9 +230,14 @@ async function exchangeRefreshToken(form: URLSearchParams, clientId: string): Pr
   const accessToken = generateOpaqueToken()
   const nextRefreshToken = generateOpaqueToken()
 
-  // Rotation in place: the previous access AND refresh tokens are dead the
-  // moment this row updates. One row per grant, never two.
-  await db
+  // Rotation in place — one row per grant, never two. The WHERE is guarded on
+  // the refresh hash we actually read, not just the row id: two concurrent
+  // refreshes presenting the same token both reach this point, and without the
+  // guard both would UPDATE and both would return 200, leaving one caller
+  // holding tokens that a later rotation had already replaced. With it Postgres
+  // picks a winner, and the loser matches no rows and is told invalid_grant
+  // rather than being handed a dead pair.
+  const rotated = await db
     .update(mcpOauthTokens)
     .set({
       tokenHash: sha256Hex(accessToken),
@@ -224,7 +245,14 @@ async function exchangeRefreshToken(form: URLSearchParams, clientId: string): Pr
       expiresAt: new Date(now.getTime() + ACCESS_TOKEN_TTL_MS),
       refreshExpiresAt: new Date(now.getTime() + REFRESH_TOKEN_TTL_MS),
     })
-    .where(eq(mcpOauthTokens.id, row.id))
+    .where(
+      and(eq(mcpOauthTokens.id, row.id), eq(mcpOauthTokens.refreshTokenHash, presentedHash)),
+    )
+    .returning({ id: mcpOauthTokens.id })
+
+  if (rotated.length === 0) {
+    return oauthError("invalid_grant", "Refresh token is invalid.")
+  }
 
   return tokenResponse(accessToken, nextRefreshToken, row.scope)
 }

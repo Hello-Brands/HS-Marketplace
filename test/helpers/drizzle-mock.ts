@@ -22,6 +22,10 @@ const CHAINED_METHODS = [
   "set",
   "onConflictDoUpdate",
   "onConflictDoNothing",
+  // `.returning()` resolves like any other chained method — awaiting the
+  // builder yields `result` — so a test that needs a guarded UPDATE to lose its
+  // race just passes `builder([])`.
+  "returning",
 ] as const
 
 export type ChainedBuilder = Record<string, unknown> & {

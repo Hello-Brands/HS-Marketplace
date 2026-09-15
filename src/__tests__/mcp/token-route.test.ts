@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { createHash } from "node:crypto"
+import { and, eq, isNull, type SQL } from "drizzle-orm"
+import { PgDialect } from "drizzle-orm/pg-core"
+import { mcpOauthCodes, mcpOauthTokens } from "@/db/schema/mcpOauth"
 import { builder, type ChainedBuilder } from "../../../test/helpers/drizzle-mock"
 import { __resetRateLimits } from "@/lib/rate-limit"
 
@@ -8,12 +11,11 @@ import { __resetRateLimits } from "@/lib/rate-limit"
  * mocked; the rate limiter is the production module, reset between tests.
  */
 
-const { findClient, findCode, findToken, findUser, batch, update, insert } = vi.hoisted(() => ({
+const { findClient, findCode, findToken, findUser, update, insert } = vi.hoisted(() => ({
   findClient: vi.fn(),
   findCode: vi.fn(),
   findToken: vi.fn(),
   findUser: vi.fn(),
-  batch: vi.fn().mockResolvedValue(undefined),
   update: vi.fn(),
   insert: vi.fn(),
 }))
@@ -26,7 +28,6 @@ vi.mock("@/db", () => ({
       mcpOauthTokens: { findFirst: findToken },
       users: { findFirst: findUser },
     },
-    batch: (...args: unknown[]) => batch(...args),
     update: (...args: unknown[]) => update(...args),
     insert: (...args: unknown[]) => insert(...args),
   },
@@ -79,6 +80,18 @@ function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex")
 }
 
+/**
+ * Render a WHERE clause the way Postgres will see it, so a test can assert the
+ * guard itself rather than that some object was passed. A missing
+ * `used_at IS NULL` or refresh-hash predicate is exactly the TOCTOU bug these
+ * assertions exist to catch.
+ */
+const dialect = new PgDialect()
+const renderWhere = (clause: unknown) => dialect.sqlToQuery(clause as SQL)
+
+/** One row back from a guarded UPDATE ... RETURNING: this request won the race. */
+const WON_RACE = [{ id: "tok-1", codeHash: sha256("the-code") }]
+
 function post(
   body: Record<string, string>,
   init: { contentType?: string | null; ip?: string } = {},
@@ -115,11 +128,12 @@ beforeEach(() => {
   findCode.mockResolvedValue(codeRow())
   findToken.mockResolvedValue(tokenRow())
   findUser.mockResolvedValue({ role: "admin" })
-  updateBuilder = builder(undefined)
+  // The route only checks `.length` on the RETURNING result, so one non-empty
+  // fixture stands in for both guarded updates.
+  updateBuilder = builder(WON_RACE)
   insertBuilder = builder(undefined)
   update.mockReturnValue(updateBuilder)
   insert.mockReturnValue(insertBuilder)
-  batch.mockResolvedValue(undefined)
 })
 
 describe("content type and method gate", () => {
@@ -127,7 +141,7 @@ describe("content type and method gate", () => {
     const res = await POST(post(codeGrant(), { contentType: "application/json" }))
     expect(res.status).toBe(415)
     expect((await res.json()).error).toBe("invalid_request")
-    expect(batch).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
   })
 
   it("rejects a missing content type with 415", async () => {
@@ -144,7 +158,7 @@ describe("content type and method gate", () => {
 })
 
 describe("authorization_code grant", () => {
-  it("returns the token pair and marks the code used in one batch", async () => {
+  it("returns the token pair and claims the code with a guarded update", async () => {
     const res = await POST(post(codeGrant()))
     expect(res.status).toBe(200)
     expect(res.headers.get("cache-control")).toBe("no-store")
@@ -157,11 +171,17 @@ describe("authorization_code grant", () => {
     expect(body.refresh_token).toMatch(/^[A-Za-z0-9_-]{43}$/)
     expect(body.access_token).not.toBe(body.refresh_token)
 
-    // One atomic batch: neon-http has no transactions, and a half-applied
-    // exchange would leave a replayable code.
-    expect(batch).toHaveBeenCalledTimes(1)
-    expect(batch.mock.calls[0][0]).toHaveLength(2)
+    // The code is claimed by a GUARDED update — `used_at IS NULL` is decided by
+    // Postgres, not by the read above — and only then is a token inserted.
+    expect(update).toHaveBeenCalledTimes(1)
     expect(updateBuilder.calls.set[0][0]).toMatchObject({ usedAt: expect.any(Date) })
+    expect(renderWhere(updateBuilder.calls.where[0][0])).toEqual(
+      renderWhere(
+        and(eq(mcpOauthCodes.codeHash, sha256("the-code")), isNull(mcpOauthCodes.usedAt)),
+      ),
+    )
+    expect(updateBuilder.calls.returning).toHaveLength(1)
+    expect(insert).toHaveBeenCalledTimes(1)
   })
 
   it("stores only hashes of the issued tokens, and copies scope, label and owner", async () => {
@@ -211,7 +231,8 @@ describe("authorization_code grant", () => {
     expect(res.status).toBe(400)
     expect(res.headers.get("cache-control")).toBe("no-store")
     expect((await res.json()).error).toBe("invalid_grant")
-    expect(batch).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+    expect(insert).not.toHaveBeenCalled()
   })
 
   it("rejects a missing code_verifier with invalid_request", async () => {
@@ -220,7 +241,20 @@ describe("authorization_code grant", () => {
     const res = await POST(post(fields))
     expect(res.status).toBe(400)
     expect((await res.json()).error).toBe("invalid_request")
-    expect(batch).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it("issues nothing when a concurrent exchange already claimed the code", async () => {
+    // Both racers pass the `usedAt` read; the guarded UPDATE matches no rows for
+    // the loser, which must NOT then get a token row from the same code.
+    updateBuilder = builder([])
+    update.mockReturnValue(updateBuilder)
+    const res = await POST(post(codeGrant()))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("invalid_grant")
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(insert).not.toHaveBeenCalled()
   })
 
   it("never leaks the code or the verifier in an error body", async () => {
@@ -254,6 +288,29 @@ describe("refresh_token grant", () => {
     expect(set.refreshTokenHash).toBe(sha256(body.refresh_token))
     expect(set.expiresAt).toBeInstanceOf(Date)
     expect(set.refreshExpiresAt).toBeInstanceOf(Date)
+
+    // Guarded on the hash that was actually read, not the row id alone: two
+    // concurrent refreshes of one token must not both rotate and both get 200.
+    expect(renderWhere(updateBuilder.calls.where[0][0])).toEqual(
+      renderWhere(
+        and(
+          eq(mcpOauthTokens.id, "tok-1"),
+          eq(mcpOauthTokens.refreshTokenHash, sha256("the-refresh")),
+        ),
+      ),
+    )
+    expect(updateBuilder.calls.returning).toHaveLength(1)
+  })
+
+  it("refuses when a concurrent refresh already rotated the grant", async () => {
+    // The loser of the race matches no rows and must be told invalid_grant
+    // rather than handed a pair that a later rotation has already replaced.
+    updateBuilder = builder([])
+    update.mockReturnValue(updateBuilder)
+    const res = await POST(post(refreshGrant()))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe("invalid_grant")
+    expect(res.headers.get("cache-control")).toBe("no-store")
   })
 
   it("returns the grant's existing scope", async () => {
@@ -302,14 +359,14 @@ describe("client and grant-type gate", () => {
     delete (fields as Record<string, string>).client_id
     const res = await POST(post(fields))
     expect((await res.json()).error).toBe("invalid_client")
-    expect(batch).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
   })
 
   it("rejects an unregistered client with invalid_client", async () => {
     findClient.mockResolvedValue(undefined)
     const res = await POST(post(codeGrant()))
     expect((await res.json()).error).toBe("invalid_client")
-    expect(batch).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
   })
 
   it("rejects an unsupported grant type", async () => {
