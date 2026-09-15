@@ -122,15 +122,42 @@ export async function withAudit<T>(
   }
 }
 
-/** Lighter row for MCP read tools so an AI session's reads are visible. */
-export async function recordMcpRead(actor: AdminActor, tool: string, args: unknown): Promise<string> {
+/**
+ * The one insert behind both MCP-tool rows. They differ only in the action and in
+ * how the argument payload is labelled; everything else — no target, outcome "ok",
+ * zero duration — is identical, so the row is built in exactly one place.
+ */
+async function recordMcpRow(actor: AdminActor, action: string, args: unknown): Promise<string> {
   const auditId = crypto.randomUUID()
   await insertRow({
     id: auditId,
-    ...baseRow(actor, "mcp.read", null, { tool, filters: args }),
+    ...baseRow(actor, action, null, args),
     outcome: "ok",
     error: null,
     durationMs: 0,
   })
   return auditId
+}
+
+/** Lighter row for MCP read tools so an AI session's reads are visible. */
+export async function recordMcpRead(actor: AdminActor, tool: string, args: unknown): Promise<string> {
+  return recordMcpRow(actor, "mcp.read", { tool, filters: args })
+}
+
+/**
+ * Row for the PREVIEW leg of a destructive MCP write — the call that supplies no
+ * confirmation token, changes nothing, and returns a human preview plus a token.
+ *
+ * It needs its own row because no core function runs on that leg, so nothing else
+ * audits it: without this, calling a destructive tool without a token would disclose
+ * the target's name and email and leave zero trace. Unlike `mcp.read`, these rows are
+ * NOT hidden by default in `list_audit_log` — an attempted destructive action is
+ * exactly what an audit log of destructive operations exists to answer for.
+ */
+export async function recordMcpPreview(
+  actor: AdminActor,
+  tool: string,
+  args: unknown,
+): Promise<string> {
+  return recordMcpRow(actor, "mcp.preview", { tool, args })
 }

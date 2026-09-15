@@ -2,12 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const { recordMcpRead, captureException } = vi.hoisted(() => ({
+const { recordMcpRead, recordMcpPreview, captureException } = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   captureException: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({ recordMcpRead, recordMcpPreview }))
 vi.mock("@sentry/nextjs", () => ({ captureException }))
 
 import {
@@ -205,6 +206,7 @@ describe("writeTool", () => {
   beforeEach(() => {
     __resetRateLimits()
     captureException.mockReset()
+    recordMcpPreview.mockReset().mockResolvedValue("audit-preview")
   })
 
   it("returns the payload and does not write an mcp.read row", async () => {
@@ -220,6 +222,48 @@ describe("writeTool", () => {
     )
     expect(r.structuredContent).toEqual({ audit_id: "a1", target: { id: "l1" } })
     expect(recordMcpRead).not.toHaveBeenCalled()
+  })
+
+  it("audits the preview leg, which reaches no core function of its own", async () => {
+    const r = await writeTool(toolContext(MCP), "remove_user", { user_id: "u-9" }, async () => ({
+      preview: "Permanently delete Dana Reed (dana@example.com).",
+      confirmation_token: "signed.token",
+      expires_in: 600,
+    }))
+    expect(recordMcpPreview).toHaveBeenCalledWith(toolContext(MCP).actor, "remove_user", {
+      user_id: "u-9",
+    })
+    expect((r.structuredContent as { confirmation_token: string }).confirmation_token).toBe(
+      "signed.token",
+    )
+  })
+
+  it("writes no preview row on the executing leg — the core audits that one", async () => {
+    const r = await writeTool(
+      toolContext(MCP),
+      "remove_user",
+      { user_id: "u-9", confirmation_token: "signed.token" },
+      async () => ({ audit_id: "a9", target: { type: "user", id: "u-9", deleted: true } }),
+    )
+    expect(recordMcpPreview).not.toHaveBeenCalled()
+    expect((r.structuredContent as { audit_id: string }).audit_id).toBe("a9")
+  })
+
+  it("never lets a preview-audit failure block the preview", async () => {
+    recordMcpPreview.mockRejectedValue(new Error("audit table unavailable"))
+    const r = await writeTool(toolContext(MCP), "remove_user", { user_id: "u-9" }, async () => ({
+      preview: "Permanently delete Dana Reed (dana@example.com).",
+      confirmation_token: "signed.token",
+      expires_in: 600,
+    }))
+    expect(r.isError).toBeUndefined()
+    expect((r.structuredContent as { confirmation_token: string }).confirmation_token).toBe(
+      "signed.token",
+    )
+    expect(captureException).toHaveBeenCalledTimes(1)
+    expect(captureException.mock.calls[0][1]).toMatchObject({
+      tags: { mcp_tool: "remove_user", mcp_stage: "preview_audit" },
+    })
   })
 
   it("blocks the 31st write in a minute for the same token", async () => {

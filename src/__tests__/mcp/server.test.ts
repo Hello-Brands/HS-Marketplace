@@ -10,6 +10,7 @@ vi.mock("server-only", () => ({}))
 
 const {
   recordMcpRead,
+  recordMcpPreview,
   marketplaceOverview,
   getRecentActivity,
   listAuditLog,
@@ -34,6 +35,7 @@ const {
   userDetail,
 } = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   marketplaceOverview: vi.fn(),
   getRecentActivity: vi.fn(),
   listAuditLog: vi.fn(),
@@ -58,7 +60,7 @@ const {
   userDetail: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({ recordMcpRead, recordMcpPreview }))
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity }))
@@ -131,6 +133,7 @@ import {
 
 beforeEach(() => {
   recordMcpRead.mockReset().mockResolvedValue("audit-1")
+  recordMcpPreview.mockReset().mockResolvedValue("audit-preview")
   marketplaceOverview.mockReset().mockResolvedValue({ listings: { total: 0, by_status: {} } })
   getRecentActivity.mockReset().mockResolvedValue({ items: [], nextCursor: null })
   listAuditLog.mockReset().mockResolvedValue({ items: [], next_cursor: null })

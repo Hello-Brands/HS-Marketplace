@@ -4,11 +4,15 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   unresolvedMappings: vi.fn(),
   setLocationMapping: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/mcp/queries/data-mappings", () => ({ unresolvedMappings: core.unresolvedMappings }))
 vi.mock("@/lib/admin/core/data-mappings", () => ({ setLocationMapping: core.setLocationMapping }))
 // The harness builds the WHOLE server, so the other domains' modules load too.
@@ -82,6 +86,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.unresolvedMappings.mockResolvedValue({
     items: [
       {

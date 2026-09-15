@@ -11,7 +11,7 @@ import { z } from "zod"
 import * as Sentry from "@sentry/nextjs"
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/server"
 import type { AdminActor } from "@/lib/admin/core/actor"
-import { recordMcpRead } from "@/lib/admin/audit"
+import { recordMcpRead, recordMcpPreview } from "@/lib/admin/audit"
 import type { McpActor } from "@/lib/mcp/auth/verify-token"
 import { checkRateLimit } from "@/lib/rate-limit"
 import { formatUsdCents } from "@/lib/money"
@@ -200,10 +200,13 @@ export async function readTool(
 }
 
 /**
- * Wrapper for every write tool: per-token rate limit, run, shape, map failures.
+ * Wrapper for every write tool: per-token rate limit, run, shape, map failures, and
+ * audit the preview leg.
  *
- * No `recordMcpRead` here — the PR A core function the write delegates to already
- * writes its own audit row through `withAudit` and hands back the id.
+ * No `recordMcpRead` here — on the EXECUTING leg the PR A core function the write
+ * delegates to already writes its own audit row through `withAudit` and hands back
+ * the id. That reasoning does not extend to the PREVIEW leg of a destructive tool:
+ * it reaches no core function, so it is audited here instead (`mcp.preview`).
  *
  * The limiter is per-instance and in-memory (DEBT-028), so this throttles a hot
  * loop hitting one warm Vercel instance. It is a mitigation, not a guarantee.
@@ -226,7 +229,18 @@ export async function writeTool(
     )
   }
   try {
-    return toolResult(await run())
+    const result = await run()
+    // A `confirmation_token` in the result IS the ConfirmationPrompt shape: this call
+    // previewed a destructive action and changed nothing, so no core function wrote a
+    // row for it. Audit it here — the preview already discloses the target's name and
+    // email, and "was anyone about to delete this account" has to be answerable.
+    // Never fatal, exactly as in readTool: auditing must not take the endpoint down.
+    if (typeof result.confirmation_token === "string") {
+      await recordMcpPreview(ctx.actor, tool, args).catch((err: unknown) => {
+        Sentry.captureException(err, { tags: { mcp_tool: tool, mcp_stage: "preview_audit" } })
+      })
+    }
+    return toolResult(result)
   } catch (err) {
     return mapThrown(tool, err)
   }

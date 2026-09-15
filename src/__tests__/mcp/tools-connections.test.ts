@@ -7,11 +7,15 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   listMcpConnections: vi.fn(),
   revokeMcpToken: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/mcp/oauth/grants", () => ({
   listMcpConnections: core.listMcpConnections,
   revokeMcpToken: core.revokeMcpToken,
@@ -119,6 +123,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.listMcpConnections.mockResolvedValue([connection()])
   core.revokeMcpToken.mockResolvedValue({ ok: true, auditId: "aud-revoke-mcp" })
 })

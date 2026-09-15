@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   queryOwnerDirectory: vi.fn(),
   queryUsersWithLinks: vi.fn(),
   addOwnerLink: vi.fn(),
@@ -12,7 +13,10 @@ const core = vi.hoisted(() => ({
   refreshOwnerDirectory: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/owner-directory/data", () => ({
   queryOwnerDirectory: core.queryOwnerDirectory,
   queryUsersWithLinks: core.queryUsersWithLinks,
@@ -90,6 +94,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.queryOwnerDirectory.mockResolvedValue([
     {
       id: "ol-1",

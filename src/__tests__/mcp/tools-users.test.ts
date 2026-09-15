@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   getUsers: vi.fn(),
   adminCount: vi.fn(),
   setUserRole: vi.fn(),
@@ -24,7 +25,10 @@ const core = vi.hoisted(() => ({
   listAuditLog: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/admin/core/users", () => ({
   getUsers: core.getUsers,
   adminCount: core.adminCount,
@@ -112,6 +116,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.getUsers.mockResolvedValue([
     userRow(),
     // The admin's name and email share no substring, so a search can isolate either half.

@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   listBrandRequests: vi.fn(),
   getBrandRequestDetail: vi.fn(),
   approveBrandRequest: vi.fn(),
@@ -31,7 +32,10 @@ const core = vi.hoisted(() => ({
   listAuditLog: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/mcp/queries/brand-requests", () => ({
   listBrandRequests: core.listBrandRequests,
   getBrandRequestDetail: core.getBrandRequestDetail,
@@ -128,6 +132,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.listBrandRequests.mockResolvedValue({ items: [REQUEST], next_cursor: null })
   core.getBrandRequestDetail.mockResolvedValue({ ...REQUEST, recon: { estimatedCost: 12 } })
   core.approveBrandRequest.mockResolvedValue({
