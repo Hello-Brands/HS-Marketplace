@@ -113,6 +113,12 @@ vi.mock("@/lib/admin/core/owner-links", () => ({
 vi.mock("@/lib/admin/core/owner-directory", () => ({ refreshOwnerDirectory: vi.fn() }))
 vi.mock("@/lib/mcp/queries/data-mappings", () => ({ unresolvedMappings: vi.fn() }))
 vi.mock("@/lib/admin/core/data-mappings", () => ({ setLocationMapping: vi.fn() }))
+vi.mock("@/lib/competitor-query", () => ({ getCompetitorClosures: vi.fn() }))
+vi.mock("@/lib/mcp/queries/alerts", () => ({ listAlerts: vi.fn() }))
+vi.mock("@/lib/mcp/oauth/grants", () => ({
+  listMcpConnections: vi.fn(),
+  revokeMcpToken: vi.fn(),
+}))
 // --------------------------- end of mock block -----------------------------
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
@@ -238,5 +244,70 @@ describe("tools/call transport round trip", () => {
     // The point of the test: the session survives it and the next call still works.
     const after = await client.callTool({ name: "get_marketplace_overview", arguments: {} })
     expect(after.isError).toBeFalsy()
+  })
+})
+
+// Spec §7.3, in full. Hard-coded rather than derived from the server so that
+// adding a tool without adding it to the spec fails here, loudly.
+const SPEC_READ_TOOLS = [
+  "get_marketplace_overview",
+  "list_recent_activity",
+  "list_listings",
+  "get_listing",
+  "list_users",
+  "get_user",
+  "list_allowlist",
+  "list_inquiries",
+  "list_brand_requests",
+  "get_brand_request",
+  "list_owner_directory",
+  "list_owner_links",
+  "list_unresolved_data_mappings",
+  "list_competitor_closures",
+  "list_alerts",
+  "list_audit_log",
+  "list_mcp_connections",
+]
+
+describe("tool inventory", () => {
+  it("advertises exactly the read tools the spec lists to a read-only token", async () => {
+    const { client } = await mcpTestClient({ scopes: ["marketplace:read"] })
+    const names = (await client.listTools()).tools.map((t) => t.name).sort()
+    expect(names).toEqual([...SPEC_READ_TOOLS].sort())
+  })
+
+  it("advertises exactly the spec's read tools plus WRITE_TOOL_NAMES to a write token", async () => {
+    const { client } = await mcpTestClient()
+    const names = (await client.listTools()).tools.map((t) => t.name).sort()
+    expect(names).toEqual([...SPEC_READ_TOOLS, ...WRITE_TOOL_NAMES].sort())
+  })
+
+  it("adds exactly WRITE_TOOL_NAMES when the token also carries marketplace:write", async () => {
+    const readOnly = await mcpTestClient({ scopes: ["marketplace:read"] })
+    const readNames = new Set((await readOnly.client.listTools()).tools.map((t) => t.name))
+
+    const full = await mcpTestClient()
+    const fullNames = (await full.client.listTools()).tools.map((t) => t.name)
+
+    const added = fullNames.filter((n) => !readNames.has(n)).sort()
+    // This is what makes WRITE_TOOL_NAMES unable to drift: the route's 403 pre-check
+    // reads that set, so a write tool missing from it would be silently callable.
+    expect(added).toEqual([...WRITE_TOOL_NAMES].sort())
+  })
+
+  it("gives every destructive tool a confirmation_token and the interaction flag", async () => {
+    const { client } = await mcpTestClient()
+    for (const tool of (await client.listTools()).tools) {
+      if (!tool.annotations?.destructiveHint) continue
+      expect(JSON.stringify(tool.inputSchema), tool.name).toContain("confirmation_token")
+      expect(tool._meta, tool.name).toMatchObject({ "anthropic/requiresUserInteraction": true })
+    }
+  })
+
+  it("marks every non-write tool read-only and every write tool not read-only", async () => {
+    const { client } = await mcpTestClient()
+    for (const tool of (await client.listTools()).tools) {
+      expect(tool.annotations?.readOnlyHint, tool.name).toBe(!WRITE_TOOL_NAMES.has(tool.name))
+    }
   })
 })

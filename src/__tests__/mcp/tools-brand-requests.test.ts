@@ -88,6 +88,12 @@ vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras: core.listingExtras
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview: core.marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog: core.listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity: core.getRecentActivity }))
+vi.mock("@/lib/competitor-query", () => ({ getCompetitorClosures: vi.fn() }))
+vi.mock("@/lib/mcp/queries/alerts", () => ({ listAlerts: vi.fn() }))
+vi.mock("@/lib/mcp/oauth/grants", () => ({
+  listMcpConnections: vi.fn(),
+  revokeMcpToken: vi.fn(),
+}))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 import { __resetRateLimits } from "@/lib/rate-limit"

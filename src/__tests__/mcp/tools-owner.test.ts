@@ -71,6 +71,12 @@ vi.mock("@/lib/admin/core/brand-requests", () => ({
   retryMonitorDispatch: vi.fn(),
 }))
 vi.mock("@/lib/admin/core/inquiries", () => ({ getInquiries: vi.fn() }))
+vi.mock("@/lib/competitor-query", () => ({ getCompetitorClosures: vi.fn() }))
+vi.mock("@/lib/mcp/queries/alerts", () => ({ listAlerts: vi.fn() }))
+vi.mock("@/lib/mcp/oauth/grants", () => ({
+  listMcpConnections: vi.fn(),
+  revokeMcpToken: vi.fn(),
+}))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 import { __resetRateLimits } from "@/lib/rate-limit"
