@@ -89,6 +89,16 @@ vi.mock("@/lib/admin/core/analytics", () => ({
   getLoginTrend,
 }))
 vi.mock("@/lib/mcp/queries/users", () => ({ userDetail }))
+vi.mock("@/lib/mcp/queries/brand-requests", () => ({
+  listBrandRequests: vi.fn(),
+  getBrandRequestDetail: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/brand-requests", () => ({
+  approveBrandRequest: vi.fn(),
+  rejectBrandRequest: vi.fn(),
+  retryMonitorDispatch: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/inquiries", () => ({ getInquiries: vi.fn() }))
 // --------------------------- end of mock block -----------------------------
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"

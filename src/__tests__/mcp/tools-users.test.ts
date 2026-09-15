@@ -55,6 +55,16 @@ vi.mock("@/lib/mcp/queries/listings", () => ({ listingExtras: core.listingExtras
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview: core.marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog: core.listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity: core.getRecentActivity }))
+vi.mock("@/lib/mcp/queries/brand-requests", () => ({
+  listBrandRequests: vi.fn(),
+  getBrandRequestDetail: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/brand-requests", () => ({
+  approveBrandRequest: vi.fn(),
+  rejectBrandRequest: vi.fn(),
+  retryMonitorDispatch: vi.fn(),
+}))
+vi.mock("@/lib/admin/core/inquiries", () => ({ getInquiries: vi.fn() }))
 
 import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 import { __resetRateLimits } from "@/lib/rate-limit"
