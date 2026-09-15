@@ -11,6 +11,9 @@ import { alerts } from "@/db/schema/alerts"
 import { users } from "@/db/schema/auth"
 import { encodeCursor, decodeCursor, money } from "@/lib/mcp/tools/_shared"
 
+/** The `alerts.origin` column's own value set, so a filter cannot drift from it. */
+export type AlertOrigin = (typeof alerts.origin.enumValues)[number]
+
 export interface AlertRow {
   id: string
   name: string | null
@@ -34,14 +37,14 @@ export interface AlertRow {
 
 export async function listAlerts(filters: {
   userId?: string
-  origin?: string
+  origin?: AlertOrigin
   notifyEnabled?: boolean
   limit: number
   cursor?: string
 }): Promise<{ items: AlertRow[]; next_cursor: string | null }> {
   const conditions: SQL[] = []
   if (filters.userId) conditions.push(eq(alerts.userId, filters.userId))
-  if (filters.origin) conditions.push(eq(alerts.origin, filters.origin as never))
+  if (filters.origin) conditions.push(eq(alerts.origin, filters.origin))
   if (filters.notifyEnabled !== undefined) {
     conditions.push(eq(alerts.notifyEnabled, filters.notifyEnabled))
   }

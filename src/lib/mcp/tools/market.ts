@@ -6,6 +6,7 @@
 // scraper. Nothing here writes to it, and no write tool for it exists.
 import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/server"
+import { alerts } from "@/db/schema/alerts"
 import { getCompetitorClosures } from "@/lib/competitor-query"
 import { listAlerts } from "@/lib/mcp/queries/alerts"
 import {
@@ -31,27 +32,51 @@ export function registerMarketTools(server: McpServer, ctx: McpToolContext): voi
         "Supply center_lat, center_lng and radius_miles together to search a radius; " +
         "`states` narrows by two-letter state code. Read-only: this data belongs to the " +
         "external scraper. Returns { items, next_cursor }.",
-      inputSchema: z.object({
-        center_lat: z.number().min(-90).max(90).optional().describe("Search centre latitude."),
-        center_lng: z.number().min(-180).max(180).optional().describe("Search centre longitude."),
-        radius_miles: z
-          .number()
-          .positive()
-          .max(5000)
-          .optional()
-          .describe("Search radius in miles. Needs center_lat and center_lng too."),
-        states: z
-          .array(z.string().length(2))
-          .max(60)
-          .optional()
-          .describe("Two-letter US state codes to include."),
-        opportunities_only: z
-          .boolean()
-          .optional()
-          .describe("Only closures the scraper flagged as an opportunity."),
-        limit: limitField,
-        cursor: cursorField,
-      }),
+      inputSchema: z
+        .object({
+          center_lat: z.number().min(-90).max(90).optional().describe("Search centre latitude."),
+          center_lng: z
+            .number()
+            .min(-180)
+            .max(180)
+            .optional()
+            .describe("Search centre longitude."),
+          radius_miles: z
+            .number()
+            .positive()
+            .max(5000)
+            .optional()
+            .describe("Search radius in miles. Needs center_lat and center_lng too."),
+          states: z
+            .array(z.string().length(2))
+            .max(60)
+            .optional()
+            .describe("Two-letter US state codes to include."),
+          opportunities_only: z
+            .boolean()
+            .optional()
+            .describe("Only closures the scraper flagged as an opportunity."),
+          limit: limitField,
+          cursor: cursorField,
+        })
+        // A partial radius is WORSE than none: the underlying query only applies its
+        // bounding box and its precise filter when all three geo fields are set, so
+        // `{ center_lat, radius_miles }` would quietly return every closure in the
+        // country as though the radius had been honoured. Refused at the schema, not
+        // in the handler, so the model sees a validation error naming the fields.
+        .superRefine((value, refineCtx) => {
+          const present = [value.center_lat, value.center_lng, value.radius_miles].filter(
+            (field) => field !== undefined,
+          ).length
+          if (present !== 0 && present !== 3) {
+            refineCtx.addIssue({
+              code: "custom",
+              message:
+                "center_lat, center_lng and radius_miles must be supplied together or not at all — " +
+                "a partial radius is ignored and would return every closure. `states` is independent.",
+            })
+          }
+        }),
       annotations: READ_ANNOTATIONS,
     },
     async (args) =>
@@ -111,10 +136,11 @@ export function registerMarketTools(server: McpServer, ctx: McpToolContext): voi
         "with a formatted string. Returns { items, next_cursor }.",
       inputSchema: z.object({
         user_id: z.string().max(64).optional().describe("Only this user's saved searches."),
-        origin: z
-          .enum(["user", "owner-auto"])
-          .optional()
-          .describe("Filter by how the search was created."),
+        // Derived from the column itself, so the tool cannot advertise a value the
+        // `alerts.origin` check constraint would reject.
+        origin: z.enum(alerts.origin.enumValues).optional().describe(
+          "Filter by how the search was created.",
+        ),
         notify_enabled: z
           .boolean()
           .optional()

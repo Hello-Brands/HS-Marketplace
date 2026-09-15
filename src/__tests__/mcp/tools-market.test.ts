@@ -143,6 +143,35 @@ describe("list_competitor_closures", () => {
     })
   })
 
+  it("rejects a partial geo scope at the schema rather than ignoring the radius", async () => {
+    const { client } = await mcpTestClient()
+    // getCompetitorClosures only applies its bounding box and its precise filter when
+    // all three geo fields are set, so this would otherwise return every closure in
+    // the country as though the radius had been honoured.
+    const r = await client.callTool({
+      name: "list_competitor_closures",
+      arguments: { center_lat: 39.74, radius_miles: 25 },
+    })
+    expect(r.isError).toBe(true)
+    expect((r.content[0] as { text: string }).text).toMatch(/center_lat, center_lng and radius_miles/)
+    expect(core.getCompetitorClosures).not.toHaveBeenCalled()
+  })
+
+  it("keeps states independent of the geo triple", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "list_competitor_closures",
+      arguments: { states: ["CO"] },
+    })
+    expect(r.isError).toBeFalsy()
+    expect(core.getCompetitorClosures).toHaveBeenCalledWith({
+      centerLat: undefined,
+      centerLng: undefined,
+      radiusMiles: undefined,
+      states: ["CO"],
+    })
+  })
+
   it("passes undefined — not a partial scope — when no filters are given", async () => {
     const { client } = await mcpTestClient()
     await client.callTool({ name: "list_competitor_closures", arguments: {} })
@@ -186,6 +215,24 @@ describe("list_competitor_closures", () => {
     const page2 = second.structuredContent as ClosureBody
     expect(page2.items.map((i) => i.google_place_id)).toEqual(["gp-2"])
     expect(page2.next_cursor).toBeNull()
+  })
+
+  it("still advertises every input field after the all-or-nothing geo refinement", async () => {
+    const { client } = await mcpTestClient()
+    const tool = (await client.listTools()).tools.find(
+      (t) => t.name === "list_competitor_closures",
+    )
+    // A zod wrapper that lost the object shape would ship an empty schema and the
+    // model would never learn these fields exist.
+    expect(Object.keys(tool?.inputSchema.properties ?? {}).sort()).toEqual([
+      "center_lat",
+      "center_lng",
+      "cursor",
+      "limit",
+      "opportunities_only",
+      "radius_miles",
+      "states",
+    ])
   })
 
   it("advertises no write tool for competitor data", async () => {
