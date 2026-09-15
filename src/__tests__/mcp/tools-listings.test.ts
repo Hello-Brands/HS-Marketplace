@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   getAllListings: vi.fn(),
   approveListing: vi.fn(),
   rejectListing: vi.fn(),
@@ -16,7 +17,10 @@ const core = vi.hoisted(() => ({
   listAuditLog: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/admin/core/listings", () => ({
   getAllListings: core.getAllListings,
   approveListing: core.approveListing,
@@ -130,6 +134,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.getAllListings.mockResolvedValue([listingRow()])
   core.queryAdminListing.mockResolvedValue(listingRow())
   core.listingExtras.mockResolvedValue({
@@ -199,6 +204,13 @@ describe("list_listings", () => {
       name: "list_listings",
       arguments: { search: "x".repeat(201) },
     })
+    expect(r.isError).toBe(true)
+    expect(core.getAllListings).not.toHaveBeenCalled()
+  })
+
+  it("rejects an empty seller_id at the schema rather than returning every listing", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({ name: "list_listings", arguments: { seller_id: "" } })
     expect(r.isError).toBe(true)
     expect(core.getAllListings).not.toHaveBeenCalled()
   })

@@ -147,7 +147,14 @@ export function registerListingTools(server: McpServer, ctx: McpToolContext): vo
           .length(2)
           .optional()
           .describe("Two-letter US state code of any of the listing's locations, e.g. CO."),
-        seller_id: z.string().max(64).optional().describe("Only listings owned by this seller id."),
+        // .min(1) like every other id filter: without it `seller_id: ""` passes the schema,
+        // fails the truthiness guard below, and silently returns EVERY listing.
+        seller_id: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe("Only listings owned by this seller id."),
         search: searchField,
         limit: limitField,
         cursor: cursorField,

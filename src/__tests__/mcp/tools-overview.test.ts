@@ -2,14 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 vi.mock("server-only", () => ({}))
 
-const { recordMcpRead, marketplaceOverview, getRecentActivity, listAuditLog } = vi.hoisted(() => ({
-  recordMcpRead: vi.fn(),
-  marketplaceOverview: vi.fn(),
-  getRecentActivity: vi.fn(),
-  listAuditLog: vi.fn(),
-}))
+const { recordMcpRead, recordMcpPreview, marketplaceOverview, getRecentActivity, listAuditLog } =
+  vi.hoisted(() => ({
+    recordMcpRead: vi.fn(),
+    recordMcpPreview: vi.fn(),
+    marketplaceOverview: vi.fn(),
+    getRecentActivity: vi.fn(),
+    listAuditLog: vi.fn(),
+  }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({ recordMcpRead, recordMcpPreview }))
 vi.mock("@/lib/mcp/queries/overview", () => ({ marketplaceOverview }))
 vi.mock("@/lib/mcp/queries/audit", () => ({ listAuditLog }))
 vi.mock("@/lib/admin/activity", () => ({ getRecentActivity }))
@@ -77,6 +79,7 @@ import { mcpTestClient } from "../../../test/helpers/mcp-harness"
 
 beforeEach(() => {
   recordMcpRead.mockReset().mockResolvedValue("audit-1")
+  recordMcpPreview.mockReset().mockResolvedValue("audit-preview")
   marketplaceOverview.mockReset().mockResolvedValue({ listings: { total: 0, by_status: {} } })
   listAuditLog.mockReset().mockResolvedValue({ items: [], next_cursor: null })
   getRecentActivity.mockReset().mockResolvedValue({ items: [], nextCursor: null })
@@ -158,6 +161,16 @@ describe("list_recent_activity", () => {
     expect(r.isError).toBe(true)
     expect(getRecentActivity).not.toHaveBeenCalled()
   })
+
+  it("rejects an empty actor_user_id rather than returning the whole feed", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "list_recent_activity",
+      arguments: { actor_user_id: "" },
+    })
+    expect(r.isError).toBe(true)
+    expect(getRecentActivity).not.toHaveBeenCalled()
+  })
 })
 
 describe("list_audit_log", () => {
@@ -196,4 +209,16 @@ describe("list_audit_log", () => {
     const r = await client.callTool({ name: "list_audit_log", arguments: {} })
     expect(r.structuredContent).toEqual({ items: [{ id: "a1" }], next_cursor: "NEXT" })
   })
+
+  // Each of these is dropped by listAuditLog's truthiness guard, so an empty string
+  // would have returned the WHOLE audit log dressed as a filtered page.
+  it.each(["actor_user_id", "action", "target_id"])(
+    "rejects an empty %s rather than returning the whole log",
+    async (field) => {
+      const { client } = await mcpTestClient()
+      const r = await client.callTool({ name: "list_audit_log", arguments: { [field]: "" } })
+      expect(r.isError).toBe(true)
+      expect(listAuditLog).not.toHaveBeenCalled()
+    },
+  )
 })

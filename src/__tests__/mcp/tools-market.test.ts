@@ -7,11 +7,15 @@ vi.mock("server-only", () => ({}))
 
 const core = vi.hoisted(() => ({
   recordMcpRead: vi.fn(),
+  recordMcpPreview: vi.fn(),
   getCompetitorClosures: vi.fn(),
   listAlerts: vi.fn(),
 }))
 
-vi.mock("@/lib/admin/audit", () => ({ recordMcpRead: core.recordMcpRead }))
+vi.mock("@/lib/admin/audit", () => ({
+  recordMcpRead: core.recordMcpRead,
+  recordMcpPreview: core.recordMcpPreview,
+}))
 vi.mock("@/lib/competitor-query", () => ({ getCompetitorClosures: core.getCompetitorClosures }))
 vi.mock("@/lib/mcp/queries/alerts", () => ({ listAlerts: core.listAlerts }))
 // The harness builds the WHOLE server, so the other domains' modules load too.
@@ -103,6 +107,7 @@ beforeEach(() => {
   __resetRateLimits()
   for (const fn of Object.values(core)) fn.mockReset()
   core.recordMcpRead.mockResolvedValue("audit-read")
+  core.recordMcpPreview.mockResolvedValue("audit-preview")
   core.getCompetitorClosures.mockResolvedValue([CLOSURE])
   core.listAlerts.mockResolvedValue({ items: [], next_cursor: null })
 })
@@ -285,5 +290,12 @@ describe("list_alerts", () => {
       "list_alerts",
       { limit: 5 },
     )
+  })
+
+  it("rejects an empty user_id at the schema rather than returning every buyer's searches", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({ name: "list_alerts", arguments: { user_id: "" } })
+    expect(r.isError).toBe(true)
+    expect(core.listAlerts).not.toHaveBeenCalled()
   })
 })

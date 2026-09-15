@@ -90,8 +90,11 @@ export function registerOverviewTools(server: McpServer, ctx: McpToolContext): v
           .max(ACTIVITY_KINDS.length)
           .optional()
           .describe("Restrict the feed to these event kinds. Omit for all kinds."),
+        // .min(1): getRecentActivity drops a falsy actor filter, so `""` would return
+        // the whole feed dressed as one person's.
         actor_user_id: z
           .string()
+          .min(1)
           .max(64)
           .optional()
           .describe("Only events performed by this user id."),
@@ -128,9 +131,17 @@ export function registerOverviewTools(server: McpServer, ctx: McpToolContext): v
         "Use this to answer 'who changed X and when'. Newest first; " +
         "returns { items, next_cursor }.",
       inputSchema: z.object({
-        actor_user_id: z.string().max(64).optional().describe("Only rows for this actor's user id."),
+        // .min(1) on all three: listAuditLog guards each filter with a truthiness test,
+        // so an empty string would silently return the WHOLE audit log.
+        actor_user_id: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe("Only rows for this actor's user id."),
         action: z
           .string()
+          .min(1)
           .max(64)
           .optional()
           .describe('Exact dotted action, e.g. "listing.approve" or "user.set_role".'),
@@ -138,7 +149,12 @@ export function registerOverviewTools(server: McpServer, ctx: McpToolContext): v
           .enum(AUDIT_TARGET_TYPES)
           .optional()
           .describe("Only rows whose target is of this type."),
-        target_id: z.string().max(64).optional().describe("Only rows touching this target id."),
+        target_id: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe("Only rows touching this target id."),
         source: z
           .enum(["ui", "mcp"])
           .optional()

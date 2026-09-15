@@ -135,7 +135,14 @@ export function registerMarketTools(server: McpServer, ctx: McpToolContext): voi
         "automatically around a franchise owner's locations. Money criteria are in cents " +
         "with a formatted string. Returns { items, next_cursor }.",
       inputSchema: z.object({
-        user_id: z.string().max(64).optional().describe("Only this user's saved searches."),
+        // .min(1): `user_id: ""` would otherwise be dropped by listAlerts' truthiness
+        // guard and return every buyer's saved searches instead of one user's.
+        user_id: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe("Only this user's saved searches."),
         // Derived from the column itself, so the tool cannot advertise a value the
         // `alerts.origin` check constraint would reject.
         origin: z.enum(alerts.origin.enumValues).optional().describe(
