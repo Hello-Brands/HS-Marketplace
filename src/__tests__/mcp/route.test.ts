@@ -74,7 +74,7 @@ describe("unauthenticated requests", () => {
     const res = await POST(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }))
     expect(res.status).toBe(401)
     expect(res.headers.get("www-authenticate")).toBe(
-      `Bearer resource_metadata="${METADATA_URL}", scope="marketplace:read"`,
+      `Bearer resource_metadata="${METADATA_URL}", scope="marketplace:read marketplace:write"`,
     )
     expect(fetchImpl).not.toHaveBeenCalled()
     expect(createMcpRequestHandler).not.toHaveBeenCalled()

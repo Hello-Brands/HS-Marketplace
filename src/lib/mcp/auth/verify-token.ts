@@ -17,7 +17,7 @@ import { mcpOauthTokens } from "@/db/schema/mcpOauth"
 import { sha256Hex } from "@/lib/mcp/oauth/tokens"
 import { LAST_USED_TOUCH_INTERVAL_MS } from "@/lib/mcp/oauth/constants"
 import { protectedResourceMetadataUrl } from "@/lib/mcp/oauth/urls"
-import { type McpScope } from "@/lib/mcp/oauth/scopes"
+import { MCP_SCOPES, formatScopes, type McpScope } from "@/lib/mcp/oauth/scopes"
 
 // Re-exported so PR C imports the scope vocabulary from the same module as the
 // verifier. The definitions live in oauth/scopes.ts, which stays DB-free.
@@ -104,9 +104,20 @@ export async function verifyMcpToken(
 /**
  * `WWW-Authenticate` for a 401. The `resource_metadata` pointer is what lets a
  * client discover the authorization server and start the OAuth flow by itself.
+ *
+ * Defaults to the FULL scope vocabulary, and that default matters: a client
+ * copies this header's `scope` into its authorization request, and
+ * /mcp/authorize only offers what was requested. Advertising just
+ * "marketplace:read" here made claude.ai ask for read alone, so the consent
+ * screen rendered a single greyed-out "Read only" row and write access was
+ * unreachable through the hosted connector.
+ *
+ * This is not the server granting write access — the consent screen still
+ * defaults to read-only and the user picks. The server offers; the human
+ * narrows.
  */
-export function bearerChallenge(scope: McpScope = "marketplace:read"): string {
-  return `Bearer resource_metadata="${protectedResourceMetadataUrl()}", scope="${scope}"`
+export function bearerChallenge(scopes: readonly McpScope[] = MCP_SCOPES): string {
+  return `Bearer resource_metadata="${protectedResourceMetadataUrl()}", scope="${formatScopes(scopes)}"`
 }
 
 /** `WWW-Authenticate` for a 403 — authenticated, but the grant is too narrow. */
