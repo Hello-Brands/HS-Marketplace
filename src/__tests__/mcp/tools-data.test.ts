@@ -96,7 +96,23 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-type MappingBody = { items: UnresolvedMapping[]; bq_configured: boolean }
+type MappingBody = {
+  items: UnresolvedMapping[]
+  next_cursor: string | null
+  bq_configured: boolean
+}
+
+function mappingRow(over: Partial<UnresolvedMapping> = {}): UnresolvedMapping {
+  return {
+    location_id: "loc-1",
+    location_name: "Hello Sugar Austin South",
+    listing: { id: "l-1", title: "Austin South", status: "pending" },
+    status: "unconfirmed",
+    current_bq_location_name: null,
+    suggestion: { bq_location_name: "Austin South", confidence: 0.86 },
+    ...over,
+  }
+}
 
 describe("list_unresolved_data_mappings", () => {
   it("returns the blocking locations with their suggested BigQuery names", async () => {
@@ -126,6 +142,31 @@ describe("list_unresolved_data_mappings", () => {
     const body = r.structuredContent as MappingBody
     expect(body.bq_configured).toBe(false)
     expect(body.items[0].suggestion).toBeNull()
+  })
+
+  it("pages like every other list tool", async () => {
+    core.unresolvedMappings.mockResolvedValue({
+      items: [mappingRow(), mappingRow({ location_id: "loc-2", location_name: "Denver" })],
+      bq_configured: true,
+    })
+    const { client } = await mcpTestClient()
+    const first = await client.callTool({
+      name: "list_unresolved_data_mappings",
+      arguments: { limit: 1 },
+    })
+    const page1 = first.structuredContent as MappingBody
+    expect(page1.items.map((i) => i.location_id)).toEqual(["loc-1"])
+    expect(page1.next_cursor).toBeTruthy()
+    // bq_configured survives paging — it describes the whole read, not the page.
+    expect(page1.bq_configured).toBe(true)
+
+    const second = await client.callTool({
+      name: "list_unresolved_data_mappings",
+      arguments: { limit: 1, cursor: page1.next_cursor as string },
+    })
+    const page2 = second.structuredContent as MappingBody
+    expect(page2.items.map((i) => i.location_id)).toEqual(["loc-2"])
+    expect(page2.next_cursor).toBeNull()
   })
 })
 

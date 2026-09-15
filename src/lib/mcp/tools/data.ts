@@ -8,6 +8,9 @@ import { unresolvedMappings } from "@/lib/mcp/queries/data-mappings"
 import {
   READ_ANNOTATIONS,
   WRITE_ANNOTATIONS,
+  cursorField,
+  limitField,
+  paginateArray,
   readTool,
   writeTool,
   type McpToolContext,
@@ -24,14 +27,20 @@ export function registerDataTools(server: McpServer, ctx: McpToolContext): void 
         "unconfirmed mapping would surface the wrong location's financials. Each row carries " +
         "a suggested BigQuery location name when one scores highly enough. `bq_configured` " +
         "is false when BigQuery is unreachable — then every suggestion is null and absence " +
-        "of a suggestion means nothing.",
-      inputSchema: z.object({}),
+        "of a suggestion means nothing. Returns { items, next_cursor, bq_configured }.",
+      inputSchema: z.object({ limit: limitField, cursor: cursorField }),
       annotations: READ_ANNOTATIONS,
     },
-    async () =>
-      readTool(ctx, "list_unresolved_data_mappings", {}, async () => ({
-        ...(await unresolvedMappings()),
-      })),
+    async (args) =>
+      readTool(ctx, "list_unresolved_data_mappings", args, async () => {
+        // Paged like every other list tool: every salon location defaults to
+        // dataMappingStatus "unconfirmed", so this set grows with the listings
+        // table (drafts and rejected listings included) rather than being
+        // naturally small.
+        const { items, bq_configured } = await unresolvedMappings()
+        const page = paginateArray(items, args.limit, args.cursor)
+        return { items: page.items, next_cursor: page.next_cursor, bq_configured }
+      }),
   )
 
   if (!ctx.canWrite) return

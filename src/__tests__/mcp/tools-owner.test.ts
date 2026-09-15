@@ -165,6 +165,13 @@ describe("list_owner_links", () => {
     })
     expect((r.structuredContent as { items: unknown[] }).items).toEqual([])
   })
+
+  it("rejects an empty user_id at the schema rather than returning everyone", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({ name: "list_owner_links", arguments: { user_id: "" } })
+    expect(r.isError).toBe(true)
+    expect(core.queryUsersWithLinks).not.toHaveBeenCalled()
+  })
 })
 
 describe("add_owner_link (non-destructive)", () => {
@@ -197,6 +204,9 @@ describe("revoke_owner_link / clear_owner_link (destructive)", () => {
     const preview = await client.callTool({ name: "revoke_owner_link", arguments: args })
     const body = preview.structuredContent as { preview: string; confirmation_token: string }
     expect(body.preview).toContain("Austin LLC")
+    // Named, not just an opaque id — a mistyped user_id must read differently.
+    expect(body.preview).toContain("dana@example.com")
+    expect(body.preview).toContain("manual admin override")
     expect(core.revokeOwnerLink).not.toHaveBeenCalled()
     await client.callTool({
       name: "revoke_owner_link",
@@ -211,7 +221,55 @@ describe("revoke_owner_link / clear_owner_link (destructive)", () => {
       name: "clear_owner_link",
       arguments: { user_id: "u-2", owner_identifier: "Austin LLC" },
     })
-    expect((r.structuredContent as { preview: string }).preview).toMatch(/re-?link|next login/i)
+    const preview = (r.structuredContent as { preview: string }).preview
+    expect(preview).toMatch(/re-?link|next login/i)
+    expect(preview).toContain("dana@example.com")
+  })
+
+  it("clear states the consequence for a revoked row without hedging", async () => {
+    core.queryUsersWithLinks.mockResolvedValue([
+      {
+        id: "u-2",
+        name: "Dana",
+        email: "dana@example.com",
+        links: [{ ownerIdentifier: "Austin LLC", source: "revoked" }],
+      },
+    ])
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "clear_owner_link",
+      arguments: { user_id: "u-2", owner_identifier: "Austin LLC" },
+    })
+    const preview = (r.structuredContent as { preview: string }).preview
+    expect(preview).toContain("That row is a revocation")
+    expect(preview).toMatch(/eligible for automatic re-linking on their next login/i)
+  })
+
+  it("revoke names an unlinked owner as such and still offers a token", async () => {
+    const { client } = await mcpTestClient()
+    const r = await client.callTool({
+      name: "revoke_owner_link",
+      arguments: { user_id: "u-2", owner_identifier: "Denver LLC" },
+    })
+    const body = r.structuredContent as { preview: string; confirmation_token: string }
+    expect(body.preview).toContain("no link to that owner right now")
+    expect(body.confirmation_token).toBeTruthy()
+    expect(r.isError).toBeFalsy()
+  })
+
+  it("previews and executes for a user id matching nobody — enrichment never gates", async () => {
+    const { client } = await mcpTestClient()
+    const args = { user_id: "u-404", owner_identifier: "Austin LLC" }
+    const preview = await client.callTool({ name: "revoke_owner_link", arguments: args })
+    const body = preview.structuredContent as { preview: string; confirmation_token: string }
+    expect(preview.isError).toBeFalsy()
+    expect(body.preview).toContain("unknown user u-404")
+    // The core deliberately validates nothing, so an orphaned link stays cleanable.
+    await client.callTool({
+      name: "revoke_owner_link",
+      arguments: { ...args, confirmation_token: body.confirmation_token },
+    })
+    expect(core.revokeOwnerLink).toHaveBeenCalledWith(ACTOR, "u-404", "Austin LLC")
   })
 
   it("a revoke token cannot execute a clear", async () => {
