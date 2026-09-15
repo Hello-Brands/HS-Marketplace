@@ -20,6 +20,18 @@ export const PUBLIC_PATHS = [
   "/api/auth", // Auth.js sign-in/callback endpoints
   "/api/actions", // token-authed email action links
   "/api/cron", // CRON_SECRET-authed Vercel cron jobs
+  // MCP OAuth 2.1 authorization server (spec section 4.2). Each of these
+  // authenticates itself rather than by session cookie:
+  //   /.well-known/*   public discovery documents, no auth at all
+  //   /mcp/authorize   renders its own login redirect and admin check, so the
+  //                    callbackUrl points back at the consent screen instead
+  //                    of the gate's default landing
+  //   /mcp/token       authenticated by the PKCE code or the refresh token
+  //   /mcp/revoke      authenticated by the token being revoked
+  "/.well-known",
+  "/mcp/authorize",
+  "/mcp/token",
+  "/mcp/revoke",
 ] as const
 
 /**

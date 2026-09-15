@@ -133,6 +133,12 @@ describe("public paths need no session", () => {
     "/api/cron/reminders",
     "/api/cron/competitor-alerts",
     "/api/cron/sync-owner-directory",
+    "/.well-known/oauth-authorization-server",
+    "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/api/mcp",
+    "/mcp/authorize",
+    "/mcp/token",
+    "/mcp/revoke",
   ]
 
   it.each(publicPaths)("%s is reachable without a session", (path) => {
@@ -161,6 +167,12 @@ describe("prefix matching does not over-match", () => {
     "/api/actionsx",
     "/api/cronx",
     "/action-completex",
+    "/.well-knownx",
+    "/mcp",
+    "/mcp/authorizex",
+    "/mcp/tokens",
+    "/mcp/revoke-all",
+    "/mcpx/token",
   ]
 
   it.each(lookalikes)("%s is NOT treated as public", (path) => {
