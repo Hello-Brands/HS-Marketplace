@@ -4,6 +4,7 @@
 import { z } from "zod"
 import type { McpServer } from "@modelcontextprotocol/server"
 import {
+  APPROVED_STATUSES,
   approveBrandRequest,
   rejectBrandRequest,
   retryMonitorDispatch,
@@ -25,13 +26,6 @@ import {
   writeTool,
   type McpToolContext,
 } from "@/lib/mcp/tools/_shared"
-
-/**
- * The statuses past the point of no return, mirroring `APPROVED_STATUSES` in
- * src/lib/admin/core/brand-requests.ts:25. Not exported by the core, so it is
- * restated here for the reject pre-check and kept in step by hand.
- */
-const APPROVED_STATUSES: readonly string[] = ["approved", "building", "live"]
 
 const requestIdField = z.string().min(1).max(64).describe("The brand request's id.")
 
@@ -153,9 +147,10 @@ export function registerBrandRequestTools(server: McpServer, ctx: McpToolContext
         const row = await loadRequestOrThrow(rest.request_id)
         // The core's two status refusals, re-run on the preview path (spec §7.5) so a
         // doomed rejection never mints a token. Sentences copied verbatim from
-        // src/lib/admin/core/brand-requests.ts:123 and :126-128.
+        // rejectBrandRequest, and the status set is the core's own constant.
+        // `some`, not `includes`: the row's status is a plain string on the wire.
         if (row.status === "rejected") throw new Error("Request is already rejected.")
-        if (APPROVED_STATUSES.includes(row.status)) {
+        if (APPROVED_STATUSES.some((s) => s === row.status)) {
           throw new Error(
             "Request is already approved and being set up — it can no longer be rejected.",
           )

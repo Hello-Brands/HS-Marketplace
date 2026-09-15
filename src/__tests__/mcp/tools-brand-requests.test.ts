@@ -37,6 +37,8 @@ vi.mock("@/lib/mcp/queries/brand-requests", () => ({
   getBrandRequestDetail: core.getBrandRequestDetail,
 }))
 vi.mock("@/lib/admin/core/brand-requests", () => ({
+  // Real values: the reject tool reads this constant at load time.
+  APPROVED_STATUSES: ["approved", "building", "live"],
   approveBrandRequest: core.approveBrandRequest,
   rejectBrandRequest: core.rejectBrandRequest,
   retryMonitorDispatch: core.retryMonitorDispatch,

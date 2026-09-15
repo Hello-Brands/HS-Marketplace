@@ -21,8 +21,14 @@ import type { AdminActor } from './actor'
 const ACCOUNT_PATH = '/account/brand-requests'
 const ADMIN_PATH = '/admin/brand-requests'
 
-/** Statuses past the point of no return — a decision has already been acted on. */
-const APPROVED_STATUSES: BrandRequestStatus[] = ['approved', 'building', 'live']
+/**
+ * Statuses past the point of no return — a decision has already been acted on.
+ *
+ * Exported because the MCP `reject_brand_request` tool re-runs this same rule on
+ * its confirmation-preview path (spec §7.5) and must not keep a second copy that
+ * can drift from this one.
+ */
+export const APPROVED_STATUSES: readonly BrandRequestStatus[] = ['approved', 'building', 'live']
 
 /** Approving these requires the explicit `withoutRecon` override. */
 const OVERRIDE_APPROVABLE: BrandRequestStatus[] = ['submitted', 'recon_running', 'needs_human']

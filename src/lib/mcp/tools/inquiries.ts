@@ -20,22 +20,6 @@ import {
  */
 const INQUIRY_WINDOW = 1000
 
-type InquiryRow = {
-  id: string
-  message: string | null
-  buyerName: string | null
-  buyerEmail: string | null
-  buyerPhone: string | null
-  createdAt: Date
-  listingId: string
-  listingTitle: string | null
-  listingLocationName: string | null
-  listingCity: string | null
-  listingState: string | null
-  sellerName: string | null
-  sellerEmail: string | null
-}
-
 export function registerInquiryTools(server: McpServer, ctx: McpToolContext): void {
   server.registerTool(
     "list_inquiries",
@@ -48,7 +32,12 @@ export function registerInquiryTools(server: McpServer, ctx: McpToolContext): vo
         `Covers the ${INQUIRY_WINDOW.toLocaleString("en-US")} most recent inquiries; use ` +
         "listing_id or since to narrow rather than paging to the end.",
       inputSchema: z.object({
-        listing_id: z.string().max(64).optional().describe("Only inquiries on this listing."),
+        listing_id: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe("Only inquiries on this listing."),
         since: z.iso
           .datetime()
           .optional()
@@ -60,7 +49,7 @@ export function registerInquiryTools(server: McpServer, ctx: McpToolContext): vo
     },
     async (args) =>
       readTool(ctx, "list_inquiries", args, async () => {
-        const rows = (await getInquiries({ limit: INQUIRY_WINDOW })) as InquiryRow[]
+        const rows = await getInquiries({ limit: INQUIRY_WINDOW })
         const since = args.since ? new Date(args.since) : null
         const filtered = rows.filter((row) => {
           if (args.listing_id && row.listingId !== args.listing_id) return false
