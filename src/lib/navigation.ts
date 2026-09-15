@@ -55,6 +55,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Activity", href: "/admin/activity" },
   { label: "Data", href: "/admin/data" },
   { label: "Owners", href: "/admin/owner-directory" },
+  { label: "MCP", href: "/admin/mcp-connections" },
 ]
 
 const PRIMARY_ACTION: Record<NavWorld, PrimaryAction | null> = {
