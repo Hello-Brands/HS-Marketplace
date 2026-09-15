@@ -44,4 +44,34 @@ describe("hand-authored migration artifacts", () => {
     ])
     expect(table.indexes["user_owner_links_user_owner_idx"].isUnique).toBe(true)
   })
+
+  it("records the three mcp_oauth tables in the latest snapshot", () => {
+    const latest = journal.entries.length - 1
+    const snap = JSON.parse(
+      readFileSync(path.join(DRIZZLE, "meta", `${String(latest).padStart(4, "0")}_snapshot.json`), "utf8")
+    )
+
+    expect(Object.keys(snap.tables["public.mcp_oauth_clients"].columns).sort()).toEqual([
+      "client_id", "created_at", "is_public", "name", "redirect_uris",
+    ])
+    expect(Object.keys(snap.tables["public.mcp_oauth_codes"].columns).sort()).toEqual([
+      "client_id", "code_challenge", "code_hash", "created_at", "expires_at",
+      "label", "redirect_uri", "resource", "scope", "used_at", "user_id",
+    ])
+
+    const tokens = snap.tables["public.mcp_oauth_tokens"]
+    expect(Object.keys(tokens.columns).sort()).toEqual([
+      "client_id", "created_at", "expires_at", "id", "label", "last_used_at",
+      "refresh_expires_at", "refresh_token_hash", "revoked_at", "scope",
+      "token_hash", "user_id",
+    ])
+    // Both hashes unique: a rotation that collided must error, never leave two
+    // live tokens for one grant.
+    expect(Object.keys(tokens.uniqueConstraints).sort()).toEqual([
+      "mcp_oauth_tokens_refresh_token_hash_unique",
+      "mcp_oauth_tokens_token_hash_unique",
+    ])
+    // Deleting an admin must not leave usable grants behind.
+    expect(tokens.foreignKeys["mcp_oauth_tokens_user_id_users_id_fk"].onDelete).toBe("cascade")
+  })
 })

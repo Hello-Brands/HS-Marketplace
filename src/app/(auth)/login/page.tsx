@@ -1,6 +1,16 @@
 import { signIn } from "@/auth"
+import { safeCallbackUrl } from "@/lib/auth/callback-url"
 
-export default function LoginPage() {
+interface LoginPageProps {
+  searchParams: Promise<{ callbackUrl?: string | string[] }>
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  // The MCP consent screen bounces here with ?callbackUrl=/mcp/authorize?...;
+  // without this the OAuth flow would end on /browse and never return a code.
+  // safeCallbackUrl accepts only same-origin relative paths.
+  const { callbackUrl } = await searchParams
+  const redirectTo = safeCallbackUrl(callbackUrl)
   return (
     <main className="min-h-screen flex">
       {/* Left Panel - Hero */}
@@ -61,7 +71,7 @@ export default function LoginPage() {
             <form
               action={async () => {
                 "use server"
-                await signIn("google", { redirectTo: "/browse" })
+                await signIn("google", { redirectTo })
               }}
             >
             <button
@@ -123,7 +133,7 @@ export default function LoginPage() {
               "use server"
               const email = String(formData.get("email") ?? "").trim()
               if (!email) return
-              await signIn("resend", { email, redirectTo: "/browse" })
+              await signIn("resend", { email, redirectTo })
             }}
             className="space-y-3"
           >
