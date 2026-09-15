@@ -3,6 +3,7 @@ import {
   bearerChallenge,
   insufficientScopeChallenge,
   verifyMcpToken,
+  type McpScope,
 } from "@/lib/mcp/auth/verify-token"
 import { createMcpRequestHandler, WRITE_TOOL_NAMES } from "@/lib/mcp/server"
 
@@ -40,7 +41,7 @@ function challenge401(): Response {
   })
 }
 
-function insufficientScope(required: "marketplace:read" | "marketplace:write"): Response {
+function insufficientScope(required: McpScope): Response {
   return new Response(JSON.stringify({ error: "insufficient_scope", scope: required }), {
     status: 403,
     headers: {
