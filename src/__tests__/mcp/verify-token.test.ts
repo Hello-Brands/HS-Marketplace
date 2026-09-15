@@ -172,12 +172,22 @@ describe("verifyMcpToken — last_used_at touch", () => {
 describe("WWW-Authenticate challenges", () => {
   it("points a 401 at the protected-resource metadata document", () => {
     expect(bearerChallenge()).toBe(
-      `Bearer resource_metadata="${ISSUER}/.well-known/oauth-protected-resource/api/mcp", scope="marketplace:read"`,
+      `Bearer resource_metadata="${ISSUER}/.well-known/oauth-protected-resource/api/mcp", scope="marketplace:read marketplace:write"`,
     )
   })
 
-  it("names the scope that was actually required", () => {
-    expect(bearerChallenge("marketplace:write")).toContain('scope="marketplace:write"')
+  // Claude copies this header's scope straight into its authorization request,
+  // so a challenge naming only "marketplace:read" made claude.ai ask for read
+  // alone — and the consent screen, which only offers what was requested, then
+  // had no write option to show. The default must advertise the whole
+  // vocabulary and let the consent screen do the narrowing.
+  it("advertises every supported scope by default", () => {
+    const scope = bearerChallenge().match(/scope="([^"]+)"/)?.[1]
+    expect(scope?.split(" ")).toEqual([...MCP_SCOPES])
+  })
+
+  it("names a narrower scope when one is given", () => {
+    expect(bearerChallenge(["marketplace:write"])).toContain('scope="marketplace:write"')
   })
 
   it("marks a 403 as insufficient_scope", () => {
