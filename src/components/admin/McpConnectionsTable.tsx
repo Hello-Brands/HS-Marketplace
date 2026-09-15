@@ -66,14 +66,23 @@ export function McpConnectionsTable({ connections, showAll }: McpConnectionsTabl
     if (!target) return
     const tokenId = target.id
     startTransition(async () => {
-      const result = await revokeMcpConnection(tokenId)
-      setTarget(null)
-      if (!result.ok) {
-        setError(result.error)
-        return
+      try {
+        const result = await revokeMcpConnection(tokenId)
+        if (!result.ok) {
+          setError(result.error)
+          return
+        }
+        setError(null)
+        router.refresh()
+      } catch (error) {
+        // Only the two expected failures come back as { ok: false }; an expired
+        // session (requireAdmin throws), a db failure or a failed audit write
+        // rejects instead. Without this the dialog would sit open with no
+        // message and no way to tell whether the connection was revoked.
+        setError((error as Error)?.message || 'Revoke failed')
+      } finally {
+        setTarget(null)
       }
-      setError(null)
-      router.refresh()
     })
   }
 
@@ -90,7 +99,9 @@ export function McpConnectionsTable({ connections, showAll }: McpConnectionsTabl
   return (
     <>
       {error && (
-        <p className="rounded-lg bg-hs-red-50 px-4 py-3 text-sm text-hs-red-700">{error}</p>
+        <p role="alert" className="rounded-lg bg-hs-red-50 px-4 py-3 text-sm text-hs-red-700">
+          {error}
+        </p>
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
