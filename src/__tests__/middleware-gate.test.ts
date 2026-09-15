@@ -139,6 +139,12 @@ describe("public paths need no session", () => {
     "/mcp/authorize",
     "/mcp/token",
     "/mcp/revoke",
+    // The MCP endpoint itself. It is bearer-authenticated (an OAuth access
+    // token, never a session cookie), so the gate must let it reach its own
+    // handler: a 307 to /login instead of the handler's 401 +
+    // WWW-Authenticate leaves the client no way to discover the
+    // authorization server, so no MCP client can connect at all.
+    "/api/mcp",
   ]
 
   it.each(publicPaths)("%s is reachable without a session", (path) => {
@@ -173,6 +179,8 @@ describe("prefix matching does not over-match", () => {
     "/mcp/tokens",
     "/mcp/revoke-all",
     "/mcpx/token",
+    "/api/mcpx",
+    "/api/mcp-admin",
   ]
 
   it.each(lookalikes)("%s is NOT treated as public", (path) => {
