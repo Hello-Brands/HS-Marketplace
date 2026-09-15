@@ -6,6 +6,7 @@ const existing = {
   ttmProfit: 8_000_000, // $80,000 in cents
   inventoryIncluded: true,
   laserIncluded: false,
+  inventoryCostEstimate: 500_000, // $5,000 in cents
 }
 
 describe('buildListingUpdate — money normalization (dollars → cents)', () => {
@@ -57,6 +58,19 @@ describe('buildListingUpdate — partial edit falls back to the existing row', (
     const out = buildListingUpdate({}, existing)
     expect(out.inventoryIncluded).toBe(true)
     expect(out.laserIncluded).toBe(false)
+  })
+
+  it('keeps the stored inventory cost when the patch omits it', () => {
+    // A partial patch (e.g. the MCP update_listing tool sending only `notes`) used to
+    // null the stored cost out, because inventoryCostEstimate had no `existing`
+    // fallback while every other money field did.
+    const out = buildListingUpdate({ notes: 'admin note only' }, existing)
+    expect(out.inventoryCostEstimate).toBe(500_000)
+  })
+
+  it('still clears the inventory cost when the patch turns inventory off', () => {
+    const out = buildListingUpdate({ inventoryIncluded: false }, existing)
+    expect(out.inventoryCostEstimate).toBeNull()
   })
 
   it('still overrides existing values when data provides them', () => {

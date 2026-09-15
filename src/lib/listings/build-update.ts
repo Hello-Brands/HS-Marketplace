@@ -15,6 +15,8 @@ export type ExistingListingScalars = {
   ttmProfit: number | null
   inventoryIncluded: boolean
   laserIncluded: boolean
+  /** Stored in cents, like every other money column. */
+  inventoryCostEstimate: number | null
 }
 
 /**
@@ -46,10 +48,13 @@ export function buildListingUpdate(
     inventoryIncluded,
     laserIncluded: data.laserIncluded ?? existing?.laserIncluded ?? false,
     otherAssets: data.otherAssets,
-    // Clear the cost when inventory isn't included so we never persist a stale value.
-    inventoryCostEstimate:
-      inventoryIncluded && data.inventoryCostEstimate
+    // Clear the cost when inventory isn't included so we never persist a stale value;
+    // otherwise fall back to the stored cents, exactly like the other money fields, so
+    // a partial edit that never mentions the cost cannot silently null it out.
+    inventoryCostEstimate: !inventoryIncluded
+      ? null
+      : data.inventoryCostEstimate != null
         ? dollarsToCents(data.inventoryCostEstimate)
-        : null,
+        : (existing?.inventoryCostEstimate ?? null),
   }
 }
