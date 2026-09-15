@@ -30,3 +30,6 @@ export * from "./schema/disclaimerAcknowledgments"
 
 // Admin action audit log (written only via src/lib/admin/audit.ts)
 export * from "./schema/adminAuditLog"
+
+// MCP OAuth 2.1 authorization server (spec §4.1; migration 0012)
+export * from "./schema/mcpOauth"
