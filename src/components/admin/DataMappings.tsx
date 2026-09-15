@@ -71,26 +71,33 @@ export function DataMappings({ rows, locationNames, bqConfigured }: Props) {
     })
 
     startTransition(async () => {
-      const res =
-        value === NOT_CONNECTED
-          ? await setLocationMapping(row.locationId, {
-              bqLocationName: null,
-              status: "not_connected",
-            })
-          : await setLocationMapping(row.locationId, {
-              bqLocationName: value,
-              status: "confirmed",
-            })
+      try {
+        const res =
+          value === NOT_CONNECTED
+            ? await setLocationMapping(row.locationId, {
+                bqLocationName: null,
+                status: "not_connected",
+              })
+            : await setLocationMapping(row.locationId, {
+                bqLocationName: value,
+                status: "confirmed",
+              })
 
-      setSaving((prev) => ({ ...prev, [row.locationId]: false }))
-
-      if (!res.ok) {
+        if (!res.ok) {
+          setErrors((prev) => ({
+            ...prev,
+            [row.locationId]: res.error ?? "Failed",
+          }))
+        } else {
+          router.refresh()
+        }
+      } catch (err) {
         setErrors((prev) => ({
           ...prev,
-          [row.locationId]: res.error ?? "Failed",
+          [row.locationId]: err instanceof Error ? err.message : "Failed",
         }))
-      } else {
-        router.refresh()
+      } finally {
+        setSaving((prev) => ({ ...prev, [row.locationId]: false }))
       }
     })
   }

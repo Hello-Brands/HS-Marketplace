@@ -10,6 +10,16 @@ const { mockAuth, mockSelect, mockUpdate, setWhere, mockFindFirst } = vi.hoisted
 
 vi.mock("@/auth", () => ({ auth: mockAuth }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+vi.mock("@/lib/admin/audit", () => ({
+  withAudit: async (
+    _actor: unknown,
+    _action: unknown,
+    _target: unknown,
+    _args: unknown,
+    fn: () => Promise<unknown>,
+  ) => ({ result: await fn(), auditId: "audit-test" }),
+  recordMcpRead: async () => "audit-test",
+}))
 // persist.ts re-derives ttmRevenue/mcr from BigQuery instead of trusting the
 // client payload; stub the cached maps so write-path tests stay offline.
 vi.mock("@/lib/bigquery/queries", () => ({

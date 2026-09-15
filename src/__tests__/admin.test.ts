@@ -35,6 +35,16 @@ const {
 
 vi.mock("@/auth", () => ({ auth: mockAuth }))
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }))
+vi.mock("@/lib/admin/audit", () => ({
+  withAudit: async (
+    _actor: unknown,
+    _action: unknown,
+    _target: unknown,
+    _args: unknown,
+    fn: () => Promise<unknown>,
+  ) => ({ result: await fn(), auditId: "audit-test" }),
+  recordMcpRead: async () => "audit-test",
+}))
 vi.mock("@/db", () => ({
   db: {
     select: mockSelect,
@@ -84,18 +94,18 @@ describe("setUserRole (real src/app/admin/users/actions.ts)", () => {
 
   it("allows self-demotion when another admin exists", async () => {
     setAdminCount(2)
-    await expect(setUserRole("admin-1", "user")).resolves.toBeUndefined()
+    await expect(setUserRole("admin-1", "user")).resolves.toEqual({ auditId: "audit-test" })
     expect(updateSetCalls).toContainEqual({ role: "user" })
   })
 
   it("allows demoting a different user without counting admins", async () => {
-    await expect(setUserRole("admin-2", "user")).resolves.toBeUndefined()
+    await expect(setUserRole("admin-2", "user")).resolves.toEqual({ auditId: "audit-test" })
     expect(mockSelect).not.toHaveBeenCalled()
     expect(updateSetCalls).toContainEqual({ role: "user" })
   })
 
   it("allows promoting a user to admin without the guard", async () => {
-    await expect(setUserRole("user-2", "admin")).resolves.toBeUndefined()
+    await expect(setUserRole("user-2", "admin")).resolves.toEqual({ auditId: "audit-test" })
     expect(mockSelect).not.toHaveBeenCalled()
     expect(updateSetCalls).toContainEqual({ role: "admin" })
   })
@@ -123,13 +133,13 @@ describe("removeUser (real src/app/admin/users/actions.ts)", () => {
   it("allows removing an admin when another admin remains", async () => {
     mockUsersFindFirst.mockResolvedValue({ id: "admin-2", role: "admin" })
     setAdminCount(2)
-    await expect(removeUser("admin-2")).resolves.toBeUndefined()
+    await expect(removeUser("admin-2")).resolves.toEqual({ auditId: "audit-test" })
     expect(mockDelete).toHaveBeenCalledTimes(1)
   })
 
   it("removes a regular user without consulting the admin count", async () => {
     mockUsersFindFirst.mockResolvedValue({ id: "user-2", role: "user" })
-    await expect(removeUser("user-2")).resolves.toBeUndefined()
+    await expect(removeUser("user-2")).resolves.toEqual({ auditId: "audit-test" })
     expect(mockSelect).not.toHaveBeenCalled()
     expect(mockDelete).toHaveBeenCalledTimes(1)
   })

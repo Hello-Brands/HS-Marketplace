@@ -3,6 +3,17 @@ import { builder, type ChainedBuilder } from "../../../test/helpers/drizzle-mock
 
 vi.mock("server-only", () => ({}))
 
+vi.mock("@/lib/admin/audit", () => ({
+  withAudit: async (
+    _actor: unknown,
+    _action: unknown,
+    _target: unknown,
+    _args: unknown,
+    fn: () => Promise<unknown>,
+  ) => ({ result: await fn(), auditId: "audit-test" }),
+  recordMcpRead: async () => "audit-test",
+}))
+
 // Hoisted so the vi.mock factories (which vitest lifts to the top of the file)
 // can reference these fns without tripping the const TDZ.
 const { auth, update, getMondayCoordsByLocationNumber, mondayCoordsForBqName } = vi.hoisted(() => ({
@@ -26,7 +37,7 @@ describe("setLocationMapping", () => {
   let updateBuilder: ChainedBuilder
 
   beforeEach(() => {
-    auth.mockReset().mockResolvedValue({ user: { role: "admin" } })
+    auth.mockReset().mockResolvedValue({ user: { id: "admin-1", role: "admin" } })
     update.mockReset()
     updateBuilder = builder(undefined)
     update.mockReturnValue(updateBuilder)
@@ -35,15 +46,16 @@ describe("setLocationMapping", () => {
   })
 
   it("rejects non-admins without touching the DB", async () => {
-    auth.mockResolvedValue({ user: { role: "user" } })
-    expect(await setLocationMapping("ll-1", { bqLocationName: "X", status: "confirmed" }))
-      .toEqual({ ok: false, error: "Admin access required" })
+    auth.mockResolvedValue({ user: { id: "u1", role: "user" } })
+    await expect(
+      setLocationMapping("ll-1", { bqLocationName: "X", status: "confirmed" }),
+    ).rejects.toThrow(/Unauthorized/)
     expect(update).not.toHaveBeenCalled()
   })
 
   it("still requires a location name to confirm", async () => {
     expect(await setLocationMapping("ll-1", { bqLocationName: null, status: "confirmed" }))
-      .toEqual({ ok: false, error: "A location is required to confirm." })
+      .toEqual({ ok: false, error: "A location is required to confirm.", auditId: "audit-test" })
     expect(update).not.toHaveBeenCalled()
   })
 
@@ -53,7 +65,7 @@ describe("setLocationMapping", () => {
     mondayCoordsForBqName.mockResolvedValue({ lat: 40.69, lng: -73.98 })
 
     expect(await setLocationMapping("ll-1", { bqLocationName: "Sugar House", status: "confirmed" }))
-      .toEqual({ ok: true })
+      .toEqual({ ok: true, auditId: "audit-test" })
     expect(mondayCoordsForBqName).toHaveBeenCalledWith("Sugar House", coords)
     expect(updateBuilder.calls.set[0][0]).toMatchObject({
       bqLocationName: "Sugar House",
@@ -67,7 +79,7 @@ describe("setLocationMapping", () => {
   it("confirms without coords when the coords fetch fails", async () => {
     getMondayCoordsByLocationNumber.mockResolvedValue(null)
     expect(await setLocationMapping("ll-1", { bqLocationName: "Sugar House", status: "confirmed" }))
-      .toEqual({ ok: true })
+      .toEqual({ ok: true, auditId: "audit-test" })
     expect(mondayCoordsForBqName).not.toHaveBeenCalled()
     const set = updateBuilder.calls.set[0][0] as Record<string, unknown>
     expect(set).toMatchObject({ bqLocationName: "Sugar House", dataMappingStatus: "confirmed" })
@@ -77,13 +89,13 @@ describe("setLocationMapping", () => {
   it("confirms without coords when the lookup throws", async () => {
     getMondayCoordsByLocationNumber.mockRejectedValue(new Error("bq down"))
     expect(await setLocationMapping("ll-1", { bqLocationName: "Sugar House", status: "confirmed" }))
-      .toEqual({ ok: true })
+      .toEqual({ ok: true, auditId: "audit-test" })
     expect((updateBuilder.calls.set[0][0] as Record<string, unknown>)).not.toHaveProperty("latitude")
   })
 
   it("never queries BigQuery for not_connected", async () => {
     expect(await setLocationMapping("ll-1", { bqLocationName: null, status: "not_connected" }))
-      .toEqual({ ok: true })
+      .toEqual({ ok: true, auditId: "audit-test" })
     expect(getMondayCoordsByLocationNumber).not.toHaveBeenCalled()
   })
 })
