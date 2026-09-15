@@ -20,7 +20,10 @@ import path from "node:path"
 const ROOT = path.resolve(import.meta.dirname, "../../..")
 
 /** Scripts that must stay runnable via `npx tsx`. */
-const SCRIPTS = ["scripts/backfill-user-owner-links.ts"]
+const SCRIPTS = [
+  "scripts/backfill-user-owner-links.ts",
+  "scripts/seed-mcp-clients.ts",
+]
 
 const IMPORT_RE = /(?:from|import)\s+["']([^"']+)["']/g
 const SERVER_ONLY_RE = /import\s+["']server-only["']/

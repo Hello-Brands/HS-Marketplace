@@ -42,6 +42,7 @@ See `src/lib/env.ts` for the authoritative list and validators.
 | `npm run db:migrate` | Apply committed migrations (uses `DATABASE_URL_DIRECT`) |
 | `npm run db:push` | **Guarded** — refuses non-local targets (see below) |
 | `npm run db:studio` | Drizzle Studio |
+| `npx tsx --env-file=.env.local scripts/seed-mcp-clients.ts` | Seed the pre-registered MCP OAuth clients (re-runnable upsert) |
 
 ## Database & migrations
 
