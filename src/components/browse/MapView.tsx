@@ -6,6 +6,7 @@ import "@maptiler/sdk/dist/maptiler-sdk.css"
 import { formatUsdCentsCompact } from "@/lib/money"
 import type { ListingCard } from "@/lib/listings-query"
 import type { CompetitorClosure } from "@/lib/competitor-query"
+import { competitorDistanceLine, type AnnotatedCompetitor } from "@/lib/competitor-sort"
 import type { UnlistedHsLocation } from "@/lib/hs-locations-filter"
 import { hsLocationPopupHtml } from "./hs-location-popup"
 import { escapeHtml } from "@/lib/escape-html"
@@ -95,7 +96,7 @@ function statusLabel(status: string): string {
 }
 
 // Detail panel shown when a competitor pin is clicked. Brand-styled inline.
-function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
+function competitorPopupHtml(c: AnnotatedCompetitor, saved: boolean): string {
   const permanent = c.businessStatus === "CLOSED_PERMANENTLY"
   const statusBg = permanent ? BRAND.blush : BRAND.warningLight // danger-soft / warning-soft
   const statusFg = permanent ? BRAND.error : BRAND.warning // danger / warning
@@ -110,10 +111,10 @@ function competitorPopupHtml(c: CompetitorClosure, saved: boolean): string {
     ? `<div style="font-size:11px;color:${BRAND.taupe};margin-top:6px;">${escapeHtml(detectedLine)}</div>`
     : ""
 
-  const nearest =
-    c.nearestHsName && c.nearestHsMiles != null
-      ? `<div style="font-size:12px;color:${BRAND.taupe};margin-top:6px;">${c.nearestHsMiles.toFixed(1)} mi from ${escapeHtml(c.nearestHsName)}</div>`
-      : ""
+  const distanceLine = competitorDistanceLine(c)
+  const nearest = distanceLine
+    ? `<div style="font-size:12px;color:${BRAND.taupe};margin-top:6px;">${escapeHtml(distanceLine)}</div>`
+    : ""
 
   const maps = c.mapsUrl
     ? `<a href="${escapeHtml(c.mapsUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:600;color:${BRAND.crimson};text-decoration:none;">View on Google Maps →</a>`

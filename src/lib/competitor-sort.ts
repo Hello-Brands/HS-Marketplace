@@ -88,3 +88,19 @@ export function annotateAndSortCompetitors(
   }
   return [...annotated].sort((a, b) => closedTime(b) - closedTime(a))
 }
+
+/**
+ * The "X mi from Y" line shown on a competitor card and map popup. Prefers the
+ * viewer's nearest owned salon (≈, straight-line from their own coordinates);
+ * falls back to the scraper's network-wide nearest Hello Sugar for viewers who
+ * own no geocoded salons. Null when neither is known.
+ */
+export function competitorDistanceLine(c: AnnotatedCompetitor): string | null {
+  if (c.ownerDistanceMiles != null && c.ownerDistanceFrom) {
+    return `≈${c.ownerDistanceMiles.toFixed(1)} mi from ${c.ownerDistanceFrom}`
+  }
+  if (c.nearestHsName && c.nearestHsMiles != null) {
+    return `${c.nearestHsMiles.toFixed(1)} mi from ${c.nearestHsName}`
+  }
+  return null
+}
