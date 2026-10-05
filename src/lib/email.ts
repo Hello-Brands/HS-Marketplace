@@ -71,6 +71,9 @@ export interface CompetitorAlertData {
     state: string | null
     nearestHsName: string | null
     nearestHsMiles: number | null
+    /** The recipient's own nearest salon; preferred over nearestHs* when set. */
+    ownerDistanceFrom?: string | null
+    ownerDistanceMiles?: number | null
     mapsUrl: string | null
   }>
 }
@@ -331,9 +334,11 @@ export function buildCompetitorAlertEmail(data: CompetitorAlertData): { subject:
     .map((c) => {
       const loc = [c.city, c.state].filter(Boolean).join(", ")
       const nearest =
-        c.nearestHsName != null && c.nearestHsMiles != null
-          ? `<p style="margin: 0 0 4px 0; color: #8F7067;">Nearest Hello Sugar: ${c.nearestHsName} (${c.nearestHsMiles} mi)</p>`
-          : ""
+        c.ownerDistanceFrom != null && c.ownerDistanceMiles != null
+          ? `<p style="margin: 0 0 4px 0; color: #8F7067;">Nearest of your salons: ${c.ownerDistanceFrom} (≈${c.ownerDistanceMiles.toFixed(1)} mi)</p>`
+          : c.nearestHsName != null && c.nearestHsMiles != null
+            ? `<p style="margin: 0 0 4px 0; color: #8F7067;">Nearest Hello Sugar: ${c.nearestHsName} (${c.nearestHsMiles} mi)</p>`
+            : ""
       const maps = c.mapsUrl
         ? `<p style="margin: 0;"><a href="${c.mapsUrl}" style="color: #ED1845;">View on Google Maps</a></p>`
         : ""

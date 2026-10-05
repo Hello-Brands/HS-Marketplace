@@ -15,6 +15,8 @@ import { getLoggedCompetitorPlaceIds, recordCompetitorAlerts } from "@/lib/compe
 import { sendCompetitorAlertEmail } from "@/lib/email"
 import { savedSearchToBrowseParams } from "@/lib/saved-search"
 import { env } from "@/lib/env"
+import { getOwnerPointsForUser } from "@/lib/owner-directory/data"
+import { annotateOwnerDistance, type OwnerPoint } from "@/lib/competitor-sort"
 
 export async function GET(request: Request) {
   // Verify cron secret to prevent unauthorized invocations
@@ -35,6 +37,23 @@ export async function GET(request: Request) {
   let emailed = 0
   let errors = 0
 
+  // Each recipient's own salons, so the email measures distance from THEIR
+  // nearest location rather than the network-wide nearest Hello Sugar. Cached
+  // per user (one user often has several alerts); a failed lookup degrades to
+  // the network-wide line instead of blocking the send.
+  const ownerPointsByUser = new Map<string, Promise<OwnerPoint[]>>()
+  const ownerPointsFor = (userId: string) => {
+    let p = ownerPointsByUser.get(userId)
+    if (!p) {
+      p = getOwnerPointsForUser(userId).catch((err) => {
+        console.warn(`[competitor-alerts] owner locations lookup failed for user ${userId}`, err)
+        return []
+      })
+      ownerPointsByUser.set(userId, p)
+    }
+    return p
+  }
+
   for (const { alert, user } of rows) {
     if (!alert.notifyEnabled || !alert.includeCompetitors) continue
     if (!user.email) continue
@@ -54,6 +73,7 @@ export async function GET(request: Request) {
       const logged = await getLoggedCompetitorPlaceIds(alert.id)
       const fresh = selectUnloggedCompetitors(inScope, logged)
       if (fresh.length === 0) continue
+      const annotated = annotateOwnerDistance(fresh, await ownerPointsFor(user.id))
 
       const res = await sendCompetitorAlertEmail({
         buyerEmail: user.email,
@@ -61,12 +81,14 @@ export async function GET(request: Request) {
         searchName: alert.name || alert.centerLabel || "your saved search",
         searchUrl: `${appUrl}/browse?${savedSearchToBrowseParams(alert)}&showCompetitors=true`,
         variant: isOwnerAutoAlert(alert) ? "owner-location" : "saved-search",
-        competitors: fresh.map((c) => ({
+        competitors: annotated.map((c) => ({
           brandName: c.brandName,
           city: c.city,
           state: c.state,
           nearestHsName: c.nearestHsName,
           nearestHsMiles: c.nearestHsMiles,
+          ownerDistanceFrom: c.ownerDistanceFrom ?? null,
+          ownerDistanceMiles: c.ownerDistanceMiles ?? null,
           mapsUrl: c.mapsUrl,
         })),
       })

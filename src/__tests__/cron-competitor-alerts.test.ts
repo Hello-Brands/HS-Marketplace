@@ -16,6 +16,7 @@ const {
   mockGetLoggedIds,
   mockRecordAlerts,
   mockSendEmail,
+  mockGetOwnerPoints,
 } = vi.hoisted(() => ({
   mockInnerJoin: vi.fn(),
   mockGetCompetitorClosures: vi.fn(),
@@ -26,6 +27,7 @@ const {
   mockGetLoggedIds: vi.fn(),
   mockRecordAlerts: vi.fn().mockResolvedValue(undefined),
   mockSendEmail: vi.fn(),
+  mockGetOwnerPoints: vi.fn(),
 }))
 
 vi.mock("@/db", () => ({
@@ -44,6 +46,7 @@ vi.mock("@/lib/competitor-alert-log", () => ({
   getLoggedCompetitorPlaceIds: mockGetLoggedIds,
   recordCompetitorAlerts: mockRecordAlerts,
 }))
+vi.mock("@/lib/owner-directory/data", () => ({ getOwnerPointsForUser: mockGetOwnerPoints }))
 vi.mock("@/lib/email", () => ({ sendCompetitorAlertEmail: mockSendEmail }))
 vi.mock("@/lib/saved-search", () => ({ savedSearchToBrowseParams: vi.fn(() => "state=UT") }))
 
@@ -65,6 +68,8 @@ const competitor = {
   nearestHsName: "Hello Sugar Provo",
   nearestHsMiles: 2.1,
   mapsUrl: "https://maps.example/place-1",
+  latitude: 40.2338,
+  longitude: -111.6585,
 }
 
 const alertRow = {
@@ -95,6 +100,7 @@ beforeEach(() => {
   mockGetLoggedIds.mockResolvedValue(new Set())
   mockSelectUnlogged.mockReturnValue([competitor])
   mockSendEmail.mockResolvedValue({ success: true })
+  mockGetOwnerPoints.mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -213,5 +219,45 @@ describe("cron competitor-alerts processing", () => {
     expect(body.emailed).toBe(0)
     expect(mockSendEmail).not.toHaveBeenCalled()
     expect(mockRecordAlerts).not.toHaveBeenCalled()
+  })
+
+  it("measures each competitor from the recipient's own nearest salon", async () => {
+    mockInnerJoin.mockResolvedValue([alertRow])
+    mockGetOwnerPoints.mockResolvedValue([
+      { name: "Orem", latitude: 40.2969, longitude: -111.6946 },
+      { name: "Sugar House", latitude: 40.725, longitude: -111.86 },
+    ])
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    expect(mockGetOwnerPoints).toHaveBeenCalledWith("u1")
+    const sent = mockSendEmail.mock.calls[0][0].competitors[0]
+    expect(sent.ownerDistanceFrom).toBe("Orem")
+    expect(sent.ownerDistanceMiles).toBeGreaterThan(4)
+    expect(sent.ownerDistanceMiles).toBeLessThan(6)
+    // The network-wide nearest still rides along as the email's fallback.
+    expect(sent.nearestHsName).toBe("Hello Sugar Provo")
+  })
+
+  it("sends with no owner distance when the recipient owns no geocoded salons", async () => {
+    mockInnerJoin.mockResolvedValue([alertRow])
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    const sent = mockSendEmail.mock.calls[0][0].competitors[0]
+    expect(sent.ownerDistanceFrom).toBeNull()
+    expect(sent.ownerDistanceMiles).toBeNull()
+  })
+
+  it("still sends (with the fallback line) when the owner lookup fails", async () => {
+    mockInnerJoin.mockResolvedValue([alertRow])
+    mockGetOwnerPoints.mockRejectedValue(new Error("db hiccup"))
+    const res = await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    const body = await res.json()
+    expect(body).toEqual({ success: true, processed: 1, emailed: 1, errors: 0 })
+    expect(mockSendEmail.mock.calls[0][0].competitors[0].ownerDistanceFrom).toBeNull()
+  })
+
+  it("looks up a user's salons once even when they have several alerts", async () => {
+    mockInnerJoin.mockResolvedValue([alertRow, { ...alertRow, alert: { ...alertRow.alert, id: "alert-2" } }])
+    await GET(makeRequest(`Bearer ${CRON_SECRET}`))
+    expect(mockSendEmail).toHaveBeenCalledTimes(2)
+    expect(mockGetOwnerPoints).toHaveBeenCalledTimes(1)
   })
 })
