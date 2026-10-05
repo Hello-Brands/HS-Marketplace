@@ -48,4 +48,19 @@ describe("buildCompetitorAlertEmail", () => {
     expect(html).not.toContain("View your saved search")
     expect(html).toContain("permanently closed near your location")
   })
+  it("prefers the recipient's own nearest salon over the network-wide nearest", () => {
+    const { html } = buildCompetitorAlertEmail({
+      ...data,
+      competitors: [
+        { ...data.competitors[0], ownerDistanceFrom: "Chandler", ownerDistanceMiles: 4.26 },
+      ],
+    })
+    expect(html).toContain("Nearest of your salons: Chandler (≈4.3 mi)")
+    expect(html).not.toContain("Watermark")
+  })
+  it("falls back to the network-wide nearest when no owner distance is given", () => {
+    const { html } = buildCompetitorAlertEmail(data)
+    expect(html).toContain("Nearest Hello Sugar: Watermark (2.3 mi)")
+    expect(html).not.toContain("Nearest of your salons")
+  })
 })

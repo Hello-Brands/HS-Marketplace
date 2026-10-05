@@ -43,6 +43,29 @@ export function toOwnerPoints(
 }
 
 /**
+ * Annotate each closure with the distance to the nearest of the given owned
+ * salons, preserving input order. Rows get null distances when `ownerPoints` is
+ * empty. Pure; the caller resolves whose salons these are.
+ */
+export function annotateOwnerDistance(
+  competitors: CompetitorClosure[],
+  ownerPoints: OwnerPoint[]
+): AnnotatedCompetitor[] {
+  return competitors.map((c) => {
+    let best: { d: number; name: string } | null = null
+    for (const p of ownerPoints) {
+      const d = haversineMiles(p.latitude, p.longitude, c.latitude, c.longitude)
+      if (best === null || d < best.d) best = { d, name: p.name }
+    }
+    return {
+      ...c,
+      ownerDistanceMiles: best ? best.d : null,
+      ownerDistanceFrom: best ? best.name : null,
+    }
+  })
+}
+
+/**
  * Annotate each closure with the distance to the viewer's nearest owned salon,
  * then sort: searched center (when set) → newest detected closure. Pure; the
  * caller resolves session/owner data.
@@ -55,20 +78,7 @@ export function annotateAndSortCompetitors(
   competitors: CompetitorClosure[],
   ctx: CompetitorSortContext
 ): AnnotatedCompetitor[] {
-  const ownerPoints = ctx.ownerPoints ?? []
-
-  const annotated: AnnotatedCompetitor[] = competitors.map((c) => {
-    let best: { d: number; name: string } | null = null
-    for (const p of ownerPoints) {
-      const d = haversineMiles(p.latitude, p.longitude, c.latitude, c.longitude)
-      if (best === null || d < best.d) best = { d, name: p.name }
-    }
-    return {
-      ...c,
-      ownerDistanceMiles: best ? best.d : null,
-      ownerDistanceFrom: best ? best.name : null,
-    }
-  })
+  const annotated = annotateOwnerDistance(competitors, ctx.ownerPoints ?? [])
 
   const center = ctx.searchCenter
   if (center) {

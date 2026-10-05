@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
   annotateAndSortCompetitors,
   toOwnerPoints,
+  annotateOwnerDistance,
   competitorDistanceLine,
 } from "@/lib/competitor-sort"
 import type { CompetitorClosure } from "@/lib/competitor-query"
@@ -94,6 +95,22 @@ describe("toOwnerPoints", () => {
       { blvdLocationName: "No Coords", latitude: null, longitude: null },
     ])
     expect(points).toEqual([{ name: "Sugar House", latitude: 40.725, longitude: -111.86 }])
+  })
+})
+
+describe("annotateOwnerDistance", () => {
+  it("annotates the nearest owned salon and preserves input order", () => {
+    const newer = makeCompetitor({ googlePlaceId: "a", closedAt: "2026-09-01T00:00:00Z" })
+    const older = makeCompetitor({ googlePlaceId: "b", closedAt: "2026-01-01T00:00:00Z" })
+    const out = annotateOwnerDistance([older, newer], [PROVO, SUGAR_HOUSE])
+    expect(out.map((c) => c.googlePlaceId)).toEqual(["b", "a"])
+    expect(out[0].ownerDistanceFrom).toBe("Sugar House")
+  })
+
+  it("leaves distances null with no owned salons", () => {
+    const [c] = annotateOwnerDistance([makeCompetitor({})], [])
+    expect(c.ownerDistanceMiles).toBeNull()
+    expect(c.ownerDistanceFrom).toBeNull()
   })
 })
 

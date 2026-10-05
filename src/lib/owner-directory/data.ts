@@ -7,6 +7,7 @@ import { ownerLocations, userOwnerLinks, type OwnerLocation } from "@/db/schema"
 import { UNKNOWN_OWNER } from "./query"
 import { getEffectiveOwnerIdentifiers } from "./links"
 import { groupUserLinkRows, type AdminUserRow } from "./admin-view"
+import { toOwnerPoints, type OwnerPoint } from "@/lib/competitor-sort"
 
 /**
  * The logged-in user's owned locations, scoped in the QUERY (not just the UI):
@@ -39,6 +40,33 @@ export async function getMyOwnerLocations(): Promise<{
     .orderBy(asc(ownerLocations.blvdLocationName))
 
   return { ownerIdentifiers, locations }
+}
+
+/**
+ * A given user's geocoded owned salons, WITHOUT a session check — for the
+ * competitor-alert cron, which runs with no signed-in user and annotates each
+ * recipient's email with the distance to their own nearest salon. Same scoping
+ * as getMyOwnerLocations (effective links only, Unknown Owner excluded).
+ *
+ * Every caller MUST be a trusted server context acting for `userId` (the
+ * CRON_SECRET-gated cron); never expose this to a request-chosen userId.
+ */
+export async function getOwnerPointsForUser(userId: string): Promise<OwnerPoint[]> {
+  const ownerIdentifiers = (await getEffectiveOwnerIdentifiers(userId)).filter(
+    (o) => o !== UNKNOWN_OWNER
+  )
+  if (ownerIdentifiers.length === 0) return []
+
+  const locations = await db
+    .select({
+      blvdLocationName: ownerLocations.blvdLocationName,
+      latitude: ownerLocations.latitude,
+      longitude: ownerLocations.longitude,
+    })
+    .from(ownerLocations)
+    .where(inArray(ownerLocations.ownerIdentifier, ownerIdentifiers))
+
+  return toOwnerPoints(locations)
 }
 
 async function requireAdminSession() {
