@@ -1,6 +1,6 @@
 'use client'
 
-import type { AnnotatedCompetitor } from "@/lib/competitor-sort"
+import { competitorDistanceLine, type AnnotatedCompetitor } from "@/lib/competitor-sort"
 import { isNewClosure, formatClosureDetected } from "@/lib/closure-recency"
 import { SaveCompetitorButton } from "./SaveCompetitorButton"
 
@@ -49,6 +49,7 @@ export function CompetitorList({
           const place = [c.city, c.state].filter(Boolean).join(", ")
           const isNew = isNewClosure(c.closedAt, now)
           const detectedLine = formatClosureDetected(c.closedAt)
+          const distanceLine = competitorDistanceLine(c)
           return (
             <div
               key={c.googlePlaceId}
@@ -93,15 +94,9 @@ export function CompetitorList({
                 <p className="text-xs text-gray-500 mt-1 truncate">
                   {c.address}{place ? ` · ${place}` : ""}
                 </p>
-                {c.ownerDistanceMiles != null && c.ownerDistanceFrom ? (
-                  <p className="text-xs text-hs-taupe mt-1">
-                    ≈{c.ownerDistanceMiles.toFixed(1)} mi from {c.ownerDistanceFrom}
-                  </p>
-                ) : c.nearestHsName && c.nearestHsMiles != null ? (
-                  <p className="text-xs text-hs-taupe mt-1">
-                    {c.nearestHsMiles.toFixed(1)} mi from {c.nearestHsName}
-                  </p>
-                ) : null}
+                {distanceLine && (
+                  <p className="text-xs text-hs-taupe mt-1">{distanceLine}</p>
+                )}
                 {detectedLine && (
                   <p className="text-xs text-hs-taupe mt-1">{detectedLine}</p>
                 )}
